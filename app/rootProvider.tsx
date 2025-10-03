@@ -7,7 +7,7 @@ import "@coinbase/onchainkit/styles.css";
 export function RootProvider({ children }: { children: ReactNode }) {
   return (
     <OnchainKitProvider
-      apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
+      apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY || "demo"}
       chain={base}
       config={{
         appearance: {
