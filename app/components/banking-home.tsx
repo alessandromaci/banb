@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Avatar,
   AvatarFallback,
@@ -10,25 +9,16 @@ import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import {
-  Search,
   AudioLines,
   ArrowDown,
   BarChart3,
   Menu,
   Plus,
-  RefreshCw,
-  FileText,
   MoreHorizontal,
-  Home,
-  TrendingUp,
   Send,
-  Bitcoin,
-  Grid3x3,
 } from "lucide-react";
 
 export function BankingHome() {
-  const [activeTab, setActiveTab] = useState("home");
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
       {/* Mobile Container */}
