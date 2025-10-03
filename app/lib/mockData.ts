@@ -8,18 +8,18 @@ export const profile = {
 export const transactions = [
   {
     id: 1,
-    title: "Send money to Nik",
-    amount: -14.0,
+    title: "Household utilities",
+    amount: -634.0,
     currency: "EUR",
     time: "14:35",
-    icon: "💸",
+    icon: "🏠",
   },
   {
     id: 2,
-    title: "Invest in Morpho vault",
-    amount: -100.0,
+    title: "Gym subscription",
+    amount: -29.99,
     currency: "EUR",
     time: "10:20",
-    icon: "💰",
+    icon: "💪",
   },
 ];
