@@ -17,7 +17,7 @@ export default function Success() {
         });
         console.log("Shared successfully");
       } catch (error) {
-        console.log("Share cancelled or failed");
+        console.log("Share cancelled or failed:", error);
       }
     } else {
       // Fallback: copy to clipboard
