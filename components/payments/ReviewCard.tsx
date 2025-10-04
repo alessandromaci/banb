@@ -1,25 +1,28 @@
-"use client"
+"use client";
 
-import { useRouter, useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface ReviewCardProps {
-  recipientName: string
-  recipientDetails: string
-  type: string
+  recipientName: string;
+  recipientDetails: string;
+  type: string;
 }
 
-export function ReviewCard({ recipientName, recipientDetails, type }: ReviewCardProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const amount = searchParams.get("amount") || "0"
-  const note = searchParams.get("note") || ""
+export function ReviewCard({
+  recipientName,
+  recipientDetails,
+}: ReviewCardProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const amount = searchParams.get("amount") || "0";
+  const note = searchParams.get("note") || "";
 
   const handleSend = () => {
-    const txId = Date.now().toString()
-    router.push(`/payments/status/${txId}`)
-  }
+    const txId = Date.now().toString();
+    router.push(`/payments/status/${txId}`);
+  };
 
   return (
     <div className="flex flex-col h-full px-6">
@@ -27,8 +30,12 @@ export function ReviewCard({ recipientName, recipientDetails, type }: ReviewCard
         <Card className="bg-[#2A2640] border-0 rounded-3xl p-6 space-y-6">
           <div>
             <div className="text-white/60 text-sm mb-1">To</div>
-            <div className="text-white text-lg font-medium">{recipientName}</div>
-            <div className="text-white/50 text-sm font-mono">{recipientDetails}</div>
+            <div className="text-white text-lg font-medium">
+              {recipientName}
+            </div>
+            <div className="text-white/50 text-sm font-mono">
+              {recipientDetails}
+            </div>
           </div>
 
           <div className="h-px bg-white/10" />
@@ -54,7 +61,9 @@ export function ReviewCard({ recipientName, recipientDetails, type }: ReviewCard
           <div>
             <div className="text-white/60 text-sm mb-1">From</div>
             <div className="text-white flex items-center gap-2">
-              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">R</span>
+              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
+                R
+              </span>
               Main · €2290.73
             </div>
           </div>
@@ -70,5 +79,5 @@ export function ReviewCard({ recipientName, recipientDetails, type }: ReviewCard
         </Button>
       </div>
     </div>
-  )
+  );
 }
