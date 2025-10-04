@@ -2,6 +2,8 @@
 
 import { minikitConfig } from "../../minikit.config";
 import styles from "./page.module.css";
+// import { useComposeCast } from '@coinbase/onchainkit/minikit';
+// check commit fix success page. I had to remove many imports and orignal codes bc success page was broken in base vercel duh! was failing
 
 export default function Success() {
   const handleShare = async () => {

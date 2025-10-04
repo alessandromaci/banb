@@ -1,0 +1,35 @@
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { AmountInput } from "@/components/payments/AmountInput"
+import { friends } from "@/lib/mockFriends"
+
+export default function AmountPage({ params }: { params: { type: string; recipientId: string } }) {
+  // Get recipient name based on type
+  let recipientName = "Recipient"
+
+  if (params.type === "friend") {
+    const friend = friends.find((f) => f.id.toString() === params.recipientId)
+    recipientName = friend?.name || "Friend"
+  } else {
+    recipientName = "New recipient"
+  }
+
+  return (
+    <div className="min-h-screen bg-[#1E1B3D] text-white flex flex-col">
+      <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+        {/* Header */}
+        <div className="flex items-center px-6 py-4">
+          <Link href="/payments">
+            <Button size="icon" variant="ghost" className="h-10 w-10 text-white hover:bg-white/10">
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Amount Input */}
+        <AmountInput recipientName={recipientName} type={params.type} recipientId={params.recipientId} />
+      </div>
+    </div>
+  )
+}

@@ -1,13 +1,9 @@
 "use client";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/app/components/ui/avatar";
-import { Button } from "@/app/components/ui/button";
-import { Card } from "@/app/components/ui/card";
-import { Input } from "@/app/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   AudioLines,
   ArrowDown,
@@ -17,8 +13,13 @@ import {
   MoreHorizontal,
   Send,
 } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function BankingHome() {
+  const [, setActiveTab] = useState("home");
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
       {/* Mobile Container */}
@@ -88,6 +89,10 @@ export function BankingHome() {
             </div>
             <div className="flex flex-col items-center gap-2">
               <Button
+                onClick={() => {
+                  setActiveTab("payments");
+                  router.push("/payments");
+                }}
                 size="icon"
                 className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0"
               >

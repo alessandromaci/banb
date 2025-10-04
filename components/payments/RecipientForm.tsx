@@ -1,0 +1,161 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+interface RecipientFormProps {
+  type: "wallet" | "bank"
+}
+
+export function RecipientForm({ type }: RecipientFormProps) {
+  const router = useRouter()
+  const [formData, setFormData] = useState<Record<string, string>>({})
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const recipientId = Date.now().toString()
+    router.push(`/payments/${type}/${recipientId}/amount`)
+  }
+
+  if (type === "wallet") {
+    return (
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-white/80 text-sm">
+            Recipient name
+          </Label>
+          <Input
+            id="name"
+            placeholder="Name"
+            value={formData.name || ""}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address" className="text-white/80 text-sm">
+            Wallet address
+          </Label>
+          <Input
+            id="address"
+            placeholder="0x..."
+            value={formData.address || ""}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl font-mono text-sm"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="network" className="text-white/80 text-sm">
+            Network
+          </Label>
+          <Select value={formData.network} onValueChange={(value) => setFormData({ ...formData, network: value })}>
+            <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
+              <SelectValue placeholder="Select network" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#2A2640] border-white/10 text-white">
+              <SelectItem value="ethereum">Ethereum</SelectItem>
+              <SelectItem value="base">Base</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button type="submit" className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base">
+          Continue
+        </Button>
+      </form>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="firstName" className="text-white/80 text-sm">
+          First name
+        </Label>
+        <Input
+          id="firstName"
+          placeholder="First name"
+          value={formData.firstName || ""}
+          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+          className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="lastName" className="text-white/80 text-sm">
+          Last name
+        </Label>
+        <Input
+          id="lastName"
+          placeholder="Last name"
+          value={formData.lastName || ""}
+          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+          className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="country" className="text-white/80 text-sm">
+          Country
+        </Label>
+        <Select value={formData.country} onValueChange={(value) => setFormData({ ...formData, country: value })}>
+          <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
+            <SelectValue placeholder="Select country" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#2A2640] border-white/10 text-white">
+            <SelectItem value="uk">United Kingdom</SelectItem>
+            <SelectItem value="us">United States</SelectItem>
+            <SelectItem value="de">Germany</SelectItem>
+            <SelectItem value="fr">France</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="currency" className="text-white/80 text-sm">
+          Currency
+        </Label>
+        <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
+          <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
+            <SelectValue placeholder="Select currency" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#2A2640] border-white/10 text-white">
+            <SelectItem value="usd">USD</SelectItem>
+            <SelectItem value="eur">EUR</SelectItem>
+            <SelectItem value="gbp">GBP</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="iban" className="text-white/80 text-sm">
+          IBAN
+        </Label>
+        <Input
+          id="iban"
+          placeholder="GB00 0000 0000 0000 0000 00"
+          value={formData.iban || ""}
+          onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
+          className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl font-mono text-sm"
+          required
+        />
+      </div>
+
+      <Button type="submit" className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base">
+        Continue
+      </Button>
+    </form>
+  )
+}
