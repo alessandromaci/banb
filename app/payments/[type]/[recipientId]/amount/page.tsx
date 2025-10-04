@@ -1,18 +1,26 @@
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { AmountInput } from "@/components/payments/AmountInput"
-import { friends } from "@/lib/mockFriends"
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { AmountInput } from "@/components/payments/AmountInput";
+import { friends } from "@/lib/mockFriends";
 
-export default function AmountPage({ params }: { params: { type: string; recipientId: string } }) {
+export default async function AmountPage({
+  params,
+}: {
+  params: Promise<{ type: string; recipientId: string }>;
+}) {
+  const resolvedParams = await params;
+
   // Get recipient name based on type
-  let recipientName = "Recipient"
+  let recipientName = "Recipient";
 
-  if (params.type === "friend") {
-    const friend = friends.find((f) => f.id.toString() === params.recipientId)
-    recipientName = friend?.name || "Friend"
+  if (resolvedParams.type === "friend") {
+    const friend = friends.find(
+      (f) => f.id.toString() === resolvedParams.recipientId
+    );
+    recipientName = friend?.name || "Friend";
   } else {
-    recipientName = "New recipient"
+    recipientName = "New recipient";
   }
 
   return (
@@ -21,15 +29,23 @@ export default function AmountPage({ params }: { params: { type: string; recipie
         {/* Header */}
         <div className="flex items-center px-6 py-4">
           <Link href="/payments">
-            <Button size="icon" variant="ghost" className="h-10 w-10 text-white hover:bg-white/10">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-10 w-10 text-white hover:bg-white/10"
+            >
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
         </div>
 
         {/* Amount Input */}
-        <AmountInput recipientName={recipientName} type={params.type} recipientId={params.recipientId} />
+        <AmountInput
+          recipientName={recipientName}
+          type={resolvedParams.type}
+          recipientId={resolvedParams.recipientId}
+        />
       </div>
     </div>
-  )
+  );
 }

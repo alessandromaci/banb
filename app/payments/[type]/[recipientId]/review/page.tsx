@@ -1,24 +1,32 @@
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ReviewCard } from "@/components/payments/ReviewCard"
-import { friends } from "@/lib/mockFriends"
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ReviewCard } from "@/components/payments/ReviewCard";
+import { friends } from "@/lib/mockFriends";
 
-export default function ReviewPage({ params }: { params: { type: string; recipientId: string } }) {
+export default async function ReviewPage({
+  params,
+}: {
+  params: Promise<{ type: string; recipientId: string }>;
+}) {
+  const resolvedParams = await params;
+
   // Get recipient details based on type
-  let recipientName = "Recipient"
-  let recipientDetails = ""
+  let recipientName = "Recipient";
+  let recipientDetails = "";
 
-  if (params.type === "friend") {
-    const friend = friends.find((f) => f.id.toString() === params.recipientId)
-    recipientName = friend?.name || "Friend"
-    recipientDetails = friend?.username || ""
-  } else if (params.type === "wallet") {
-    recipientName = "Crypto Wallet"
-    recipientDetails = "0x1234...5678"
-  } else if (params.type === "bank") {
-    recipientName = "Bank Account"
-    recipientDetails = "GB00 0000 0000 0000 00"
+  if (resolvedParams.type === "friend") {
+    const friend = friends.find(
+      (f) => f.id.toString() === resolvedParams.recipientId
+    );
+    recipientName = friend?.name || "Friend";
+    recipientDetails = friend?.username || "";
+  } else if (resolvedParams.type === "wallet") {
+    recipientName = "Crypto Wallet";
+    recipientDetails = "0x1234...5678";
+  } else if (resolvedParams.type === "bank") {
+    recipientName = "Bank Account";
+    recipientDetails = "GB00 0000 0000 0000 00";
   }
 
   return (
@@ -26,8 +34,14 @@ export default function ReviewPage({ params }: { params: { type: string; recipie
       <div className="mx-auto max-w-md w-full flex flex-col h-screen">
         {/* Header */}
         <div className="flex items-center px-6 py-4">
-          <Link href={`/payments/${params.type}/${params.recipientId}/amount`}>
-            <Button size="icon" variant="ghost" className="h-10 w-10 text-white hover:bg-white/10">
+          <Link
+            href={`/payments/${resolvedParams.type}/${resolvedParams.recipientId}/amount`}
+          >
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-10 w-10 text-white hover:bg-white/10"
+            >
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
@@ -35,8 +49,12 @@ export default function ReviewPage({ params }: { params: { type: string; recipie
         </div>
 
         {/* Review Card */}
-        <ReviewCard recipientName={recipientName} recipientDetails={recipientDetails} type={params.type} />
+        <ReviewCard
+          recipientName={recipientName}
+          recipientDetails={recipientDetails}
+          type={resolvedParams.type}
+        />
       </div>
     </div>
-  )
+  );
 }
