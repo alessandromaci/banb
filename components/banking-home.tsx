@@ -13,12 +13,27 @@ import {
   MoreHorizontal,
   Send,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 export function BankingHome() {
   const [, setActiveTab] = useState("home");
   const router = useRouter();
+
+  useEffect(() => {
+    // Call sdk.actions.ready() to hide the splash screen
+    const initializeSDK = async () => {
+      try {
+        await sdk.actions.ready();
+        console.log("Farcaster SDK ready - splash screen hidden");
+      } catch (error) {
+        console.error("Failed to initialize Farcaster SDK:", error);
+      }
+    };
+
+    initializeSDK();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
