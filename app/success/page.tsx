@@ -2,34 +2,55 @@
 
 import { minikitConfig } from "../../minikit.config";
 import styles from "./page.module.css";
-// import { useComposeCast } from '@coinbase/onchainkit/minikit';
-// check commit fix success page. I had to remove many imports and orignal codes bc success page was broken in base vercel duh! was failing
+import { useEffect } from "react";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 export default function Success() {
-  const handleShare = async () => {
-    // Simple share functionality without OnchainKit
-    const text = `Yay! I just joined the waitlist for ${minikitConfig.miniapp.name.toUpperCase()}! `;
-
-    if (navigator.share) {
+  useEffect(() => {
+    // Call sdk.actions.ready() to hide the splash screen
+    const initializeSDK = async () => {
       try {
-        await navigator.share({
-          title: `Joined ${minikitConfig.miniapp.name} waitlist!`,
-          text: text,
-          url: process.env.NEXT_PUBLIC_URL || "",
-        });
-        console.log("Shared successfully");
+        await sdk.actions.ready();
+        console.log("Farcaster SDK ready - splash screen hidden");
       } catch (error) {
-        console.log("Share cancelled or failed:", error);
+        console.error("Failed to initialize Farcaster SDK:", error);
       }
-    } else {
-      // Fallback: copy to clipboard
-      try {
-        await navigator.clipboard.writeText(
-          text + (process.env.NEXT_PUBLIC_URL || "")
-        );
-        alert("Copied to clipboard!");
-      } catch (error) {
-        console.error("Failed to copy to clipboard:", error);
+    };
+
+    initializeSDK();
+  }, []);
+
+  const handleShare = async () => {
+    try {
+      const text = `Yay! I just joined the waitlist for ${minikitConfig.miniapp.name.toUpperCase()}! `;
+
+      // Use Farcaster SDK to compose a cast
+      const result = await sdk.actions.composeCast({
+        text: text,
+        embeds: [process.env.NEXT_PUBLIC_URL || ""],
+      });
+
+      // result.cast can be null if user cancels
+      if (result?.cast) {
+        console.log("Cast created successfully:", result.cast.hash);
+      } else {
+        console.log("User cancelled the cast");
+      }
+    } catch (error) {
+      console.error("Error sharing cast:", error);
+
+      // Fallback to native sharing if Farcaster SDK fails
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Joined ${minikitConfig.miniapp.name} waitlist!`,
+            text: `Yay! I just joined the waitlist for ${minikitConfig.miniapp.name.toUpperCase()}! `,
+            url: process.env.NEXT_PUBLIC_URL || "",
+          });
+          console.log("Shared successfully via native sharing");
+        } catch (fallbackError) {
+          console.log("Native sharing also failed:", fallbackError);
+        }
       }
     }
   };
