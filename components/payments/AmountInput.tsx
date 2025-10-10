@@ -25,7 +25,6 @@ export function AmountInput({
 
   const { address: userAddress } = useAccount();
   const {
-    balance,
     formattedBalance,
     isLoading: balanceLoading,
     isError: balanceError,

@@ -251,7 +251,11 @@ export function useTransactionStatus(txId: string | null) {
 
 // Utility: Get USDC balance for an address (can be used for UI display)
 export function useUSDCBalance(address?: `0x${string}`) {
-  const { data: balance } = useReadContract({
+  const {
+    data: balance,
+    error: balanceError,
+    isLoading,
+  } = useReadContract({
     address: USDC_BASE_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "balanceOf",
@@ -263,9 +267,11 @@ export function useUSDCBalance(address?: `0x${string}`) {
   });
 
   return {
-    balance,
-    formattedBalance: balance
-      ? (Number(balance) / Math.pow(10, USDC_DECIMALS)).toFixed(2)
-      : "0",
+    formattedBalance:
+      balance !== undefined
+        ? (Number(balance) / Math.pow(10, USDC_DECIMALS)).toFixed(2)
+        : undefined,
+    isLoading,
+    isError: !!balanceError,
   };
 }
