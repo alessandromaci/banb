@@ -9,6 +9,7 @@ import {
   useWriteContract,
 } from "wagmi";
 import { parseUnits } from "viem";
+import { base } from "wagmi/chains";
 import { createTransaction, updateTransactionStatus } from "./transactions";
 import type { Transaction } from "./supabase";
 import ERC20_ABI from "./abi/ERC20.abi.json";
@@ -52,6 +53,7 @@ export function useCryptoPayment() {
     address: USDC_BASE_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "transfer",
+    chainId: base.id, // Explicitly set chain ID for Farcaster connector compatibility
     args:
       paymentData?.to && paymentData?.amount
         ? [
@@ -131,16 +133,16 @@ export function useCryptoPayment() {
         userAddress || "NOT CONNECTED"
       );
 
-      // if (!userAddress) {
-      //   const err =
-      //     "Wallet not connected. Please connect your wallet to continue.";
-      //   console.error("[executePayment] ❌ BLOCKED:", err);
-      //   setError(err);
-      //   throw new Error(err);
-      // }
+      if (!userAddress) {
+        const err =
+          "Wallet not connected. Please connect your wallet to continue.";
+        console.error("[executePayment] ❌ BLOCKED:", err);
+        setError(err);
+        throw new Error(err);
+      }
 
-      // setIsLoading(true);
-      // setError(null);
+      setIsLoading(true);
+      setError(null);
 
       try {
         // 1. Create transaction record in Supabase with pending status
@@ -331,6 +333,7 @@ export function useUSDCBalance(address?: `0x${string}`) {
     address: USDC_BASE_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "balanceOf",
+    chainId: base.id,
     args: address ? [address] : undefined,
     query: {
       enabled: !!address,
