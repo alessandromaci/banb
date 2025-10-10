@@ -4,7 +4,6 @@ import React, { useState, useCallback } from "react";
 import {
   useAccount,
   useReadContract,
-  useSimulateContract,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -37,34 +36,9 @@ const USDC_DECIMALS = 6;
 export function useCryptoPayment() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentData, setPaymentData] = useState<CryptoPaymentData | null>(
-    null
-  );
   const [transactionId, setTransactionId] = useState<string | null>(null);
 
   const { address: userAddress } = useAccount();
-
-  // Simulate transfer transaction (only when we have valid payment data)
-  const {
-    data: transferSimulation,
-    error: simulationError,
-    isLoading: isSimulating,
-  } = useSimulateContract({
-    address: USDC_BASE_ADDRESS as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: "transfer",
-    chainId: base.id, // Explicitly set chain ID for Farcaster connector compatibility
-    args:
-      paymentData?.to && paymentData?.amount
-        ? [
-            paymentData.to as `0x${string}`,
-            parseUnits(paymentData.amount, USDC_DECIMALS),
-          ]
-        : undefined,
-    query: {
-      enabled: !!(paymentData?.to && paymentData?.amount && userAddress),
-    },
-  });
 
   const {
     data: txHash,
@@ -80,30 +54,6 @@ export function useCryptoPayment() {
         enabled: !!txHash,
       },
     });
-
-  // Only log when we have active payment data
-  React.useEffect(() => {
-    if (paymentData) {
-      console.log("[useCryptoPayment] Payment data updated", {
-        userAddress,
-        recipientAddress: paymentData.to,
-        amount: paymentData.amount,
-        token: paymentData.token,
-      });
-      console.log("[useCryptoPayment] Simulation state", {
-        hasSimulation: !!transferSimulation?.request,
-        isSimulating,
-        simulationError: simulationError?.message,
-        enabled: !!(paymentData?.to && paymentData?.amount && userAddress),
-      });
-    }
-  }, [
-    paymentData,
-    transferSimulation,
-    isSimulating,
-    simulationError,
-    userAddress,
-  ]);
 
   // Log transaction hash when available
   React.useEffect(() => {
@@ -161,50 +111,29 @@ export function useCryptoPayment() {
         );
         setTransactionId(transaction.id);
 
-        // 2. Set payment data to trigger simulation
-        console.log("[executePayment] Step 2: Triggering contract simulation");
-        setPaymentData(data);
-
-        // 3. Wait a moment for simulation to run
+        // 2. Prepare transaction parameters
+        const amountWei = parseUnits(data.amount, USDC_DECIMALS);
         console.log(
-          "[executePayment] Step 3: Waiting for simulation to complete..."
+          "[executePayment] Step 2: Preparing transaction parameters"
         );
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // 4. Check if simulation succeeded
-        if (simulationError) {
-          console.error(
-            "[executePayment] ❌ Step 4 FAILED: Simulation error",
-            simulationError
-          );
-          throw new Error(`Simulation failed: ${simulationError.message}`);
-        }
-
-        if (!transferSimulation?.request) {
-          console.error(
-            "[executePayment] ❌ Step 4 FAILED: No simulation available",
-            {
-              isSimulating,
-              hasTransferSimulation: !!transferSimulation,
-              simulationError,
-            }
-          );
-          throw new Error("Transfer simulation not ready. Please try again.");
-        }
-
-        console.log("[executePayment] ✓ Step 4: Simulation successful");
-        console.log("[executePayment] Transfer parameters:", {
+        console.log("[executePayment] Transfer details:", {
           contract: USDC_BASE_ADDRESS,
           to: data.to,
           amount: data.amount,
-          amountWei: parseUnits(data.amount, USDC_DECIMALS).toString(),
+          amountWei: amountWei.toString(),
         });
 
-        // 5. Execute the transaction
+        // 3. Execute the transaction (skipping simulation due to connector limitations)
         console.log(
-          "[executePayment] Step 5: Executing blockchain transaction..."
+          "[executePayment] Step 3: Executing blockchain transaction..."
         );
-        const hash = await writeContractAsync(transferSimulation.request);
+        const hash = await writeContractAsync({
+          address: USDC_BASE_ADDRESS as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [data.to as `0x${string}`, amountWei],
+          chainId: base.id,
+        });
         console.log("[executePayment] ✓ Transaction submitted! Hash:", hash);
 
         if (!hash) {
@@ -212,9 +141,9 @@ export function useCryptoPayment() {
           throw new Error("Transaction hash not available");
         }
 
-        // 6. Update transaction with hash and sent status
+        // 4. Update transaction with hash and sent status
         console.log(
-          "[executePayment] Step 6: Updating database with transaction hash"
+          "[executePayment] Step 4: Updating database with transaction hash"
         );
         await updateTransactionStatus(transaction.id, "sent", hash);
         console.log("[executePayment] ✓ Database updated");
@@ -260,20 +189,13 @@ export function useCryptoPayment() {
         );
       }
     },
-    [
-      userAddress,
-      transferSimulation,
-      simulationError,
-      isSimulating,
-      writeContractAsync,
-      transactionId,
-    ]
+    [userAddress, writeContractAsync, transactionId]
   );
 
   return {
     executePayment,
     isLoading: isLoading || isWritePending || isConfirming,
-    error: error || writeError?.message || simulationError?.message,
+    error: error || writeError?.message,
   };
 }
 
