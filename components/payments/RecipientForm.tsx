@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { isAddress } from "viem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +35,13 @@ export function RecipientForm({ type }: RecipientFormProps) {
 
     try {
       if (type === "wallet") {
+        // Validate address before submission
+        if (!formData.address || !isAddress(formData.address)) {
+          setAddressError("Please enter a valid Ethereum address");
+          setIsLoading(false);
+          return;
+        }
+
         // Add recipient to Supabase for crypto payments
         const recipient = await addRecipient({
           name: formData.name,
@@ -86,12 +95,27 @@ export function RecipientForm({ type }: RecipientFormProps) {
             id="address"
             placeholder="0x..."
             value={formData.address || ""}
-            onChange={(e) =>
-              setFormData({ ...formData, address: e.target.value })
-            }
-            className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl font-mono text-sm"
+            onChange={(e) => {
+              const value = e.target.value;
+              setFormData({ ...formData, address: value });
+
+              // Validate address on change
+              if (value && !isAddress(value)) {
+                setAddressError("Invalid Ethereum address");
+              } else {
+                setAddressError(null);
+              }
+            }}
+            className={`bg-[#3A3650] border text-white placeholder:text-white/40 h-14 rounded-2xl font-mono text-sm ${
+              addressError
+                ? "border-red-500/50 focus-visible:ring-red-500"
+                : "border-transparent"
+            }`}
             required
           />
+          {addressError && (
+            <p className="text-red-400 text-xs mt-1">{addressError}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -108,7 +132,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
               <SelectValue placeholder="Select network" />
             </SelectTrigger>
             <SelectContent className="bg-[#2A2640] border-white/10 text-white">
-              <SelectItem value="ethereum">Ethereum</SelectItem>
+              {/* <SelectItem value="ethereum">Ethereum</SelectItem> */}
               <SelectItem value="base">Base</SelectItem>
             </SelectContent>
           </Select>
@@ -116,7 +140,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
 
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || !!addressError}
           className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base disabled:opacity-50"
         >
           {isLoading ? "Adding recipient..." : "Continue"}
