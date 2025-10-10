@@ -1,27 +1,53 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { StickyNote } from "lucide-react"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAccount } from "wagmi";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StickyNote } from "lucide-react";
+import { useUSDCBalance } from "@/lib/payments";
 
 interface AmountInputProps {
-  recipientName: string
-  type: string
-  recipientId: string
+  recipientName: string;
+  type: string;
+  recipientId: string;
 }
 
-export function AmountInput({ recipientName, type, recipientId }: AmountInputProps) {
-  const router = useRouter()
-  const [amount, setAmount] = useState("")
-  const [note, setNote] = useState("")
+export function AmountInput({
+  recipientName,
+  type,
+  recipientId,
+}: AmountInputProps) {
+  const router = useRouter();
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+
+  const { address: userAddress } = useAccount();
+  const {
+    balance,
+    formattedBalance,
+    isLoading: balanceLoading,
+    isError: balanceError,
+  } = useUSDCBalance(userAddress);
+
+  const isWalletPayment = type === "wallet";
+
+  // Check if user has insufficient balance (only for wallet payments with valid balance)
+  const hasInsufficientBalance = Boolean(
+    isWalletPayment &&
+      formattedBalance !== undefined &&
+      amount &&
+      parseFloat(amount) > parseFloat(formattedBalance)
+  );
 
   const handleContinue = () => {
-    if (amount && Number.parseFloat(amount) > 0) {
-      router.push(`/payments/${type}/${recipientId}/review?amount=${amount}&note=${note}`)
+    if (amount && Number.parseFloat(amount) > 0 && !hasInsufficientBalance) {
+      router.push(
+        `/payments/${type}/${recipientId}/review?amount=${amount}&note=${note}`
+      );
     }
-  }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -29,7 +55,7 @@ export function AmountInput({ recipientName, type, recipientId }: AmountInputPro
         <div className="text-center mb-8">
           <div className="text-white/70 text-sm mb-2">{recipientName}</div>
           <div className="flex items-center justify-center gap-2">
-            <span className="text-6xl font-light text-white">€</span>
+            <span className="text-6xl font-light text-white">$</span>
             <Input
               type="number"
               value={amount}
@@ -43,10 +69,38 @@ export function AmountInput({ recipientName, type, recipientId }: AmountInputPro
         </div>
 
         <div className="w-full max-w-sm">
-          <div className="text-white/70 text-sm mb-2 flex items-center gap-2">
-            <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">R</span>
-            Main · €2290.73
-          </div>
+          {isWalletPayment ? (
+            <div className="space-y-2">
+              <div className="text-white/70 text-sm mb-2 flex items-center gap-2">
+                <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
+                  W
+                </span>
+                Main ·{" "}
+                {balanceLoading ? (
+                  "Loading..."
+                ) : balanceError ? (
+                  <span className="text-white/50 text-xs">Balance N/A</span>
+                ) : formattedBalance !== undefined ? (
+                  `$${formattedBalance} USDC`
+                ) : (
+                  <span className="text-white/50 text-xs">—</span>
+                )}
+              </div>
+              {hasInsufficientBalance && (
+                <div className="text-red-400 text-xs">
+                  Insufficient balance. You need ${amount} but only have $
+                  {formattedBalance}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-white/70 text-sm mb-2 flex items-center gap-2">
+              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
+                B
+              </span>
+              Main · Balance
+            </div>
+          )}
         </div>
       </div>
 
@@ -63,12 +117,14 @@ export function AmountInput({ recipientName, type, recipientId }: AmountInputPro
 
         <Button
           onClick={handleContinue}
-          disabled={!amount || Number.parseFloat(amount) <= 0}
+          disabled={
+            !amount || Number.parseFloat(amount) <= 0 || hasInsufficientBalance
+          }
           className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base disabled:opacity-50"
         >
-          Continue
+          {hasInsufficientBalance ? "Insufficient Balance" : "Continue"}
         </Button>
       </div>
     </div>
-  )
+  );
 }

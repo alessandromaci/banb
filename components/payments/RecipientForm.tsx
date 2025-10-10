@@ -48,7 +48,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
           wallets: [
             {
               address: formData.address,
-              network: formData.network,
+              network: "base", // App only supports Base network
             },
           ],
         });
@@ -122,20 +122,9 @@ export function RecipientForm({ type }: RecipientFormProps) {
           <Label htmlFor="network" className="text-white/80 text-sm">
             Network
           </Label>
-          <Select
-            value={formData.network}
-            onValueChange={(value) =>
-              setFormData({ ...formData, network: value })
-            }
-          >
-            <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
-              <SelectValue placeholder="Select network" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#2A2640] border-white/10 text-white">
-              {/* <SelectItem value="ethereum">Ethereum</SelectItem> */}
-              <SelectItem value="base">Base</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl flex items-center px-4">
+            <span className="text-white/60">Base</span>
+          </div>
         </div>
 
         <Button

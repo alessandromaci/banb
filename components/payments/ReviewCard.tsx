@@ -54,7 +54,7 @@ export function ReviewCard({
           recipientId,
           amount,
           token: "USDC", // Using USDC for stablecoin transfers
-          chain: wallet.network,
+          chain: "base", // App only supports Base network
           to: wallet.address,
         });
 
@@ -94,7 +94,12 @@ export function ReviewCard({
 
           <div>
             <div className="text-white/60 text-sm mb-1">Amount</div>
-            <div className="text-white text-3xl font-light">€{amount}</div>
+            <div className="text-white text-3xl font-light">
+              ${amount}{" "}
+              {type === "wallet" && (
+                <span className="text-lg text-white/70">USDC</span>
+              )}
+            </div>
             <div className="text-white/50 text-sm mt-1">No fees</div>
           </div>
 
