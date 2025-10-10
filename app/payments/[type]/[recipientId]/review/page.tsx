@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/payments/ReviewCard";
 import { friends } from "@/lib/mockFriends";
+import { getRecipient } from "@/lib/recipients";
 
 export default async function ReviewPage({
   params,
@@ -22,8 +23,16 @@ export default async function ReviewPage({
     recipientName = friend?.name || "Friend";
     recipientDetails = friend?.username || "";
   } else if (resolvedParams.type === "wallet") {
-    recipientName = "Crypto Wallet";
-    recipientDetails = "0x1234...5678";
+    // Fetch actual recipient data from database
+    const recipient = await getRecipient(resolvedParams.recipientId);
+    if (recipient) {
+      recipientName = recipient.name;
+      // Get the first wallet address (assuming single wallet per recipient for now)
+      recipientDetails = recipient.wallets[0]?.address || "0x1234...5678";
+    } else {
+      recipientName = "Crypto Wallet";
+      recipientDetails = "0x1234...5678";
+    }
   } else if (resolvedParams.type === "bank") {
     recipientName = "Bank Account";
     recipientDetails = "GB00 0000 0000 0000 00";

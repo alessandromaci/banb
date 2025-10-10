@@ -43,16 +43,25 @@ export function ReviewCard({
     if (type === "wallet" && recipient && recipientId) {
       try {
         const wallet = recipient.wallets[0]; // Use first wallet
+        console.log("[ReviewCard] Initiating payment", {
+          recipientId,
+          amount,
+          walletAddress: wallet.address,
+          network: wallet.network,
+        });
+
         const result = await executePayment({
           recipientId,
           amount,
-          token: "ETH", // Default to ETH
+          token: "USDC", // Using USDC for stablecoin transfers
           chain: wallet.network,
           to: wallet.address,
         });
 
+        console.log("[ReviewCard] Payment successful", result);
         router.push(`/payments/status/${result.txId}`);
       } catch (err) {
+        console.error("[ReviewCard] Payment failed", err);
         setError(err instanceof Error ? err.message : "Payment failed");
       }
     } else {

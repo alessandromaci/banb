@@ -2,11 +2,11 @@
 
 import React, { useState, useCallback } from "react";
 import {
-  useSendTransaction,
-  useWaitForTransactionReceipt,
-  useSimulateContract,
-  useWriteContract,
+  useAccount,
   useReadContract,
+  useSimulateContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
 } from "wagmi";
 import { parseUnits } from "viem";
 import { createTransaction, updateTransactionStatus } from "./transactions";
@@ -36,48 +36,190 @@ const USDC_DECIMALS = 6;
 export function useCryptoPayment() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<CryptoPaymentData | null>(
+    null
+  );
+  const [transactionId, setTransactionId] = useState<string | null>(null);
 
-  const { sendTransaction, data: txHash } = useSendTransaction();
+  const { address: userAddress } = useAccount();
+
+  // Simulate transfer transaction (only when we have valid payment data)
+  const {
+    data: transferSimulation,
+    error: simulationError,
+    isLoading: isSimulating,
+  } = useSimulateContract({
+    address: USDC_BASE_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "transfer",
+    args:
+      paymentData?.to && paymentData?.amount
+        ? [
+            paymentData.to as `0x${string}`,
+            parseUnits(paymentData.amount, USDC_DECIMALS),
+          ]
+        : undefined,
+    query: {
+      enabled: !!(paymentData?.to && paymentData?.amount && userAddress),
+    },
+  });
+
+  const {
+    data: txHash,
+    writeContractAsync,
+    isPending: isWritePending,
+    error: writeError,
+  } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash: txHash,
+      query: {
+        enabled: !!txHash,
+      },
+    });
+
+  // Only log when we have active payment data
+  React.useEffect(() => {
+    if (paymentData) {
+      console.log("[useCryptoPayment] Payment data updated", {
+        userAddress,
+        recipientAddress: paymentData.to,
+        amount: paymentData.amount,
+        token: paymentData.token,
+      });
+      console.log("[useCryptoPayment] Simulation state", {
+        hasSimulation: !!transferSimulation?.request,
+        isSimulating,
+        simulationError: simulationError?.message,
+        enabled: !!(paymentData?.to && paymentData?.amount && userAddress),
+      });
+    }
+  }, [
+    paymentData,
+    transferSimulation,
+    isSimulating,
+    simulationError,
+    userAddress,
+  ]);
+
+  // Log transaction hash when available
+  React.useEffect(() => {
+    if (txHash) {
+      console.log("[useCryptoPayment] Transaction hash available", {
+        txHash,
+        isConfirming,
+        isConfirmed,
+      });
+    }
+  }, [txHash, isConfirming, isConfirmed]);
 
   const executePayment = useCallback(
     async (data: CryptoPaymentData): Promise<CryptoPaymentResult> => {
-      setIsLoading(true);
-      setError(null);
+      console.log(
+        "[executePayment] ========== PAYMENT EXECUTION STARTED =========="
+      );
+      console.log("[executePayment] Payment details:", {
+        recipientId: data.recipientId,
+        recipientAddress: data.to,
+        amount: data.amount,
+        token: data.token,
+        chain: data.chain,
+      });
+      console.log(
+        "[executePayment] User wallet address:",
+        userAddress || "NOT CONNECTED"
+      );
+
+      // if (!userAddress) {
+      //   const err =
+      //     "Wallet not connected. Please connect your wallet to continue.";
+      //   console.error("[executePayment] ❌ BLOCKED:", err);
+      //   setError(err);
+      //   throw new Error(err);
+      // }
+
+      // setIsLoading(true);
+      // setError(null);
 
       try {
         // 1. Create transaction record in Supabase with pending status
+        console.log(
+          "[executePayment] Step 1: Creating transaction in database"
+        );
         const transaction = await createTransaction({
           recipient_id: data.recipientId,
           chain: data.chain,
           amount: data.amount,
           token: data.token,
         });
+        console.log(
+          "[executePayment] ✓ Transaction created in DB:",
+          transaction.id
+        );
+        setTransactionId(transaction.id);
 
-        let hash: string;
+        // 2. Set payment data to trigger simulation
+        console.log("[executePayment] Step 2: Triggering contract simulation");
+        setPaymentData(data);
 
-        // 2. Determine if this is a USDC payment or native ETH
-        if (data.token === "USDC" && data.tokenAddress) {
-          // USDC ERC20 transfer - for now, throw error as this needs UI integration
-          throw new Error(
-            "USDC payments require UI integration with approve + transfer flow"
+        // 3. Wait a moment for simulation to run
+        console.log(
+          "[executePayment] Step 3: Waiting for simulation to complete..."
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // 4. Check if simulation succeeded
+        if (simulationError) {
+          console.error(
+            "[executePayment] ❌ Step 4 FAILED: Simulation error",
+            simulationError
           );
-        } else {
-          // Native ETH transfer
-          await sendTransaction({
-            to: data.to as `0x${string}`,
-            value: parseUnits(data.amount, 18), // ETH has 18 decimals
-          });
-
-          // Wait for txHash to be available
-          if (!txHash) {
-            throw new Error("Transaction hash not available");
-          }
-          hash = txHash;
+          throw new Error(`Simulation failed: ${simulationError.message}`);
         }
 
-        // 3. Update transaction with hash and sent status
-        await updateTransactionStatus(transaction.id, "sent", hash);
+        if (!transferSimulation?.request) {
+          console.error(
+            "[executePayment] ❌ Step 4 FAILED: No simulation available",
+            {
+              isSimulating,
+              hasTransferSimulation: !!transferSimulation,
+              simulationError,
+            }
+          );
+          throw new Error("Transfer simulation not ready. Please try again.");
+        }
 
+        console.log("[executePayment] ✓ Step 4: Simulation successful");
+        console.log("[executePayment] Transfer parameters:", {
+          contract: USDC_BASE_ADDRESS,
+          to: data.to,
+          amount: data.amount,
+          amountWei: parseUnits(data.amount, USDC_DECIMALS).toString(),
+        });
+
+        // 5. Execute the transaction
+        console.log(
+          "[executePayment] Step 5: Executing blockchain transaction..."
+        );
+        const hash = await writeContractAsync(transferSimulation.request);
+        console.log("[executePayment] ✓ Transaction submitted! Hash:", hash);
+
+        if (!hash) {
+          console.error("[executePayment] ❌ No transaction hash returned");
+          throw new Error("Transaction hash not available");
+        }
+
+        // 6. Update transaction with hash and sent status
+        console.log(
+          "[executePayment] Step 6: Updating database with transaction hash"
+        );
+        await updateTransactionStatus(transaction.id, "sent", hash);
+        console.log("[executePayment] ✓ Database updated");
+
+        console.log(
+          "[executePayment] ========== ✓ PAYMENT COMPLETED SUCCESSFULLY =========="
+        );
         return {
           hash,
           txId: transaction.id,
@@ -86,29 +228,50 @@ export function useCryptoPayment() {
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Payment failed";
+        console.error(
+          "[executePayment] ========== ❌ PAYMENT FAILED =========="
+        );
+        console.error("[executePayment] Error:", errorMessage);
+        console.error("[executePayment] Full error:", err);
         setError(errorMessage);
 
         // Update transaction status to failed if we have a transaction record
-        if (data.recipientId) {
+        if (transactionId) {
           try {
-            await updateTransactionStatus(data.recipientId, "failed");
+            console.log(
+              "[executePayment] Marking transaction as failed in database"
+            );
+            await updateTransactionStatus(transactionId, "failed");
           } catch (updateError) {
-            console.error("Failed to update transaction status:", updateError);
+            console.error(
+              "[executePayment] Could not update DB status:",
+              updateError
+            );
           }
         }
 
         throw new Error(errorMessage);
       } finally {
         setIsLoading(false);
+        console.log(
+          "[executePayment] ========== EXECUTION FINISHED =========="
+        );
       }
     },
-    [sendTransaction, txHash]
+    [
+      userAddress,
+      transferSimulation,
+      simulationError,
+      isSimulating,
+      writeContractAsync,
+      transactionId,
+    ]
   );
 
   return {
     executePayment,
-    isLoading,
-    error,
+    isLoading: isLoading || isWritePending || isConfirming,
+    error: error || writeError?.message || simulationError?.message,
   };
 }
 
@@ -162,13 +325,9 @@ export function useTransactionStatus(txId: string | null) {
   };
 }
 
-// Hook for USDC balance checking
+// Utility: Get USDC balance for an address (can be used for UI display)
 export function useUSDCBalance(address?: `0x${string}`) {
-  const {
-    data: balance,
-    isLoading,
-    error,
-  } = useReadContract({
+  const { data: balance } = useReadContract({
     address: USDC_BASE_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
     functionName: "balanceOf",
@@ -180,173 +339,8 @@ export function useUSDCBalance(address?: `0x${string}`) {
 
   return {
     balance,
-    isLoading,
-    error,
     formattedBalance: balance
-      ? (Number(balance) / Math.pow(10, USDC_DECIMALS)).toFixed(6)
+      ? (Number(balance) / Math.pow(10, USDC_DECIMALS)).toFixed(2)
       : "0",
-  };
-}
-
-// Hook for USDC allowance checking
-export function useUSDCAllowance(
-  owner?: `0x${string}`,
-  spender?: `0x${string}`
-) {
-  const {
-    data: allowance,
-    isLoading,
-    error,
-  } = useReadContract({
-    address: USDC_BASE_ADDRESS as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: "allowance",
-    args: owner && spender ? [owner, spender] : undefined,
-    query: {
-      enabled: !!owner && !!spender,
-    },
-  });
-
-  return {
-    allowance,
-    isLoading,
-    error,
-    formattedAllowance: allowance
-      ? (Number(allowance) / Math.pow(10, USDC_DECIMALS)).toFixed(6)
-      : "0",
-  };
-}
-
-// Hook for USDC approve transaction
-export function useUSDCApprove() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const { writeContract } = useWriteContract();
-
-  const approve = useCallback(
-    async (spender: `0x${string}`, amount: string) => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const amountInWei = parseUnits(amount, USDC_DECIMALS);
-
-        await writeContract({
-          address: USDC_BASE_ADDRESS as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [spender, amountInWei],
-        });
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Approve failed";
-        setError(errorMessage);
-        throw new Error(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [writeContract]
-  );
-
-  return {
-    approve,
-    isLoading,
-    error,
-  };
-}
-
-// Hook for USDC transfer transaction
-export function useUSDCTransfer() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const { writeContract } = useWriteContract();
-
-  const transfer = useCallback(
-    async (to: `0x${string}`, amount: string) => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const amountInWei = parseUnits(amount, USDC_DECIMALS);
-
-        await writeContract({
-          address: USDC_BASE_ADDRESS as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: "transfer",
-          args: [to, amountInWei],
-        });
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Transfer failed";
-        setError(errorMessage);
-        throw new Error(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [writeContract]
-  );
-
-  return {
-    transfer,
-    isLoading,
-    error,
-  };
-}
-
-// Hook for USDC approve + transfer flow
-export function useUSDCPayment() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState<
-    "idle" | "approving" | "transferring" | "completed"
-  >("idle");
-
-  const {
-    approve,
-    isLoading: isApproving,
-    error: approveError,
-  } = useUSDCApprove();
-  const {
-    transfer,
-    isLoading: isTransferring,
-    error: transferError,
-  } = useUSDCTransfer();
-
-  const executePayment = useCallback(
-    async (to: `0x${string}`, amount: string) => {
-      setIsLoading(true);
-      setError(null);
-      setStep("approving");
-
-      try {
-        // Step 1: Approve USDC spending
-        await approve(to, amount);
-        setStep("transferring");
-
-        // Step 2: Transfer USDC
-        await transfer(to, amount);
-        setStep("completed");
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "USDC payment failed";
-        setError(errorMessage);
-        setStep("idle");
-        throw new Error(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [approve, transfer]
-  );
-
-  return {
-    executePayment,
-    isLoading: isLoading || isApproving || isTransferring,
-    error: error || approveError || transferError,
-    step,
   };
 }
