@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Check, AlertCircle } from "lucide-react";
+import { Check, AlertCircle, Copy, ExternalLink } from "lucide-react";
 import { useTransactionStatus } from "@/lib/payments";
 import type { Transaction } from "@/lib/supabase";
 
@@ -14,6 +14,21 @@ export function StatusIndicator() {
 
   const { transaction, isLoading, error } = useTransactionStatus(txId);
   const [currentStep, setCurrentStep] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const copyTxHash = () => {
+    if (transaction?.tx_hash) {
+      navigator.clipboard.writeText(transaction.tx_hash);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const openExplorer = () => {
+    if (transaction?.tx_hash) {
+      window.open(`https://basescan.org/tx/${transaction.tx_hash}`, "_blank");
+    }
+  };
 
   const steps = [
     { label: "Pending", status: "pending" },
@@ -27,7 +42,8 @@ export function StatusIndicator() {
       const stepIndex = steps.findIndex(
         (step) => step.status === transaction.status
       );
-      setCurrentStep(stepIndex >= 0 ? stepIndex : 0);
+      // If status is "success", all steps should be complete
+      setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 0);
     }
   }, [transaction]);
 
@@ -109,13 +125,44 @@ export function StatusIndicator() {
             <div className="text-2xl font-medium text-white mb-2">
               Payment complete!
             </div>
-            <div className="text-white/60">
+            <div className="text-white/60 mb-4">
               Your payment has been successfully sent
             </div>
             {transaction.tx_hash && (
-              <div className="text-white/40 text-sm font-mono mt-2">
-                TX: {transaction.tx_hash.slice(0, 10)}...
-                {transaction.tx_hash.slice(-8)}
+              <div className="space-y-3">
+                <div className="text-white/40 text-sm font-mono">
+                  TX: {transaction.tx_hash.slice(0, 10)}...
+                  {transaction.tx_hash.slice(-8)}
+                </div>
+                <div className="flex justify-center gap-3">
+                  <Button
+                    onClick={copyTxHash}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Hash
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={openExplorer}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View on Explorer
+                  </Button>
+                </div>
               </div>
             )}
           </div>

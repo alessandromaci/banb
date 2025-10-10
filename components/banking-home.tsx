@@ -17,12 +17,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useAccount, useConnect } from "wagmi";
+import { useUSDCBalance } from "@/lib/payments";
 
 export function BankingHome() {
   const [, setActiveTab] = useState("home");
   const router = useRouter();
   const { isConnected, address } = useAccount();
   const { connect, connectors } = useConnect();
+  const { formattedBalance, isLoading: balanceLoading } =
+    useUSDCBalance(address);
 
   useEffect(() => {
     // Call sdk.actions.ready() to hide the splash screen
@@ -82,7 +85,13 @@ export function BankingHome() {
           {/* Balance Section */}
           <div className="text-center mb-6">
             <div className="text-sm text-white/70 mb-2">Balance</div>
-            <div className="text-5xl font-bold mb-4">$1,900</div>
+            <div className="text-5xl font-bold mb-4">
+              {balanceLoading
+                ? "$..."
+                : formattedBalance !== undefined
+                ? `$${formattedBalance}`
+                : "$0.00"}
+            </div>
           </div>
 
           {isConnected ? (
@@ -101,20 +110,22 @@ export function BankingHome() {
             <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
-                className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0"
+                disabled
+                className="h-14 w-14 rounded-full bg-white/5 text-white/30 border-0 cursor-not-allowed"
               >
                 <Plus className="h-6 w-6" />
               </Button>
-              <span className="text-xs text-white/90">Add money</span>
+              <span className="text-xs text-white/40">Add money</span>
             </div>
             <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
-                className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0"
+                disabled
+                className="h-14 w-14 rounded-full bg-white/5 text-white/30 border-0 cursor-not-allowed"
               >
                 <ArrowDown className="h-6 w-6" />
               </Button>
-              <span className="text-xs text-white/90">Withdraw</span>
+              <span className="text-xs text-white/40">Withdraw</span>
             </div>
             <div className="flex flex-col items-center gap-2">
               <Button

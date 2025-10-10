@@ -118,10 +118,10 @@ export function ReviewCard({
           <div>
             <div className="text-white/60 text-sm mb-1">From</div>
             <div className="text-white flex items-center gap-2">
-              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
-                R
+              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs flex-shrink-0">
+                W
               </span>
-              Main · €2290.73
+              <span>Main Wallet</span>
             </div>
           </div>
         </Card>

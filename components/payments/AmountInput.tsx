@@ -67,10 +67,10 @@ export function AmountInput({
           <div className="text-white/50 text-sm mt-2">No fees</div>
         </div>
 
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm mx-auto">
           {isWalletPayment ? (
             <div className="space-y-2">
-              <div className="text-white/70 text-sm mb-2 flex items-center gap-2">
+              <div className="text-white/70 text-sm mb-2 flex items-center justify-center gap-2">
                 <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
                   W
                 </span>
@@ -86,14 +86,14 @@ export function AmountInput({
                 )}
               </div>
               {hasInsufficientBalance && (
-                <div className="text-red-400 text-xs">
+                <div className="text-red-400 text-xs text-center">
                   Insufficient balance. You need ${amount} but only have $
                   {formattedBalance}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-white/70 text-sm mb-2 flex items-center gap-2">
+            <div className="text-white/70 text-sm mb-2 flex items-center justify-center gap-2">
               <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
                 B
               </span>
