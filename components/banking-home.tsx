@@ -16,10 +16,13 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
+import { useAccount, useConnect } from "wagmi";
 
 export function BankingHome() {
   const [, setActiveTab] = useState("home");
   const router = useRouter();
+  const { isConnected, address } = useAccount();
+  const { connect, connectors } = useConnect();
 
   useEffect(() => {
     // Call sdk.actions.ready() to hide the splash screen
@@ -81,6 +84,17 @@ export function BankingHome() {
             <div className="text-sm text-white/70 mb-2">Balance</div>
             <div className="text-5xl font-bold mb-4">$1,900</div>
           </div>
+
+          {isConnected ? (
+            <div>You're connected! {address}</div>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => connect({ connector: connectors[0] })}
+            >
+              Connect
+            </Button>
+          )}
 
           {/* Action Buttons */}
           <div className="grid grid-cols-4 gap-4 mb-8">

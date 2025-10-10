@@ -1,31 +1,69 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { addRecipient } from "@/lib/recipients";
 
 interface RecipientFormProps {
-  type: "wallet" | "bank"
+  type: "wallet" | "bank";
 }
 
 export function RecipientForm({ type }: RecipientFormProps) {
-  const router = useRouter()
-  const [formData, setFormData] = useState<Record<string, string>>({})
+  const router = useRouter();
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const recipientId = Date.now().toString()
-    router.push(`/payments/${type}/${recipientId}/amount`)
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (type === "wallet") {
+        // Add recipient to Supabase for crypto payments
+        const recipient = await addRecipient({
+          name: formData.name,
+          wallets: [
+            {
+              address: formData.address,
+              network: formData.network,
+            },
+          ],
+        });
+        router.push(`/payments/${type}/${recipient.id}/amount`);
+      } else {
+        // For bank payments, use the existing flow
+        const recipientId = Date.now().toString();
+        router.push(`/payments/${type}/${recipientId}/amount`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add recipient");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (type === "wallet") {
     return (
       <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="name" className="text-white/80 text-sm">
             Recipient name
@@ -48,7 +86,9 @@ export function RecipientForm({ type }: RecipientFormProps) {
             id="address"
             placeholder="0x..."
             value={formData.address || ""}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, address: e.target.value })
+            }
             className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl font-mono text-sm"
             required
           />
@@ -58,7 +98,12 @@ export function RecipientForm({ type }: RecipientFormProps) {
           <Label htmlFor="network" className="text-white/80 text-sm">
             Network
           </Label>
-          <Select value={formData.network} onValueChange={(value) => setFormData({ ...formData, network: value })}>
+          <Select
+            value={formData.network}
+            onValueChange={(value) =>
+              setFormData({ ...formData, network: value })
+            }
+          >
             <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
               <SelectValue placeholder="Select network" />
             </SelectTrigger>
@@ -69,11 +114,15 @@ export function RecipientForm({ type }: RecipientFormProps) {
           </Select>
         </div>
 
-        <Button type="submit" className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base">
-          Continue
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base disabled:opacity-50"
+        >
+          {isLoading ? "Adding recipient..." : "Continue"}
         </Button>
       </form>
-    )
+    );
   }
 
   return (
@@ -86,7 +135,9 @@ export function RecipientForm({ type }: RecipientFormProps) {
           id="firstName"
           placeholder="First name"
           value={formData.firstName || ""}
-          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, firstName: e.target.value })
+          }
           className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl"
           required
         />
@@ -100,7 +151,9 @@ export function RecipientForm({ type }: RecipientFormProps) {
           id="lastName"
           placeholder="Last name"
           value={formData.lastName || ""}
-          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, lastName: e.target.value })
+          }
           className="bg-[#3A3650] border-0 text-white placeholder:text-white/40 h-14 rounded-2xl"
           required
         />
@@ -110,7 +163,12 @@ export function RecipientForm({ type }: RecipientFormProps) {
         <Label htmlFor="country" className="text-white/80 text-sm">
           Country
         </Label>
-        <Select value={formData.country} onValueChange={(value) => setFormData({ ...formData, country: value })}>
+        <Select
+          value={formData.country}
+          onValueChange={(value) =>
+            setFormData({ ...formData, country: value })
+          }
+        >
           <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
             <SelectValue placeholder="Select country" />
           </SelectTrigger>
@@ -127,7 +185,12 @@ export function RecipientForm({ type }: RecipientFormProps) {
         <Label htmlFor="currency" className="text-white/80 text-sm">
           Currency
         </Label>
-        <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
+        <Select
+          value={formData.currency}
+          onValueChange={(value) =>
+            setFormData({ ...formData, currency: value })
+          }
+        >
           <SelectTrigger className="bg-[#3A3650] border-0 text-white h-14 rounded-2xl">
             <SelectValue placeholder="Select currency" />
           </SelectTrigger>
@@ -153,9 +216,12 @@ export function RecipientForm({ type }: RecipientFormProps) {
         />
       </div>
 
-      <Button type="submit" className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base">
+      <Button
+        type="submit"
+        className="w-full h-14 rounded-full bg-white/15 hover:bg-white/25 text-white text-base"
+      >
         Continue
       </Button>
     </form>
-  )
+  );
 }

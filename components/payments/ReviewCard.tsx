@@ -1,31 +1,74 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useCryptoPayment } from "@/lib/payments";
+import { getRecipient } from "@/lib/recipients";
+import type { Recipient } from "@/lib/supabase";
 
 interface ReviewCardProps {
   recipientName: string;
   recipientDetails: string;
   type: string;
+  recipientId?: string;
 }
 
 export function ReviewCard({
   recipientName,
   recipientDetails,
+  type,
+  recipientId,
 }: ReviewCardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const amount = searchParams.get("amount") || "0";
   const note = searchParams.get("note") || "";
 
-  const handleSend = () => {
-    const txId = Date.now().toString();
-    router.push(`/payments/status/${txId}`);
+  const [recipient, setRecipient] = useState<Recipient | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { executePayment, isLoading, error: paymentError } = useCryptoPayment();
+
+  // Fetch recipient data for crypto payments
+  useEffect(() => {
+    if (type === "wallet" && recipientId) {
+      getRecipient(recipientId)
+        .then(setRecipient)
+        .catch((err) => setError(err.message));
+    }
+  }, [type, recipientId]);
+
+  const handleSend = async () => {
+    if (type === "wallet" && recipient && recipientId) {
+      try {
+        const wallet = recipient.wallets[0]; // Use first wallet
+        const result = await executePayment({
+          recipientId,
+          amount,
+          token: "ETH", // Default to ETH
+          chain: wallet.network,
+          to: wallet.address,
+        });
+
+        router.push(`/payments/status/${result.txId}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Payment failed");
+      }
+    } else {
+      // For non-crypto payments, use existing flow
+      const txId = Date.now().toString();
+      router.push(`/payments/status/${txId}`);
+    }
   };
 
   return (
     <div className="flex flex-col h-full px-6">
+      {(error || paymentError) && (
+        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          {error || paymentError}
+        </div>
+      )}
       <div className="flex-1 flex flex-col justify-center">
         <Card className="bg-[#2A2640] border-0 rounded-3xl p-6 space-y-6">
           <div>
@@ -73,9 +116,10 @@ export function ReviewCard({
       <div className="pb-6 pt-4">
         <Button
           onClick={handleSend}
-          className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium"
+          disabled={isLoading || (type === "wallet" && !recipient)}
+          className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50"
         >
-          SEND
+          {isLoading ? "Sending..." : "SEND"}
         </Button>
       </div>
     </div>

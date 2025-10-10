@@ -53,6 +53,7 @@ export default async function ReviewPage({
           recipientName={recipientName}
           recipientDetails={recipientDetails}
           type={resolvedParams.type}
+          recipientId={resolvedParams.recipientId}
         />
       </div>
     </div>
