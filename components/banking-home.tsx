@@ -86,7 +86,7 @@ export function BankingHome() {
           </div>
 
           {isConnected ? (
-            <div>You're connected! {address}</div>
+            <div>You&apos;re connected! {address}</div>
           ) : (
             <Button
               variant="outline"
