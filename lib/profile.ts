@@ -6,18 +6,83 @@ export interface CreateProfileData {
 }
 
 /**
- * Generate a unique handle from name
- * Format: {name}.banb (lowercase, no spaces)
+ * Generate a random alphanumeric string
  */
-function generateHandle(name: string): string {
-  return `${name.toLowerCase().replace(/\s+/g, "")}.banb`;
+function generateRandomString(length: number): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Get a preview of what the handle will look like (for UI display)
+ * This doesn't check uniqueness, just shows the format
+ */
+export function getHandlePreview(name: string): string {
+  if (!name || name.trim().length === 0) {
+    return "xxx1234.banb";
+  }
+
+  const prefix = name
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .substring(0, 3)
+    .padEnd(3, "x");
+
+  return `${prefix}${generateRandomString(3)}banb`;
+}
+
+/**
+ * Generate a unique handle from name
+ * Format: {first3letters}{3randomchars}banb
+ * Example: "John Doe" -> "joh7x2banb"
+ */
+async function generateHandle(name: string): Promise<string> {
+  // Get first 3 letters (lowercase, no spaces)
+  const prefix = name
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .substring(0, 3)
+    .padEnd(3, "x"); // Pad with 'x' if name is less than 3 chars
+
+  // Try to generate a unique handle (max 10 attempts)
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const randomPart = generateRandomString(3);
+    const handle = `${prefix}${randomPart}banb`;
+
+    // Check if handle already exists in database
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("handle")
+      .eq("handle", handle)
+      .single();
+
+    // If no data found (error code PGRST116), handle is unique
+    if (error?.code === "PGRST116") {
+      return handle;
+    }
+
+    // If other error, throw it
+    if (error && error.code !== "PGRST116") {
+      throw new Error(`Failed to check handle uniqueness: ${error.message}`);
+    }
+
+    // If data exists, try again with new random chars
+  }
+
+  // If we couldn't generate unique handle after 10 attempts, throw error
+  throw new Error("Could not generate unique handle. Please try again.");
 }
 
 /**
  * Create a new user profile
  */
 export async function createProfile(data: CreateProfileData): Promise<Profile> {
-  const handle = generateHandle(data.name);
+  // Generate a unique handle
+  const handle = await generateHandle(data.name);
 
   const { data: profile, error } = await supabase
     .from("profiles")

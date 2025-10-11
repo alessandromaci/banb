@@ -76,7 +76,7 @@ export function BankingHome() {
                 <div className="font-semibold">
                   {profile?.name || "Loading..."}
                 </div>
-                <div className="text-xs text-white/60">{profile?.handle}</div>
+                <div className="text-xs text-white/60">@{profile?.handle}</div>
               </div>
             </div>
             <div className="flex items-center gap-3">

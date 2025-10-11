@@ -10,7 +10,7 @@ import { ArrowLeft, Wallet, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAccount, useConnect } from "wagmi";
-import { createProfile } from "@/lib/profile";
+import { createProfile, getHandlePreview } from "@/lib/profile";
 import { useUser } from "@/lib/user-context";
 
 export function SignUpForm() {
@@ -126,13 +126,7 @@ export function SignUpForm() {
                     required
                   />
                   <p className="text-xs text-white/50">
-                    This will be used to generate your handle (e.g.,{" "}
-                    {formData.name
-                      ? `${formData.name
-                          .toLowerCase()
-                          .replace(/\s+/g, "")}.banb`
-                      : "yourname.banb"}
-                    )
+                    Your handle will be: {getHandlePreview(formData.name)}
                   </p>
                 </div>
 
