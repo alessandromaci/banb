@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 const slides = [
   {
@@ -30,6 +31,20 @@ const slides = [
 
 export function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    // Call sdk.actions.ready() to hide the splash screen
+    const initializeSDK = async () => {
+      try {
+        await sdk.actions.ready();
+        console.log("Farcaster SDK ready - splash screen hidden");
+      } catch (error) {
+        console.error("Failed to initialize Farcaster SDK:", error);
+      }
+    };
+
+    initializeSDK();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
