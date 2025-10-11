@@ -20,9 +20,9 @@ export const minikitConfig = {
   miniapp: {
     version: "1",
     name: "Banb",
-    subtitle: "The Blockchain Agentic Neo Bank",
+    subtitle: "Blockchain Agent Neo Bank",
     description:
-      "Banb (Blockchain Agent Neo Bank) is a decentralized banking application that merges the fintech neo-bank’s ease of use functionality (payments, deposits, investments) with blockchain-native infrastructure and AI-driven automation.",
+      "Decentralized banking with blockchain infrastructure and AI automation. Send payments, manage deposits, and invest—all powered by Web3 and smart agents.",
     screenshotUrls: [`${ROOT_URL}/bab.png`],
     iconUrl: `${ROOT_URL}/bab.png`,
     splashImageUrl: `${ROOT_URL}/bab.png`,
@@ -32,9 +32,10 @@ export const minikitConfig = {
     primaryCategory: "finance",
     tags: ["finance", "banking", "blockchain", "agent", "ai"],
     heroImageUrl: `${ROOT_URL}/bab.png`,
-    tagline: "The Blockchain Agentic Neo Bank",
-    ogTitle: "The Blockchain Agentic Neo Bank",
-    ogDescription: "The Blockchain Agentic Neo Bank",
+    tagline: "Blockchain Agent Neo Bank",
+    ogTitle: "Blockchain Agent Neo Bank",
+    ogDescription:
+      "Decentralized banking with blockchain infrastructure and AI automation. Send payments, manage deposits, and invest—all powered by Web3 and smart agents.",
     ogImageUrl: `${ROOT_URL}/bab.png`,
   },
 } as const;
