@@ -34,8 +34,7 @@ export const minikitConfig = {
     heroImageUrl: `${ROOT_URL}/bab.png`,
     tagline: "Blockchain Agent Neo Bank",
     ogTitle: "Blockchain Agent Neo Bank",
-    ogDescription:
-      "Decentralized banking with blockchain infrastructure and AI automation. Send payments, manage deposits, and invest—all powered by Web3 and smart agents.",
+    ogDescription: "Blockchain Agent Neo Bank",
     ogImageUrl: `${ROOT_URL}/bab.png`,
   },
 } as const;
