@@ -11,7 +11,7 @@ export default function PaymentsPage() {
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4">
-          <Link href="/">
+          <Link href="/home">
             <Button
               size="icon"
               variant="ghost"
