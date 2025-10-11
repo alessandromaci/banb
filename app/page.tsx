@@ -1,5 +1,5 @@
-import { BankingHome } from "@/components/banking-home";
+import { LandingPage } from "@/components/landing-page";
 
 export default function Page() {
-  return <BankingHome />;
+  return <LandingPage />;
 }
