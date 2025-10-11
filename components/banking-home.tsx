@@ -54,7 +54,7 @@ export function BankingHome() {
       {/* Mobile Container */}
       <div className="mx-auto max-w-md">
         {/* Header */}
-        <div className="px-3 pb-6">
+        <div className="pt-3 px-6 pb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-white/20">
