@@ -53,18 +53,8 @@ export function BankingHome() {
     <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
       {/* Mobile Container */}
       <div className="mx-auto max-w-md">
-        {/* Status Bar */}
-        <div className="flex items-center justify-between px-6 pt-3 pb-4">
-          <span className="text-sm font-medium">9:41</span>
-          <div className="flex items-center gap-1">
-            <div className="h-3 w-3 rounded-full bg-white/80" />
-            <div className="h-3 w-3 rounded-full bg-white/80" />
-            <div className="h-3 w-3 rounded-full bg-white/60" />
-          </div>
-        </div>
-
         {/* Header */}
-        <div className="px-6 pb-6">
+        <div className="px-3 pb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-white/20">

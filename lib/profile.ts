@@ -6,13 +6,25 @@ export interface CreateProfileData {
 }
 
 /**
- * Generate a random alphanumeric string
+ * Generate a random alphanumeric string with pattern: number, letter, number
  */
 function generateRandomString(length: number): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const numbers = "0123456789";
+  const letters = "abcdefghijklmnopqrstuvwxyz";
   let result = "";
+
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    // Pattern: number, letter, number
+    if (i % 3 === 0) {
+      // First position: number
+      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    } else if (i % 3 === 1) {
+      // Second position: letter
+      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    } else {
+      // Third position: number
+      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
   }
   return result;
 }
