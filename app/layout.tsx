@@ -6,9 +6,8 @@ import { Providers } from "./providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "bab-mini-app",
-  description: "Blockchain Agent Bank",
-  generator: "v0.app",
+  title: "Banb",
+  description: "The Blockchain Agentic Neo Bank",
 };
 
 export default function RootLayout({
@@ -19,9 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
         <Analytics />
       </body>
     </html>
