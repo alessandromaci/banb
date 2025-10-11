@@ -6,37 +6,77 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Wallet } from "lucide-react";
+import { ArrowLeft, Wallet, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAccount, useConnect } from "wagmi";
+import { createProfile } from "@/lib/profile";
+import { useUser } from "@/lib/user-context";
 
 export function SignUpForm() {
   const router = useRouter();
   const [step, setStep] = useState<"details" | "wallet">("details");
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
-    phone: "",
-    password: "",
   });
-  const [walletConnected, setWalletConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending: isConnecting } = useConnect();
+  const { setProfile } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (!formData.name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
     if (step === "details") {
       setStep("wallet");
-    } else if (walletConnected) {
-      // Mock signup - redirect to home
+    }
+  };
+
+  const handleCreateProfile = async () => {
+    if (!address || !isConnected) {
+      setError("Please connect your wallet first");
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
+    setError(null);
+    setIsCreatingProfile(true);
+
+    try {
+      const profile = await createProfile({
+        name: formData.name,
+        wallet_address: address,
+      });
+
+      // Save profile to context
+      setProfile(profile);
+
+      // Redirect to home
       router.push("/home");
+    } catch (err) {
+      console.error("Failed to create profile:", err);
+      setError(err instanceof Error ? err.message : "Failed to create profile");
+    } finally {
+      setIsCreatingProfile(false);
     }
   };
 
   const connectWallet = () => {
-    // Mock wallet connection
-    setWalletConnected(true);
-    setTimeout(() => {
-      router.push("/home");
-    }, 1000);
+    if (connectors.length > 0) {
+      connect({ connector: connectors[0] });
+    }
   };
 
   return (
@@ -72,7 +112,7 @@ export function SignUpForm() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-white/80">
-                    Full name
+                    Your name
                   </Label>
                   <Input
                     id="name"
@@ -85,58 +125,22 @@ export function SignUpForm() {
                     className="h-14 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40"
                     required
                   />
+                  <p className="text-xs text-white/50">
+                    This will be used to generate your handle (e.g.,{" "}
+                    {formData.name
+                      ? `${formData.name
+                          .toLowerCase()
+                          .replace(/\s+/g, "")}.banb`
+                      : "yourname.banb"}
+                    )
+                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white/80">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    className="h-14 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-white/80">
-                    Phone number
-                  </Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+44 7700 900000"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    className="h-14 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-white/80">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Create a strong password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    className="h-14 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40"
-                    required
-                  />
-                </div>
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <p className="text-sm text-red-400">{error}</p>
+                  </div>
+                )}
 
                 <Button
                   type="submit"
@@ -159,39 +163,83 @@ export function SignUpForm() {
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold">Connect your wallet</h1>
                 <p className="text-white/60">
-                  Secure your account with a crypto wallet
+                  Connect your Farcaster wallet to create your profile
                 </p>
               </div>
 
               <div className="space-y-4">
-                <Button
-                  onClick={connectWallet}
-                  disabled={walletConnected}
-                  className="w-full h-20 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white justify-start px-6"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                      <Wallet className="h-6 w-6" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-semibold">
-                        {walletConnected ? "Wallet Connected" : "MetaMask"}
+                {!isConnected ? (
+                  <Button
+                    onClick={() => connect({ connector: connectors[0] })}
+                    disabled={isConnecting}
+                    className="w-full h-20 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white justify-start px-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+                        {isConnecting ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <Wallet className="h-6 w-6" />
+                        )}
                       </div>
-                      <div className="text-sm text-white/60">
-                        {walletConnected
-                          ? "Successfully connected"
-                          : "Connect with MetaMask"}
+                      <div className="text-left">
+                        <div className="font-semibold">
+                          {isConnecting ? "Connecting..." : "Farcaster Wallet"}
+                        </div>
+                        <div className="text-sm text-white/60">
+                          {isConnecting
+                            ? "Please approve in your wallet"
+                            : "Connect with Farcaster"}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Button>
+                  </Button>
+                ) : (
+                  <>
+                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-6 w-6 text-green-400" />
+                        <div>
+                          <p className="font-semibold text-white">
+                            Wallet Connected
+                          </p>
+                          <p className="text-sm text-white/60">
+                            {address?.slice(0, 6)}...{address?.slice(-4)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {error && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <p className="text-sm text-red-400">{error}</p>
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={handleCreateProfile}
+                      disabled={isCreatingProfile}
+                      size="lg"
+                      className="w-full rounded-full bg-white text-black hover:bg-white/90 h-14 text-base font-semibold"
+                    >
+                      {isCreatingProfile ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                          Creating Profile...
+                        </>
+                      ) : (
+                        "Create Account"
+                      )}
+                    </Button>
+                  </>
+                )}
 
                 <Button
                   variant="ghost"
-                  onClick={() => router.push("/home")}
+                  onClick={() => setStep("details")}
                   className="w-full text-white/60 hover:text-white hover:bg-white/5"
                 >
-                  Skip for now
+                  Back
                 </Button>
               </div>
             </div>

@@ -6,6 +6,16 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Database types
+export interface Profile {
+  id: string;
+  name: string;
+  handle: string;
+  wallet_address: string;
+  balance: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Recipient {
   id: string;
   name: string;
@@ -27,4 +37,3 @@ export interface Transaction {
   status: "pending" | "sent" | "success" | "failed";
   created_at: string;
 }
-

@@ -16,16 +16,17 @@ import {
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { useAccount, useConnect } from "wagmi";
+import { useAccount } from "wagmi";
 import { useUSDCBalance } from "@/lib/payments";
+import { useUser } from "@/lib/user-context";
 
 export function BankingHome() {
   const [, setActiveTab] = useState("home");
   const router = useRouter();
-  const { isConnected, address } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { address } = useAccount();
   const { formattedBalance, isLoading: balanceLoading } =
     useUSDCBalance(address);
+  const { profile, isLoading: profileLoading } = useUser();
 
   useEffect(() => {
     // Call sdk.actions.ready() to hide the splash screen
@@ -40,6 +41,13 @@ export function BankingHome() {
 
     initializeSDK();
   }, []);
+
+  // Redirect to login if no profile
+  useEffect(() => {
+    if (!profileLoading && !profile) {
+      router.push("/login");
+    }
+  }, [profile, profileLoading, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
@@ -58,12 +66,19 @@ export function BankingHome() {
         {/* Header */}
         <div className="px-6 pb-6">
           <div className="flex items-center justify-between mb-4">
-            <Avatar className="h-10 w-10 border-2 border-white/20">
-              <AvatarImage src="/placeholder.svg?height=40&width=40" />
-              <AvatarFallback className="bg-white/10 text-white">
-                JD
-              </AvatarFallback>
-            </Avatar>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border-2 border-white/20">
+                <AvatarFallback className="bg-white/10 text-white">
+                  {profile?.name?.charAt(0).toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-left">
+                <div className="font-semibold">
+                  {profile?.name || "Loading..."}
+                </div>
+                <div className="text-xs text-white/60">{profile?.handle}</div>
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <Button
                 size="icon"
@@ -83,27 +98,23 @@ export function BankingHome() {
           </div>
 
           {/* Balance Section */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-2">
             <div className="text-sm text-white/70 mb-2">Balance</div>
-            <div className="text-5xl font-bold mb-4">
+            <div className="text-5xl font-bold mb-2">
               {balanceLoading
                 ? "$..."
                 : formattedBalance !== undefined
                 ? `$${formattedBalance}`
                 : "$0.00"}
             </div>
+            {address && (
+              <div className="text-xs text-white/50">
+                {address.slice(0, 6)}...{address.slice(-4)}
+              </div>
+            )}
           </div>
 
-          {isConnected ? (
-            <div>You&apos;re connected! {address}</div>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => connect({ connector: connectors[0] })}
-            >
-              Connect
-            </Button>
-          )}
+          <div className="h-6" />
 
           {/* Action Buttons */}
           <div className="grid grid-cols-4 gap-4 mb-8">
