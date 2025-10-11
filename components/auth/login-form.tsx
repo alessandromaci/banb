@@ -1,33 +1,33 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft, Wallet } from "lucide-react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Wallet } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function LoginForm() {
-  const router = useRouter()
-  const [loginMethod, setLoginMethod] = useState<"email" | "wallet">("email")
+  const router = useRouter();
+  const [loginMethod, setLoginMethod] = useState<"email" | "wallet">("email");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     // Mock login - redirect to home
-    router.push("/home")
-  }
+    router.push("/home");
+  };
 
   const connectWallet = () => {
     // Mock wallet login
-    router.push("/home")
-  }
+    router.push("/home");
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -35,12 +35,16 @@ export function LoginForm() {
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <Link href="/">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/10"
+            >
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-            <span className="font-bold">R</span>
+            <span className="font-bold">B</span>
           </div>
         </div>
 
@@ -57,7 +61,9 @@ export function LoginForm() {
               <button
                 onClick={() => setLoginMethod("email")}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
-                  loginMethod === "email" ? "bg-white text-black" : "text-white/60 hover:text-white"
+                  loginMethod === "email"
+                    ? "bg-white text-black"
+                    : "text-white/60 hover:text-white"
                 }`}
               >
                 Email
@@ -65,7 +71,9 @@ export function LoginForm() {
               <button
                 onClick={() => setLoginMethod("wallet")}
                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
-                  loginMethod === "wallet" ? "bg-white text-black" : "text-white/60 hover:text-white"
+                  loginMethod === "wallet"
+                    ? "bg-white text-black"
+                    : "text-white/60 hover:text-white"
                 }`}
               >
                 Wallet
@@ -83,7 +91,9 @@ export function LoginForm() {
                     type="email"
                     placeholder="john@example.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     className="h-14 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40"
                     required
                   />
@@ -98,13 +108,18 @@ export function LoginForm() {
                     type="password"
                     placeholder="Enter your password"
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     className="h-14 rounded-xl border-white/10 bg-white/5 text-white placeholder:text-white/40"
                     required
                   />
                 </div>
 
-                <button type="button" className="text-sm text-white/60 hover:text-white">
+                <button
+                  type="button"
+                  className="text-sm text-white/60 hover:text-white"
+                >
                   Forgot password?
                 </button>
 
@@ -128,7 +143,9 @@ export function LoginForm() {
                     </div>
                     <div className="text-left">
                       <div className="font-semibold">MetaMask</div>
-                      <div className="text-sm text-white/60">Connect with MetaMask</div>
+                      <div className="text-sm text-white/60">
+                        Connect with MetaMask
+                      </div>
                     </div>
                   </div>
                 </Button>
@@ -136,7 +153,7 @@ export function LoginForm() {
             )}
 
             <p className="text-center text-sm text-white/60">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/signup" className="text-white underline">
                 Sign up
               </Link>
@@ -145,5 +162,5 @@ export function LoginForm() {
         </div>
       </div>
     </div>
-  )
+  );
 }
