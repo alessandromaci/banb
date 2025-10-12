@@ -30,24 +30,6 @@ function generateRandomString(length: number): string {
 }
 
 /**
- * Get a preview of what the handle will look like (for UI display)
- * This doesn't check uniqueness, just shows the format
- */
-export function getHandlePreview(name: string): string {
-  if (!name || name.trim().length === 0) {
-    return "xxx1234.banb";
-  }
-
-  const prefix = name
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .substring(0, 3)
-    .padEnd(3, "x");
-
-  return `${prefix}${generateRandomString(3)}banb`;
-}
-
-/**
  * Generate a unique handle from name
  * Format: {first3letters}{3randomchars}banb
  * Example: "John Doe" -> "joh7x2banb"
