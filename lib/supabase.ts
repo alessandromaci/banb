@@ -12,6 +12,7 @@ export interface Profile {
   handle: string;
   wallet_address: string;
   balance: string; // numeric(20,2) in DB, returned as string
+  status?: "active" | "inactive"; // Optional for now
   created_at: string;
   updated_at: string;
 }

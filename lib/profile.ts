@@ -112,42 +112,46 @@ export async function updateProfileName(
   profileId: string,
   name: string
 ): Promise<Profile> {
-  const { data: profile, error } = await supabase
+  // First get the current profile
+  const { data: currentProfile, error: fetchError } = await supabase
     .from("profiles")
-    .update({ name })
+    .select("*")
     .eq("id", profileId)
-    .select()
     .single();
 
-  if (error) {
-    throw new Error(`Failed to update profile: ${error.message}`);
+  if (fetchError) {
+    throw new Error(`Failed to fetch profile: ${fetchError.message}`);
   }
 
-  return profile;
+  // Update the name
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ name })
+    .eq("id", profileId);
+
+  if (updateError) {
+    throw new Error(`Failed to update profile: ${updateError.message}`);
+  }
+
+  // Return the updated profile
+  return {
+    ...currentProfile,
+    name,
+  };
 }
 
 /**
- * Delete profile and all related data
+ * Soft delete profile by setting status to inactive
+ * This preserves data integrity and transaction history
  */
 export async function deleteProfile(profileId: string): Promise<void> {
-  // Delete related data first (transactions, recipients)
-  // Transactions
-  await supabase
-    .from("transactions")
-    .delete()
-    .eq("sender_profile_id", profileId);
-
-  // Recipients
-  await supabase.from("recipients").delete().eq("profile_id", profileId);
-
-  // Finally delete the profile
   const { error } = await supabase
     .from("profiles")
-    .delete()
+    .update({ status: "inactive" })
     .eq("id", profileId);
 
   if (error) {
-    throw new Error(`Failed to delete profile: ${error.message}`);
+    throw new Error(`Failed to deactivate profile: ${error.message}`);
   }
 }
 
@@ -161,6 +165,7 @@ export async function getProfileByWallet(
     .from("profiles")
     .select("*")
     .eq("wallet_address", wallet_address.toLowerCase())
+    .neq("status", "inactive") // Exclude inactive profiles
     .single();
 
   if (error) {
@@ -181,6 +186,7 @@ export async function getProfile(id: string): Promise<Profile | null> {
     .from("profiles")
     .select("*")
     .eq("id", id)
+    .neq("status", "inactive") // Exclude inactive profiles
     .single();
 
   if (error) {
