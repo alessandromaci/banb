@@ -85,7 +85,8 @@ export function LandingPage() {
         {/* Header */}
         <div className="flex items-center gap-2 pt-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-            <span className="font-bold text-white">BANB</span>
+            {/* <span className="font-bold text-white">BANB</span> */}
+            <img src="/banb.png" alt="BANB" className="h-4 w-4" />
           </div>
           <span className="text-sm text-white/80">
             {slides[currentSlide].subtitle}
