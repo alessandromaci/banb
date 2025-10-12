@@ -8,23 +8,23 @@ import { sdk } from "@farcaster/miniapp-sdk";
 
 const slides = [
   {
-    title: "READY TO ELEVATE YOUR EXPERIENCE WITH MONEY?",
-    subtitle: "Welcome to Banb",
+    title: "READY TO TRY THE FUTURE OF FINANCE",
+    subtitle: "Welcome to BANB",
     background: "lightspeed",
   },
   {
     title: "SEND MONEY INSTANTLY",
-    subtitle: "Transfer funds to anyone, anywhere",
+    subtitle: "Transfer stable funds to anyone, anywhere",
     background: "particles",
   },
   {
-    title: "INVEST IN YOUR FUTURE",
-    subtitle: "Trade stocks, crypto, and commodities",
+    title: "ELEVATE FINANCE WITH AI",
+    subtitle: "Manage your financens like never before",
     background: "waves",
   },
   {
     title: "SECURE & PROTECTED",
-    subtitle: "Bank-grade security for your peace of mind",
+    subtitle: "High-grade security for your peace of mind",
     background: "grid",
   },
 ];
@@ -85,7 +85,7 @@ export function LandingPage() {
         {/* Header */}
         <div className="flex items-center gap-2 pt-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-            <span className="font-bold text-white">B</span>
+            <span className="font-bold text-white">BANB</span>
           </div>
           <span className="text-sm text-white/80">
             {slides[currentSlide].subtitle}
