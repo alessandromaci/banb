@@ -27,8 +27,8 @@ export default async function ReviewPage({
     const recipient = await getRecipient(resolvedParams.recipientId);
     if (recipient) {
       recipientName = recipient.name;
-      // Get the first wallet address (assuming single wallet per recipient for now)
-      recipientDetails = recipient.wallets[0]?.address || "0x1234...5678";
+      // Get the external wallet address or linked profile
+      recipientDetails = recipient.external_address || "0x1234...5678";
     } else {
       recipientName = "Crypto Wallet";
       recipientDetails = "0x1234...5678";
