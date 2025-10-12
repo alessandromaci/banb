@@ -121,6 +121,6 @@
     @apply border-gray-200 outline-gray-300;
   }
   body {
-    @apply bg-white text-gray-900;
+    @apply bg-background text-foreground;
   }
 }
