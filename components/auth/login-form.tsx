@@ -18,10 +18,16 @@ export function LoginForm() {
   const [connectingConnectorId, setConnectingConnectorId] = useState<
     string | null
   >(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { setProfile } = useUser();
+
+  // Mount check to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Reset connecting state when connection completes
   useEffect(() => {
@@ -45,23 +51,23 @@ export function LoginForm() {
       try {
         const profile = await getProfileByWallet(address);
 
-        if (!isMounted) return;
-
         if (profile) {
           // Save profile to context
           setProfile(profile);
           // Redirect to home
           router.push("/home");
         } else {
-          setError("No account found for this wallet. Please sign up first.");
-          setIsLoggingIn(false);
+          if (isMounted) {
+            setError("No account found for this wallet. Please sign up first.");
+            setIsLoggingIn(false);
+          }
         }
       } catch (err) {
-        if (!isMounted) return;
-
         console.error("Failed to fetch profile:", err);
-        setError(err instanceof Error ? err.message : "Failed to login");
-        setIsLoggingIn(false);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "Failed to login");
+          setIsLoggingIn(false);
+        }
       }
     };
 
@@ -115,7 +121,18 @@ export function LoginForm() {
             </div>
 
             <div className="space-y-4">
-              {!isConnected ? (
+              {!isMounted ? (
+                // Show loading state during hydration
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                    <div>
+                      <p className="font-semibold text-white">Loading...</p>
+                      <p className="text-sm text-white/60">Please wait</p>
+                    </div>
+                  </div>
+                </div>
+              ) : !isConnected ? (
                 <>
                   {/* Farcaster Wallet Option */}
                   <Button
