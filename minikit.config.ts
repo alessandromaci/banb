@@ -23,7 +23,7 @@ export const minikitConfig = {
     subtitle: "Blockchain Agentic Neo Bank",
     description:
       "Decentralized banking with blockchain infrastructure and AI automation. Send payments, manage deposits, and invest—all powered by Web3 and smart agents.",
-    screenshotUrls: [`${ROOT_URL}/banb_large_icon.png`],
+    screenshotUrls: [`${ROOT_URL}/banb.png`],
     iconUrl: `${ROOT_URL}/banb.png`,
     splashImageUrl: `${ROOT_URL}/banb.png`,
     splashBackgroundColor: "#000000",
@@ -31,10 +31,10 @@ export const minikitConfig = {
     webhookUrl: `${ROOT_URL}/api/webhook`,
     primaryCategory: "finance",
     tags: ["finance", "banking", "blockchain", "agent", "ai"],
-    heroImageUrl: `${ROOT_URL}/banb_large_icon.png`,
+    heroImageUrl: `${ROOT_URL}/banb.png`,
     tagline: "Blockchain Agentic Neo Bank",
     ogTitle: "Blockchain Agentic Neo Bank",
     ogDescription: "Blockchain Agentic Neo Bank",
-    ogImageUrl: `${ROOT_URL}/banb_large_icon.png`,
+    ogImageUrl: `${ROOT_URL}/banb.png`,
   },
 } as const;
