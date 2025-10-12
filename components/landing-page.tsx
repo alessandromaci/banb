@@ -8,18 +8,18 @@ import { sdk } from "@farcaster/miniapp-sdk";
 
 const slides = [
   {
-    title: "READY TO TRY THE FUTURE OF FINANCE",
+    title: "TRY THE FUTURE OF FINANCE",
     subtitle: "Welcome to BANB",
     background: "lightspeed",
   },
   {
-    title: "SEND MONEY INSTANTLY",
+    title: "SEND MONEY INSTANTLY WITH STABLECOINS",
     subtitle: "Transfer stable funds to anyone, anywhere",
     background: "particles",
   },
   {
-    title: "ELEVATE FINANCE WITH AI",
-    subtitle: "Manage your financens like never before",
+    title: "ELEVATE YOUR FINANCIAL EXPERIENCE WITH AI",
+    subtitle: "Manage your finances like never before",
     background: "waves",
   },
   {
