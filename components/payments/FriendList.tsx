@@ -290,7 +290,7 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
                         style={{
                           backgroundColor: getAvatarColor({
                             id: profile.id,
-                          } as any),
+                          } as RecipientWithProfile),
                         }}
                         className="text-white font-medium"
                       >
