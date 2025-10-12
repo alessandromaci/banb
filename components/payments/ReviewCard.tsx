@@ -49,13 +49,19 @@ export function ReviewCard({
 
     if (type === "wallet" && recipient && recipientId) {
       try {
-        const wallet = recipient.wallets[0]; // Use first wallet
+        // Get external wallet address
+        const walletAddress = recipient.external_address;
+        if (!walletAddress) {
+          setError("Recipient wallet address not found");
+          return;
+        }
+
         console.log("[ReviewCard] Initiating payment", {
           senderProfileId: profile.id,
           recipientId,
           amount,
-          walletAddress: wallet.address,
-          network: wallet.network,
+          walletAddress,
+          network: "base",
         });
 
         const result = await executePayment({
@@ -63,7 +69,7 @@ export function ReviewCard({
           amount,
           token: "USDC", // Using USDC for stablecoin transfers
           chain: "base", // App only supports Base network
-          to: wallet.address,
+          to: walletAddress,
           sender_profile_id: profile.id, // Pass current user's profile ID
         });
 
