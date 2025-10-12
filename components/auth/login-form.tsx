@@ -4,8 +4,6 @@ import type React from "react";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ArrowLeft, Wallet, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,13 +13,22 @@ import { useUser } from "@/lib/user-context";
 
 export function LoginForm() {
   const router = useRouter();
-  const [loginMethod, setLoginMethod] = useState<"wallet">("wallet");
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [connectingConnectorId, setConnectingConnectorId] = useState<
+    string | null
+  >(null);
 
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { setProfile } = useUser();
+
+  // Reset connecting state when connection completes
+  useEffect(() => {
+    if (isConnected && connectingConnectorId) {
+      setConnectingConnectorId(null);
+    }
+  }, [isConnected, connectingConnectorId]);
 
   // Check for existing profile when wallet connects
   useEffect(() => {
@@ -53,10 +60,18 @@ export function LoginForm() {
     checkProfile();
   }, [isConnected, address, router, setProfile, isLoggingIn]);
 
-  const connectWallet = () => {
-    setError(null);
-    if (connectors.length > 0) {
-      connect({ connector: connectors[0] });
+  const connectWallet = (connectorId: string) => {
+    const connector = connectors.find((c) => c.id === connectorId);
+
+    if (connector) {
+      setConnectingConnectorId(connectorId);
+      setError(null);
+      connect({ connector });
+    } else {
+      console.error(
+        `Connector "${connectorId}" not found. Available IDs:`,
+        connectors.map((c) => c.id)
+      );
     }
   };
 
@@ -89,31 +104,55 @@ export function LoginForm() {
 
             <div className="space-y-4">
               {!isConnected ? (
-                <Button
-                  onClick={connectWallet}
-                  disabled={isConnecting}
-                  className="w-full h-20 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white justify-start px-6"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                      {isConnecting ? (
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      ) : (
-                        <Wallet className="h-6 w-6" />
-                      )}
-                    </div>
-                    <div className="text-left">
-                      <div className="font-semibold">
-                        {isConnecting ? "Connecting..." : "Farcaster Wallet"}
+                <>
+                  {/* Farcaster Wallet Option */}
+                  <Button
+                    onClick={() => connectWallet("farcaster")}
+                    disabled={isConnecting}
+                    className="w-full h-20 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white justify-start px-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+                        {isConnecting &&
+                        connectingConnectorId === "farcaster" ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <Wallet className="h-6 w-6" />
+                        )}
                       </div>
-                      <div className="text-sm text-white/60">
-                        {isConnecting
-                          ? "Please approve in your wallet"
-                          : "Connect with Farcaster"}
+                      <div className="text-left">
+                        <div className="font-semibold">Farcaster Wallet</div>
+                        <div className="text-sm text-white/60">
+                          For Farcaster users
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Button>
+                  </Button>
+
+                  {/* Porto Wallet Option */}
+                  <Button
+                    onClick={() => connectWallet("xyz.ithaca.porto")}
+                    disabled={isConnecting}
+                    className="w-full h-20 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white justify-start px-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
+                        {isConnecting &&
+                        connectingConnectorId === "xyz.ithaca.porto" ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <Wallet className="h-6 w-6" />
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <div className="font-semibold">Porto Wallet</div>
+                        <div className="text-sm text-white/60">
+                          Use your email wallet
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                </>
               ) : (
                 <>
                   {isLoggingIn ? (

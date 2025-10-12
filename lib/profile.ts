@@ -106,6 +106,52 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
 }
 
 /**
+ * Update profile name
+ */
+export async function updateProfileName(
+  profileId: string,
+  name: string
+): Promise<Profile> {
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .update({ name })
+    .eq("id", profileId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update profile: ${error.message}`);
+  }
+
+  return profile;
+}
+
+/**
+ * Delete profile and all related data
+ */
+export async function deleteProfile(profileId: string): Promise<void> {
+  // Delete related data first (transactions, recipients)
+  // Transactions
+  await supabase
+    .from("transactions")
+    .delete()
+    .eq("sender_profile_id", profileId);
+
+  // Recipients
+  await supabase.from("recipients").delete().eq("profile_id", profileId);
+
+  // Finally delete the profile
+  const { error } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", profileId);
+
+  if (error) {
+    throw new Error(`Failed to delete profile: ${error.message}`);
+  }
+}
+
+/**
  * Get profile by wallet address
  */
 export async function getProfileByWallet(

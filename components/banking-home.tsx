@@ -159,10 +159,7 @@ export function BankingHome() {
           </div>
 
           {/* Balance Section */}
-          <button
-            onClick={() => router.push("/cards")}
-            className="text-center mb-2 w-full hover:opacity-90 transition-opacity"
-          >
+          <div className="text-center mb-2 w-full hover:opacity-90 transition-opacity">
             <div className="text-sm text-white/70 mb-3">
               {activeAccount === "main" ? "Main" : "Investment"} - {currency}
             </div>
@@ -185,7 +182,7 @@ export function BankingHome() {
                 Investment account — coming soon
               </div>
             )}
-          </button>
+          </div>
 
           {/* Pagination Dots */}
           <div className="flex justify-center gap-2 mb-10">
