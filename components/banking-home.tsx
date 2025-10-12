@@ -4,22 +4,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { MoreMenu } from "@/components/more-menu";
 import {
   AudioLines,
-  ArrowDown,
+  ArrowDownToLine,
   BarChart3,
   CreditCard,
   Plus,
   MoreHorizontal,
   Send,
-  DollarSign,
-  Euro,
-  ExternalLink,
-  Moon,
-  Sun,
-  PlusCircle,
   Loader2,
+  Search,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -123,25 +118,23 @@ export function BankingHome() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#3B1EFF] via-[#5B3FFF] to-[#1A0F3D] text-white">
       {/* Mobile Container */}
       <div className="mx-auto max-w-md">
         {/* Header */}
         <div className="pt-3 px-6 pb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-10">
             <button
               onClick={() => router.push("/profile")}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <Avatar className="h-10 w-10 border-2 border-white/20">
+              <Avatar className="h-12 w-12 border-2 border-white/20">
                 <AvatarFallback className="bg-white/10 text-white">
                   {profile?.name?.charAt(0).toUpperCase() || "?"}
                 </AvatarFallback>
               </Avatar>
               <div className="text-left">
-                <div className="font-semibold">
-                  {profile?.name || "Loading..."}
-                </div>
+                <div className="font-semibold">{profile?.name}</div>
                 <div className="text-xs text-white/60">@{profile?.handle}</div>
               </div>
             </button>
@@ -149,7 +142,8 @@ export function BankingHome() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
+                onClick={() => router.push("/analytics")}
+                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg shadow-indigo-500/20"
               >
                 <BarChart3 className="h-5 w-5" />
               </Button>
@@ -157,7 +151,7 @@ export function BankingHome() {
                 onClick={() => router.push("/cards")}
                 size="icon"
                 variant="ghost"
-                className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
+                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg shadow-indigo-500/20"
               >
                 <CreditCard className="h-5 w-5" />
               </Button>
@@ -169,18 +163,18 @@ export function BankingHome() {
             onClick={() => router.push("/cards")}
             className="text-center mb-2 w-full hover:opacity-90 transition-opacity"
           >
-            <div className="text-sm text-white/70 mb-2">
+            <div className="text-sm text-white/70 mb-3">
               {activeAccount === "main" ? "Main" : "Investment"} - {currency}
             </div>
             {activeAccount === "main" ? (
               <>
-                <div className="text-5xl font-bold mb-2">
+                <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out">
                   {!isMounted || balanceLoading || rateLoading
                     ? `${currency === "USD" ? "$" : "€"}...`
                     : formatCurrency(displayedBalance, currency)}
                 </div>
                 {address && isMounted && (
-                  <div className="text-xs text-white/50">
+                  <div className="text-sm text-white/70 mb-3">
                     {address.slice(0, 6)}...{address.slice(-4)} -{" "}
                     {usdcBalance || "0.00"} USDC
                   </div>
@@ -194,11 +188,13 @@ export function BankingHome() {
           </button>
 
           {/* Pagination Dots */}
-          <div className="flex justify-center gap-2 mb-8">
+          <div className="flex justify-center gap-2 mb-10">
             <button
               onClick={() => setActiveAccount("main")}
-              className={`h-2 w-2 rounded-full transition-colors ${
-                activeAccount === "main" ? "bg-white" : "bg-white/30"
+              className={`h-2 w-2 rounded-full ${
+                activeAccount === "main"
+                  ? "bg-white shadow-lg shadow-white/50"
+                  : "bg-white/30"
               }`}
             />
             <button
@@ -209,66 +205,65 @@ export function BankingHome() {
             />
           </div>
 
-          <div className="h-6" />
-
           {/* Action Buttons */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            <div className="flex flex-col items-center gap-2">
+          <div className="grid grid-cols-4 gap-6 mb-10">
+            <div className="flex flex-col items-center gap-3">
               <Button
                 size="icon"
-                disabled
-                className="h-14 w-14 rounded-full bg-white/5 text-white/30 border-0 cursor-not-allowed"
+                className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                <Plus className="h-6 w-6" />
+                <Plus className="h-7 w-7" />
               </Button>
-              <span className="text-xs text-white/40">Add money</span>
+              <span className="text-sm text-white/90 font-medium">Add</span>
             </div>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <Button
                 size="icon"
-                disabled
-                className="h-14 w-14 rounded-full bg-white/5 text-white/30 border-0 cursor-not-allowed"
+                className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                <ArrowDown className="h-6 w-6" />
+                <ArrowDownToLine className="h-7 w-7" />
               </Button>
-              <span className="text-xs text-white/40">Withdraw</span>
+              <span className="text-sm text-white/90 font-medium">
+                Withdraw
+              </span>
             </div>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <Button
                 onClick={() => {
                   setActiveTab("payments");
                   router.push("/payments");
                 }}
                 size="icon"
-                className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0"
+                className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                <Send className="h-6 w-6" />
+                <Send className="h-7 w-7" />
               </Button>
-              <span className="text-xs text-white/90">Send money</span>
+              <span className="text-sm text-white/90 font-medium">Send</span>
             </div>
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <Button
                 onClick={() => setMoreMenuOpen(true)}
                 size="icon"
-                className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0"
+                className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                <MoreHorizontal className="h-6 w-6" />
+                <MoreHorizontal className="h-7 w-7" />
               </Button>
-              <span className="text-xs text-white/90">More</span>
+              <span className="text-sm text-white/90 font-medium">More</span>
             </div>
           </div>
 
           {/* Search Bar */}
-          <div className="relative mb-8">
+          <div className="relative mb-10">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
             <Input
               placeholder="Ask anything"
-              className="pl-4 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-12 rounded-2xl"
+              className="pl-12 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-14 rounded-2xl backdrop-blur-sm"
             />
             <AudioLines className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
           </div>
 
           {/* Transactions Card */}
-          <Card className="bg-[#2A2640] border-0 rounded-3xl p-4 mb-6">
+          <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-6 shadow-xl">
             <div className="space-y-4">
               {loadingTransactions ? (
                 <div className="flex justify-center py-8">
@@ -286,10 +281,12 @@ export function BankingHome() {
                       className="flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                          <span className="text-xl text-white">
-                            {tx.recipient_id?.charAt(0).toUpperCase() || "?"}
-                          </span>
+                        <div className="h-12 w-12 rounded-full bg-[#00704A] flex items-center justify-center">
+                          <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center">
+                            <span className="text-sm font-semibold text-[#00704A]">
+                              {tx.recipient_id?.charAt(0).toUpperCase() || "?"}
+                            </span>
+                          </div>
                         </div>
                         <div>
                           <div className="font-medium text-white">
@@ -308,7 +305,7 @@ export function BankingHome() {
                       </div>
                       <div className="text-right">
                         <div
-                          className={`font-medium ${
+                          className={`font-semibold ${
                             tx.status === "success"
                               ? "text-green-400"
                               : tx.status === "failed"
@@ -326,9 +323,9 @@ export function BankingHome() {
                   ))}
 
                   <Button
-                    onClick={() => router.push("/transactions")}
                     variant="ghost"
-                    className="w-full text-white/80 hover:text-white hover:bg-white/5"
+                    onClick={() => router.push("/transactions")}
+                    className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
                   >
                     See all
                   </Button>
@@ -342,76 +339,22 @@ export function BankingHome() {
         <div className="h-20" />
       </div>
 
-      {/* More Menu Bottom Sheet */}
-      <BottomSheet
-        open={moreMenuOpen}
+      {/* More Menu */}
+      <MoreMenu
+        isOpen={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
-        title="More Options"
-      >
-        <div className="space-y-2">
-          <Button
-            onClick={() => {
-              toggleCurrency();
-              setMoreMenuOpen(false);
-            }}
-            variant="ghost"
-            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
-          >
-            {currency === "USD" ? (
-              <DollarSign className="h-5 w-5 mr-3" />
-            ) : (
-              <Euro className="h-5 w-5 mr-3" />
-            )}
-            <span className="text-base">Display Currency: {currency}</span>
-          </Button>
-
-          <Button
-            onClick={() => {
-              openBaseScan();
-              setMoreMenuOpen(false);
-            }}
-            variant="ghost"
-            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
-          >
-            <ExternalLink className="h-5 w-5 mr-3" />
-            <span className="text-base">Explore on BaseScan</span>
-          </Button>
-
-          <Button
-            onClick={() => {
-              setTheme(theme === "dark" ? "light" : "dark");
-              console.log(
-                "Theme toggled:",
-                theme === "dark" ? "light" : "dark"
-              );
-              setMoreMenuOpen(false);
-            }}
-            variant="ghost"
-            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
-          >
-            {theme === "dark" ? (
-              <Sun className="h-5 w-5 mr-3" />
-            ) : (
-              <Moon className="h-5 w-5 mr-3" />
-            )}
-            <span className="text-base">
-              Change Theme: {theme === "dark" ? "Light" : "Dark"}
-            </span>
-          </Button>
-
-          <Button
-            onClick={() => {
-              console.log("Add Investment Account clicked");
-              setMoreMenuOpen(false);
-            }}
-            variant="ghost"
-            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
-          >
-            <PlusCircle className="h-5 w-5 mr-3" />
-            <span className="text-base">Add Investment Account</span>
-          </Button>
-        </div>
-      </BottomSheet>
+        onCurrencyToggle={toggleCurrency}
+        onExploreBaseScan={openBaseScan}
+        onThemeToggle={() => {
+          setTheme(theme === "dark" ? "light" : "dark");
+          console.log("Theme toggled:", theme === "dark" ? "light" : "dark");
+        }}
+        onAddInvestmentAccount={() => {
+          console.log("Add Investment Account clicked");
+        }}
+        currency={currency}
+        theme={theme}
+      />
     </div>
   );
 }
