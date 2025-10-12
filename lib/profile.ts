@@ -85,7 +85,6 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
       name: data.name,
       handle: handle,
       wallet_address: data.wallet_address.toLowerCase(),
-      balance: "0", // Initialize with 0 balance
     })
     .select()
     .single();
@@ -198,27 +197,6 @@ export async function getProfile(id: string): Promise<Profile | null> {
       return null; // Not found
     }
     throw new Error(`Failed to get profile: ${error.message}`);
-  }
-
-  return profile;
-}
-
-/**
- * Update profile balance
- */
-export async function updateBalance(
-  id: string,
-  balance: string
-): Promise<Profile> {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .update({ balance })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to update balance: ${error.message}`);
   }
 
   return profile;

@@ -54,13 +54,12 @@ export function BankingHome() {
   const { rate: eurRate, isLoading: rateLoading } = useExchangeRate();
 
   // Calculate displayed balance based on currency
-  const fiatBalance: number = profile?.balance
-    ? parseFloat(profile.balance)
-    : 0;
+  // Use on-chain USDC balance as source of truth (1 USDC = 1 USD)
+  const usdBalance: number = usdcBalance ? parseFloat(usdcBalance) : 0;
   const displayedBalance: number =
     currency === "EUR"
-      ? convertCurrency(fiatBalance, "USD", "EUR", eurRate)
-      : fiatBalance;
+      ? convertCurrency(usdBalance, "USD", "EUR", eurRate)
+      : usdBalance;
 
   // Mount check to prevent hydration mismatch
   useEffect(() => {
