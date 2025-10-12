@@ -1,12 +1,28 @@
 import { supabase, type Profile } from "./supabase";
 
+/**
+ * Data required to create a new user profile.
+ *
+ * @interface CreateProfileData
+ * @property {string} name - User's display name
+ * @property {string} wallet_address - Blockchain wallet address
+ */
 export interface CreateProfileData {
   name: string;
   wallet_address: string;
 }
 
 /**
- * Generate a random alphanumeric string with pattern: number, letter, number
+ * Generates a random alphanumeric string following the pattern: number, letter, number.
+ * Used internally for creating unique handles.
+ *
+ * @private
+ * @function generateRandomString
+ * @param {number} length - Length of the string to generate
+ * @returns {string} Random string following the n-l-n pattern
+ *
+ * @example
+ * generateRandomString(3) // Returns: "7x2" or "3a9"
  */
 function generateRandomString(length: number): string {
   const numbers = "0123456789";
@@ -30,9 +46,21 @@ function generateRandomString(length: number): string {
 }
 
 /**
- * Generate a unique handle from name
- * Format: {first3letters}{3randomchars}banb
- * Example: "John Doe" -> "joh7x2banb"
+ * Generates a unique handle from a user's name.
+ * Attempts up to 10 times to create a unique handle by checking against the database.
+ *
+ * Handle format: {first3letters}{3randomchars}banb
+ *
+ * @private
+ * @async
+ * @function generateHandle
+ * @param {string} name - User's name to generate handle from
+ * @returns {Promise<string>} Unique handle string
+ * @throws {Error} If unable to generate unique handle after 10 attempts
+ *
+ * @example
+ * await generateHandle("John Doe") // Returns: "joh7x2banb"
+ * await generateHandle("Alice") // Returns: "ali3a9banb"
  */
 async function generateHandle(name: string): Promise<string> {
   // Get first 3 letters (lowercase, no spaces)
@@ -72,7 +100,22 @@ async function generateHandle(name: string): Promise<string> {
 }
 
 /**
- * Create a new user profile
+ * Creates a new user profile in the database.
+ * Automatically generates a unique handle and initializes balance to 0.
+ *
+ * @async
+ * @function createProfile
+ * @param {CreateProfileData} data - Profile creation data
+ * @param {string} data.name - User's display name
+ * @param {string} data.wallet_address - Blockchain wallet address
+ * @returns {Promise<Profile>} The created profile object
+ * @throws {Error} If wallet is already registered, name is taken, or database insert fails
+ *
+ * @example
+ * const profile = await createProfile({
+ *   name: 'John Doe',
+ *   wallet_address: '0x123abc...'
+ * });
  */
 export async function createProfile(data: CreateProfileData): Promise<Profile> {
   // Generate a unique handle
@@ -106,7 +149,17 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
 }
 
 /**
- * Update profile name
+ * Updates a profile's display name.
+ *
+ * @async
+ * @function updateProfileName
+ * @param {string} profileId - UUID of the profile to update
+ * @param {string} name - New display name
+ * @returns {Promise<Profile>} The updated profile object
+ * @throws {Error} If the database update fails
+ *
+ * @example
+ * const updated = await updateProfileName('user-uuid', 'Jane Smith');
  */
 export async function updateProfileName(
   profileId: string,
@@ -127,7 +180,17 @@ export async function updateProfileName(
 }
 
 /**
- * Delete profile and all related data
+ * Deletes a profile and all associated data (transactions and recipients).
+ * This is a cascading delete operation that removes all user data.
+ *
+ * @async
+ * @function deleteProfile
+ * @param {string} profileId - UUID of the profile to delete
+ * @returns {Promise<void>}
+ * @throws {Error} If the database delete fails
+ *
+ * @example
+ * await deleteProfile('user-uuid-123');
  */
 export async function deleteProfile(profileId: string): Promise<void> {
   // Delete related data first (transactions, recipients)
@@ -152,7 +215,18 @@ export async function deleteProfile(profileId: string): Promise<void> {
 }
 
 /**
- * Get profile by wallet address
+ * Retrieves a profile by wallet address.
+ * Wallet address comparison is case-insensitive.
+ *
+ * @async
+ * @function getProfileByWallet
+ * @param {string} wallet_address - Blockchain wallet address to search for
+ * @returns {Promise<Profile | null>} The profile object or null if not found
+ * @throws {Error} If the database query fails (excluding not found errors)
+ *
+ * @example
+ * const profile = await getProfileByWallet('0x123abc...');
+ * if (profile) console.log(`Found user: ${profile.name}`);
  */
 export async function getProfileByWallet(
   wallet_address: string
@@ -174,7 +248,16 @@ export async function getProfileByWallet(
 }
 
 /**
- * Get profile by ID
+ * Retrieves a profile by its unique ID.
+ *
+ * @async
+ * @function getProfile
+ * @param {string} id - UUID of the profile to retrieve
+ * @returns {Promise<Profile | null>} The profile object or null if not found
+ * @throws {Error} If the database query fails (excluding not found errors)
+ *
+ * @example
+ * const profile = await getProfile('user-uuid-123');
  */
 export async function getProfile(id: string): Promise<Profile | null> {
   const { data: profile, error } = await supabase
@@ -194,7 +277,17 @@ export async function getProfile(id: string): Promise<Profile | null> {
 }
 
 /**
- * Update profile balance
+ * Updates a profile's account balance.
+ *
+ * @async
+ * @function updateBalance
+ * @param {string} id - UUID of the profile to update
+ * @param {string} balance - New balance as string (e.g., "100.50")
+ * @returns {Promise<Profile>} The updated profile object
+ * @throws {Error} If the database update fails
+ *
+ * @example
+ * const updated = await updateBalance('user-uuid', '1250.75');
  */
 export async function updateBalance(
   id: string,

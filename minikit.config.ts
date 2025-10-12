@@ -1,3 +1,12 @@
+/**
+ * Root URL for the application.
+ * Priority order:
+ * 1. NEXT_PUBLIC_URL environment variable
+ * 2. Vercel production URL (if deployed on Vercel)
+ * 3. Local development URL (http://localhost:3000)
+ *
+ * @constant {string}
+ */
 const ROOT_URL =
   process.env.NEXT_PUBLIC_URL ||
   (process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -5,9 +14,36 @@ const ROOT_URL =
     : "http://localhost:3000");
 
 /**
- * MiniApp configuration object. Must follow the Farcaster MiniApp specification.
+ * MiniApp configuration object for Farcaster integration.
+ * This configuration defines the app's metadata, branding, and integration settings
+ * required for publishing to the Farcaster MiniApp ecosystem.
  *
- * @see {@link https://miniapps.farcaster.xyz/docs/guides/publishing}
+ * @constant
+ * @type {Object}
+ * @property {Object} accountAssociation - Account association credentials for Farcaster authentication
+ * @property {string} accountAssociation.header - Base64 encoded authentication header containing FID and key
+ * @property {string} accountAssociation.payload - Base64 encoded domain payload
+ * @property {string} accountAssociation.signature - Cryptographic signature for verification
+ * @property {Object} miniapp - MiniApp metadata and configuration
+ * @property {string} miniapp.version - App version number
+ * @property {string} miniapp.name - Display name of the application
+ * @property {string} miniapp.subtitle - Short subtitle describing the app
+ * @property {string} miniapp.description - Detailed description of app features and functionality
+ * @property {string[]} miniapp.screenshotUrls - Array of screenshot URLs for app store listing
+ * @property {string} miniapp.iconUrl - URL to app icon image
+ * @property {string} miniapp.splashImageUrl - URL to splash screen image
+ * @property {string} miniapp.splashBackgroundColor - Hex color code for splash screen background
+ * @property {string} miniapp.homeUrl - Main entry point URL for the app
+ * @property {string} miniapp.webhookUrl - Webhook endpoint for receiving Farcaster events
+ * @property {string} miniapp.primaryCategory - Primary app category (e.g., "finance")
+ * @property {string[]} miniapp.tags - Array of tags for app discovery and categorization
+ * @property {string} miniapp.heroImageUrl - URL to hero/banner image
+ * @property {string} miniapp.tagline - Short tagline for marketing
+ * @property {string} miniapp.ogTitle - Open Graph title for social sharing
+ * @property {string} miniapp.ogDescription - Open Graph description for social sharing
+ * @property {string} miniapp.ogImageUrl - Open Graph image URL for social sharing
+ *
+ * @see {@link https://miniapps.farcaster.xyz/docs/guides/publishing} Farcaster MiniApp Publishing Guide
  */
 export const minikitConfig = {
   accountAssociation: {

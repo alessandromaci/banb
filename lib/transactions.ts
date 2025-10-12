@@ -1,11 +1,24 @@
 import { supabase, type Transaction as DBTransaction } from "./supabase";
 
-// Re-export the database transaction type
+/**
+ * Re-exported Transaction type from supabase module.
+ * @typedef {DBTransaction} Transaction
+ */
 export type Transaction = DBTransaction;
 
 /**
- * Get all transactions for a profile (sent OR received)
- * Profile-centric: Gets transactions where user is sender OR recipient
+ * Retrieves all transactions for a specific profile.
+ * Returns both sent and received transactions in a single query.
+ *
+ * @async
+ * @function getTransactionsByProfile
+ * @param {string} profileId - The UUID of the profile to fetch transactions for
+ * @returns {Promise<Transaction[]>} Array of transactions with recipient details
+ * @throws {Error} If the database query fails
+ *
+ * @example
+ * const transactions = await getTransactionsByProfile('user-uuid-123');
+ * console.log(`Found ${transactions.length} transactions`);
  */
 export async function getTransactionsByProfile(
   profileId: string
@@ -42,8 +55,18 @@ export async function getTransactionsByProfile(
 }
 
 /**
- * Get recent transactions for a profile (limited)
- * Profile-centric: Gets recent transactions where user is sender OR recipient
+ * Retrieves recent transactions for a profile with a configurable limit.
+ * Returns the most recent transactions ordered by creation date.
+ *
+ * @async
+ * @function getRecentTransactions
+ * @param {string} profileId - The UUID of the profile to fetch transactions for
+ * @param {number} [limit=5] - Maximum number of transactions to return (default: 5)
+ * @returns {Promise<Transaction[]>} Array of recent transactions with recipient details
+ * @throws {Error} If the database query fails
+ *
+ * @example
+ * const recentTxs = await getRecentTransactions('user-uuid-123', 10);
  */
 export async function getRecentTransactions(
   profileId: string,
@@ -91,7 +114,16 @@ export async function getRecentTransactions(
 }
 
 /**
- * Get sent transactions only
+ * Retrieves only transactions sent by the specified profile.
+ *
+ * @async
+ * @function getSentTransactions
+ * @param {string} profileId - The UUID of the profile to fetch sent transactions for
+ * @returns {Promise<Transaction[]>} Array of sent transactions with recipient details
+ * @throws {Error} If the database query fails
+ *
+ * @example
+ * const sentTxs = await getSentTransactions('user-uuid-123');
  */
 export async function getSentTransactions(
   profileId: string
@@ -115,7 +147,16 @@ export async function getSentTransactions(
 }
 
 /**
- * Get received transactions only
+ * Retrieves only transactions received by the specified profile.
+ *
+ * @async
+ * @function getReceivedTransactions
+ * @param {string} profileId - The UUID of the profile to fetch received transactions for
+ * @returns {Promise<Transaction[]>} Array of received transactions with sender details
+ * @throws {Error} If the database query fails
+ *
+ * @example
+ * const receivedTxs = await getReceivedTransactions('user-uuid-123');
  */
 export async function getReceivedTransactions(
   profileId: string
@@ -151,7 +192,16 @@ export async function getReceivedTransactions(
 }
 
 /**
- * Group transactions by date
+ * Groups an array of transactions by their creation date.
+ * Useful for displaying transactions in a timeline or grouped list view.
+ *
+ * @function groupTransactionsByDate
+ * @param {Transaction[]} transactions - Array of transactions to group
+ * @returns {Record<string, Transaction[]>} Object with date strings as keys and transaction arrays as values
+ *
+ * @example
+ * const grouped = groupTransactionsByDate(transactions);
+ * // Returns: { "January 15, 2025": [...], "January 14, 2025": [...] }
  */
 export function groupTransactionsByDate(
   transactions: Transaction[]
@@ -175,7 +225,17 @@ export function groupTransactionsByDate(
 }
 
 /**
- * Format transaction amount with currency
+ * Formats a transaction amount with currency symbol.
+ * Handles negative amounts and formats to 2 decimal places.
+ *
+ * @function formatTransactionAmount
+ * @param {string | number} amount - The transaction amount to format
+ * @param {string} [token="USDC"] - The token/currency symbol (default: "USDC")
+ * @returns {string} Formatted amount string (e.g., "123.45 USDC" or "-50.00 USDC")
+ *
+ * @example
+ * formatTransactionAmount(123.456, "USDC") // Returns: "123.46 USDC"
+ * formatTransactionAmount(-50, "ETH") // Returns: "-50.00 ETH"
  */
 export function formatTransactionAmount(
   amount: string | number,
@@ -189,8 +249,28 @@ export function formatTransactionAmount(
 }
 
 /**
- * Create a new transaction
- * NOTE: This function requires sender_profile_id but we get it from the current user context
+ * Creates a new transaction in the database.
+ * Initializes the transaction with "pending" status.
+ *
+ * @async
+ * @function createTransaction
+ * @param {Object} data - Transaction data
+ * @param {string} data.recipient_id - UUID of the recipient from recipients table
+ * @param {string} data.chain - Blockchain network name (e.g., "base")
+ * @param {string} data.amount - Transaction amount as string
+ * @param {string} data.token - Token symbol (e.g., "USDC")
+ * @param {string} [data.sender_profile_id] - UUID of the sender profile (required)
+ * @returns {Promise<Transaction>} The created transaction object
+ * @throws {Error} If sender_profile_id is missing or database insert fails
+ *
+ * @example
+ * const tx = await createTransaction({
+ *   recipient_id: 'recipient-uuid',
+ *   chain: 'base',
+ *   amount: '100.00',
+ *   token: 'USDC',
+ *   sender_profile_id: 'sender-uuid'
+ * });
  */
 export async function createTransaction(data: {
   recipient_id: string;
@@ -226,7 +306,19 @@ export async function createTransaction(data: {
 }
 
 /**
- * Update transaction status
+ * Updates the status of an existing transaction.
+ * Optionally updates the blockchain transaction hash.
+ *
+ * @async
+ * @function updateTransactionStatus
+ * @param {string} transactionId - UUID of the transaction to update
+ * @param {"pending" | "sent" | "success" | "failed"} status - New transaction status
+ * @param {string} [txHash] - Optional blockchain transaction hash
+ * @returns {Promise<Transaction>} The updated transaction object
+ * @throws {Error} If the database update fails
+ *
+ * @example
+ * await updateTransactionStatus('tx-uuid', 'success', '0x123abc...');
  */
 export async function updateTransactionStatus(
   transactionId: string,
@@ -256,7 +348,17 @@ export async function updateTransactionStatus(
 }
 
 /**
- * Get transaction by ID
+ * Retrieves a single transaction by its ID.
+ *
+ * @async
+ * @function getTransactionStatus
+ * @param {string} transactionId - UUID of the transaction to retrieve
+ * @returns {Promise<Transaction | null>} The transaction object or null if not found
+ * @throws {Error} If the database query fails (excluding not found errors)
+ *
+ * @example
+ * const tx = await getTransactionStatus('tx-uuid-123');
+ * if (tx) console.log(`Status: ${tx.status}`);
  */
 export async function getTransactionStatus(
   transactionId: string
