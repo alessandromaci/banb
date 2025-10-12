@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useCryptoPayment } from "@/lib/payments";
 import { getRecipient } from "@/lib/recipients";
+import { useUser } from "@/lib/user-context";
 import type { Recipient } from "@/lib/supabase";
 
 interface ReviewCardProps {
@@ -29,6 +30,7 @@ export function ReviewCard({
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { executePayment, isLoading, error: paymentError } = useCryptoPayment();
+  const { profile } = useUser();
 
   // Fetch recipient data for crypto payments
   useEffect(() => {
@@ -40,10 +42,16 @@ export function ReviewCard({
   }, [type, recipientId]);
 
   const handleSend = async () => {
+    if (!profile) {
+      setError("Please log in to send payments");
+      return;
+    }
+
     if (type === "wallet" && recipient && recipientId) {
       try {
         const wallet = recipient.wallets[0]; // Use first wallet
         console.log("[ReviewCard] Initiating payment", {
+          senderProfileId: profile.id,
           recipientId,
           amount,
           walletAddress: wallet.address,
@@ -56,6 +64,7 @@ export function ReviewCard({
           token: "USDC", // Using USDC for stablecoin transfers
           chain: "base", // App only supports Base network
           to: wallet.address,
+          sender_profile_id: profile.id, // Pass current user's profile ID
         });
 
         console.log("[ReviewCard] Payment successful", result);
@@ -130,10 +139,10 @@ export function ReviewCard({
       <div className="pb-6 pt-4">
         <Button
           onClick={handleSend}
-          disabled={isLoading || (type === "wallet" && !recipient)}
+          disabled={isLoading || !profile || (type === "wallet" && !recipient)}
           className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50"
         >
-          {isLoading ? "Sending..." : "SEND"}
+          {isLoading ? "Sending..." : !profile ? "Please log in" : "SEND"}
         </Button>
       </div>
     </div>

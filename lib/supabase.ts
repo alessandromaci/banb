@@ -11,7 +11,7 @@ export interface Profile {
   name: string;
   handle: string;
   wallet_address: string;
-  balance: string;
+  balance: string; // numeric(20,2) in DB, returned as string
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +20,8 @@ export interface Recipient {
   id: string;
   name: string;
   status: "active" | "inactive";
+  profile_id: string | null; // Link to profiles if recipient is an app user (friend)
+  external_address: string | null; // External wallet if not an app user
   wallets: {
     address: string;
     network: string;
@@ -29,10 +31,11 @@ export interface Recipient {
 
 export interface Transaction {
   id: string;
-  recipient_id: string;
+  sender_profile_id: string; // NEW: Who sent this transaction
+  recipient_id: string; // References recipients table
   tx_hash: string | null;
   chain: string;
-  amount: string;
+  amount: string; // numeric(20,8) in DB, returned as string
   token: string;
   status: "pending" | "sent" | "success" | "failed";
   created_at: string;

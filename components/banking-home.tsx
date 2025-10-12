@@ -1,17 +1,25 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import {
   AudioLines,
   ArrowDown,
   BarChart3,
-  Menu,
+  CreditCard,
   Plus,
   MoreHorizontal,
   Send,
+  DollarSign,
+  Euro,
+  ExternalLink,
+  Moon,
+  Sun,
+  PlusCircle,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -19,14 +27,50 @@ import { sdk } from "@farcaster/miniapp-sdk";
 import { useAccount } from "wagmi";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
+import {
+  type Currency,
+  useExchangeRate,
+  convertCurrency,
+  formatCurrency,
+} from "@/lib/currency";
+import {
+  getRecentTransactions,
+  formatTransactionAmount,
+  type Transaction,
+} from "@/lib/transactions";
 
 export function BankingHome() {
   const [, setActiveTab] = useState("home");
+  const [isMounted, setIsMounted] = useState(false);
+  const [currency, setCurrency] = useState<Currency>("USD");
+  const [activeAccount, setActiveAccount] = useState<"main" | "investment">(
+    "main"
+  );
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+
   const router = useRouter();
   const { address } = useAccount();
-  const { formattedBalance, isLoading: balanceLoading } =
+  const { formattedBalance: usdcBalance, isLoading: balanceLoading } =
     useUSDCBalance(address);
   const { profile, isLoading: profileLoading } = useUser();
+  const { rate: eurRate, isLoading: rateLoading } = useExchangeRate();
+
+  // Calculate displayed balance based on currency
+  const fiatBalance: number = profile?.balance
+    ? parseFloat(profile.balance)
+    : 0;
+  const displayedBalance: number =
+    currency === "EUR"
+      ? convertCurrency(fiatBalance, "USD", "EUR", eurRate)
+      : fiatBalance;
+
+  // Mount check to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     // Call sdk.actions.ready() to hide the splash screen
@@ -49,6 +93,35 @@ export function BankingHome() {
     }
   }, [profile, profileLoading, router]);
 
+  // Fetch recent transactions
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      if (!profile?.id) return;
+
+      try {
+        setLoadingTransactions(true);
+        const data = await getRecentTransactions(profile.id, 3);
+        setTransactions(data);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [profile?.id]);
+
+  const toggleCurrency = () => {
+    setCurrency(currency === "USD" ? "EUR" : "USD");
+  };
+
+  const openBaseScan = () => {
+    if (address) {
+      window.open(`https://basescan.org/address/${address}`, "_blank");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#5B4FE8] via-[#4A3FD8] to-[#1E1B3D] text-white">
       {/* Mobile Container */}
@@ -56,7 +129,10 @@ export function BankingHome() {
         {/* Header */}
         <div className="pt-3 px-6 pb-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/profile")}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
               <Avatar className="h-10 w-10 border-2 border-white/20">
                 <AvatarFallback className="bg-white/10 text-white">
                   {profile?.name?.charAt(0).toUpperCase() || "?"}
@@ -68,7 +144,7 @@ export function BankingHome() {
                 </div>
                 <div className="text-xs text-white/60">@{profile?.handle}</div>
               </div>
-            </div>
+            </button>
             <div className="flex items-center gap-3">
               <Button
                 size="icon"
@@ -78,30 +154,59 @@ export function BankingHome() {
                 <BarChart3 className="h-5 w-5" />
               </Button>
               <Button
+                onClick={() => router.push("/cards")}
                 size="icon"
                 variant="ghost"
                 className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
               >
-                <Menu className="h-5 w-5" />
+                <CreditCard className="h-5 w-5" />
               </Button>
             </div>
           </div>
 
           {/* Balance Section */}
-          <div className="text-center mb-2">
-            <div className="text-sm text-white/70 mb-2">Balance</div>
-            <div className="text-5xl font-bold mb-2">
-              {balanceLoading
-                ? "$..."
-                : formattedBalance !== undefined
-                ? `$${formattedBalance}`
-                : "$0.00"}
+          <button
+            onClick={() => router.push("/cards")}
+            className="text-center mb-2 w-full hover:opacity-90 transition-opacity"
+          >
+            <div className="text-sm text-white/70 mb-2">
+              {activeAccount === "main" ? "Main" : "Investment"} - {currency}
             </div>
-            {address && (
-              <div className="text-xs text-white/50">
-                {address.slice(0, 6)}...{address.slice(-4)}
+            {activeAccount === "main" ? (
+              <>
+                <div className="text-5xl font-bold mb-2">
+                  {!isMounted || balanceLoading || rateLoading
+                    ? `${currency === "USD" ? "$" : "€"}...`
+                    : formatCurrency(displayedBalance, currency)}
+                </div>
+                {address && isMounted && (
+                  <div className="text-xs text-white/50">
+                    {address.slice(0, 6)}...{address.slice(-4)} -{" "}
+                    {usdcBalance || "0.00"} USDC
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-2xl font-semibold text-white/60 mb-2">
+                Investment account — coming soon
               </div>
             )}
+          </button>
+
+          {/* Pagination Dots */}
+          <div className="flex justify-center gap-2 mb-8">
+            <button
+              onClick={() => setActiveAccount("main")}
+              className={`h-2 w-2 rounded-full transition-colors ${
+                activeAccount === "main" ? "bg-white" : "bg-white/30"
+              }`}
+            />
+            <button
+              onClick={() => setActiveAccount("investment")}
+              className={`h-2 w-2 rounded-full transition-colors ${
+                activeAccount === "investment" ? "bg-white" : "bg-white/30"
+              }`}
+            />
           </div>
 
           <div className="h-6" />
@@ -143,6 +248,7 @@ export function BankingHome() {
             </div>
             <div className="flex flex-col items-center gap-2">
               <Button
+                onClick={() => setMoreMenuOpen(true)}
                 size="icon"
                 className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0"
               >
@@ -164,42 +270,70 @@ export function BankingHome() {
           {/* Transactions Card */}
           <Card className="bg-[#2A2640] border-0 rounded-3xl p-4 mb-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-[#00704A] flex items-center justify-center">
-                    <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center">
-                      <div className="h-6 w-6 rounded-full bg-[#00704A]" />
+              {loadingTransactions ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-8 text-white/60">
+                  <p>No transactions yet</p>
+                </div>
+              ) : (
+                <>
+                  {transactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+                          <span className="text-xl text-white">
+                            {tx.recipient_id?.charAt(0).toUpperCase() || "?"}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-white">
+                            {tx.recipient_id || "Unknown"}
+                          </div>
+                          <div className="text-sm text-white/60">
+                            {new Date(tx.created_at).toLocaleTimeString(
+                              "en-US",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div
+                          className={`font-medium ${
+                            tx.status === "success"
+                              ? "text-green-400"
+                              : tx.status === "failed"
+                              ? "text-red-400"
+                              : "text-white"
+                          }`}
+                        >
+                          {formatTransactionAmount(tx.amount, tx.token)}
+                        </div>
+                        <div className="text-xs text-white/60 capitalize">
+                          {tx.status}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="font-medium text-white">Starbucks</div>
-                    <div className="text-sm text-white/60">16:30</div>
-                  </div>
-                </div>
-                <div className="font-medium text-white">-£3.25</div>
-              </div>
+                  ))}
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-[#FF5A5F] flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" fill="white" className="h-6 w-6">
-                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm6.5 16.5c-.3.5-.9.7-1.4.4-3.8-2.3-8.6-2.8-14.2-1.5-.5.1-1.1-.2-1.2-.7-.1-.5.2-1.1.7-1.2 6.1-1.4 11.4-.8 15.6 1.7.5.3.7.9.5 1.3z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-white">AirBnB</div>
-                    <div className="text-sm text-white/60">16:30</div>
-                  </div>
-                </div>
-                <div className="font-medium text-white">-£3.25</div>
-              </div>
-
-              <Button
-                variant="ghost"
-                className="w-full text-white/80 hover:text-white hover:bg-white/5"
-              >
-                See all
-              </Button>
+                  <Button
+                    onClick={() => router.push("/transactions")}
+                    variant="ghost"
+                    className="w-full text-white/80 hover:text-white hover:bg-white/5"
+                  >
+                    See all
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         </div>
@@ -207,6 +341,77 @@ export function BankingHome() {
         {/* Bottom Spacer for Navigation */}
         <div className="h-20" />
       </div>
+
+      {/* More Menu Bottom Sheet */}
+      <BottomSheet
+        open={moreMenuOpen}
+        onClose={() => setMoreMenuOpen(false)}
+        title="More Options"
+      >
+        <div className="space-y-2">
+          <Button
+            onClick={() => {
+              toggleCurrency();
+              setMoreMenuOpen(false);
+            }}
+            variant="ghost"
+            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
+          >
+            {currency === "USD" ? (
+              <DollarSign className="h-5 w-5 mr-3" />
+            ) : (
+              <Euro className="h-5 w-5 mr-3" />
+            )}
+            <span className="text-base">Display Currency: {currency}</span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              openBaseScan();
+              setMoreMenuOpen(false);
+            }}
+            variant="ghost"
+            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
+          >
+            <ExternalLink className="h-5 w-5 mr-3" />
+            <span className="text-base">Explore on BaseScan</span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              setTheme(theme === "dark" ? "light" : "dark");
+              console.log(
+                "Theme toggled:",
+                theme === "dark" ? "light" : "dark"
+              );
+              setMoreMenuOpen(false);
+            }}
+            variant="ghost"
+            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5 mr-3" />
+            ) : (
+              <Moon className="h-5 w-5 mr-3" />
+            )}
+            <span className="text-base">
+              Change Theme: {theme === "dark" ? "Light" : "Dark"}
+            </span>
+          </Button>
+
+          <Button
+            onClick={() => {
+              console.log("Add Investment Account clicked");
+              setMoreMenuOpen(false);
+            }}
+            variant="ghost"
+            className="w-full justify-start h-14 text-white hover:bg-white/10 rounded-xl"
+          >
+            <PlusCircle className="h-5 w-5 mr-3" />
+            <span className="text-base">Add Investment Account</span>
+          </Button>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

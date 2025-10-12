@@ -19,6 +19,7 @@ export interface CryptoPaymentData {
   token: string;
   chain: string;
   to: string;
+  sender_profile_id: string; // Required: Current user's profile ID
   tokenAddress?: string; // USDC contract address
   decimals?: number; // Token decimals (6 for USDC)
 }
@@ -100,6 +101,7 @@ export function useCryptoPayment() {
           "[executePayment] Step 1: Creating transaction in database"
         );
         const transaction = await createTransaction({
+          sender_profile_id: data.sender_profile_id,
           recipient_id: data.recipientId,
           chain: data.chain,
           amount: data.amount,
