@@ -233,7 +233,10 @@ export async function updateTransactionStatus(
   status: "pending" | "sent" | "success" | "failed",
   txHash?: string
 ): Promise<Transaction> {
-  const updates: any = { status };
+  const updates: {
+    status: "pending" | "sent" | "success" | "failed";
+    tx_hash?: string;
+  } = { status };
   if (txHash) {
     updates.tx_hash = txHash;
   }

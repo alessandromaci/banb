@@ -9,12 +9,7 @@ export async function getRecipientsByProfile(
 ): Promise<Recipient[]> {
   const { data, error } = await supabase
     .from("recipients")
-    .select(
-      `
-      *,
-      profile:profiles(id, name, handle, wallet_address)
-    `
-    )
+    .select("*")
     .eq("profile_id", profileId)
     .order("name", { ascending: true });
 
@@ -33,12 +28,7 @@ export async function getRecipient(
 ): Promise<Recipient | null> {
   const { data, error } = await supabase
     .from("recipients")
-    .select(
-      `
-      *,
-      profile:profiles(id, name, handle, wallet_address)
-    `
-    )
+    .select("*")
     .eq("id", recipientId)
     .single();
 
@@ -62,15 +52,21 @@ export async function createRecipient(data: {
   external_address?: string; // If recipient is external wallet
   status?: "active" | "inactive";
 }): Promise<Recipient> {
-  const recipientData: any = {
-    profile_id: data.profile_id,
+  const recipientData: {
+    profile_id: string;
+    name: string;
+    status: "active" | "inactive";
+    profile_id_link?: string;
+    external_address?: string;
+  } = {
+    profile_id: data.profile_id, // Owner of this recipient entry
     name: data.name,
     status: data.status || "active",
   };
 
   // Either link to a profile or external address, not both
   if (data.profile_id_link) {
-    recipientData.profile_id = data.profile_id_link;
+    recipientData.profile_id_link = data.profile_id_link;
   } else if (data.external_address) {
     recipientData.external_address = data.external_address;
   }
@@ -132,14 +128,9 @@ export async function searchRecipients(
 ): Promise<Recipient[]> {
   const { data, error } = await supabase
     .from("recipients")
-    .select(
-      `
-      *,
-      profile:profiles(id, name, handle, wallet_address)
-    `
-    )
+    .select("*")
     .eq("profile_id", profileId)
-    .ilike("name", `%${searchTerm}%`)
+    .or(`name.ilike.%${searchTerm}%,external_address.ilike.%${searchTerm}%`)
     .order("name", { ascending: true });
 
   if (error) {

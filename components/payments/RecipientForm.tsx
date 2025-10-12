@@ -15,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { addRecipient } from "@/lib/recipients";
+import { createRecipient } from "@/lib/recipients";
+import { useUser } from "@/lib/user-context";
 
 interface RecipientFormProps {
   type: "wallet" | "bank";
@@ -23,6 +24,7 @@ interface RecipientFormProps {
 
 export function RecipientForm({ type }: RecipientFormProps) {
   const router = useRouter();
+  const { profile } = useUser();
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,15 +44,19 @@ export function RecipientForm({ type }: RecipientFormProps) {
           return;
         }
 
+        // Check if user is logged in
+        if (!profile?.id) {
+          setError("You must be logged in to add recipients");
+          setIsLoading(false);
+          return;
+        }
+
         // Add recipient to Supabase for crypto payments
-        const recipient = await addRecipient({
+        const recipient = await createRecipient({
+          profile_id: profile.id, // Owner's profile ID
           name: formData.name,
-          wallets: [
-            {
-              address: formData.address,
-              network: "base", // App only supports Base network
-            },
-          ],
+          external_address: formData.address, // External wallet address
+          status: "active",
         });
         router.push(`/payments/${type}/${recipient.id}/amount`);
       } else {

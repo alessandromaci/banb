@@ -18,15 +18,13 @@ export interface Profile {
 
 export interface Recipient {
   id: string;
+  profile_id: string; // Owner of this recipient entry
   name: string;
   status: "active" | "inactive";
-  profile_id: string | null; // Link to profiles if recipient is an app user (friend)
+  profile_id_link: string | null; // Link to profiles if recipient is an app user (friend)
   external_address: string | null; // External wallet if not an app user
-  wallets: {
-    address: string;
-    network: string;
-  }[];
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Transaction {
