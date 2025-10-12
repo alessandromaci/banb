@@ -207,6 +207,7 @@ export function BankingHome() {
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
+                onClick={() => router.push("/deposit")}
               >
                 <Plus className="h-7 w-7" />
               </Button>
@@ -216,6 +217,7 @@ export function BankingHome() {
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
+                onClick={() => router.push("/withdraw")}
               >
                 <ArrowDownToLine className="h-7 w-7" />
               </Button>
