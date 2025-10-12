@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { sdk } from "@farcaster/miniapp-sdk";
+import Image from "next/image";
 
 const slides = [
   {
@@ -86,7 +87,7 @@ export function LandingPage() {
         <div className="flex items-center gap-2 pt-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
             {/* <span className="font-bold text-white">BANB</span> */}
-            <img src="/banb.png" alt="BANB" className="h-4 w-4" />
+            <Image src="/banb.png" alt="BANB" className="h-4 w-4" />
           </div>
           <span className="text-sm text-white/80">
             {slides[currentSlide].subtitle}

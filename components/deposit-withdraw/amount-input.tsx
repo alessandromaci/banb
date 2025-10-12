@@ -26,7 +26,7 @@ export function AmountInput({
 
   const formatNumber = (value: string) => {
     // Remove all non-numeric characters except decimal point
-    let cleanValue = value.replace(/[^0-9.]/g, "").replace(/,/g, "");
+    const cleanValue = value.replace(/[^0-9.]/g, "").replace(/,/g, "");
 
     // Prevent multiple decimal points
     const decimalCount = (cleanValue.match(/\./g) || []).length;
