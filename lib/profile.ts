@@ -47,11 +47,12 @@ async function generateHandle(name: string): Promise<string> {
     const randomPart = generateRandomString(3);
     const handle = `${prefix}${randomPart}banb`;
 
-    // Check if handle already exists in database
+    // Check if handle already exists in active profiles
     const { data, error } = await supabase
       .from("profiles")
       .select("handle")
       .eq("handle", handle)
+      .neq("status", "inactive") // Exclude inactive profiles
       .single();
 
     // If no data found (error code PGRST116), handle is unique
@@ -112,32 +113,35 @@ export async function updateProfileName(
   profileId: string,
   name: string
 ): Promise<Profile> {
-  // First get the current profile
-  const { data: currentProfile, error: fetchError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", profileId)
-    .single();
-
-  if (fetchError) {
-    throw new Error(`Failed to fetch profile: ${fetchError.message}`);
-  }
+  console.log(
+    "[updateProfileName] Starting update for profile:",
+    profileId,
+    "with name:",
+    name
+  );
 
   // Update the name
-  const { error: updateError } = await supabase
+  const { data: updatedProfile, error: updateError } = await supabase
     .from("profiles")
     .update({ name })
-    .eq("id", profileId);
+    .eq("id", profileId)
+    .select()
+    .single();
+
+  console.log("[updateProfileName] Update result:", {
+    updatedProfile,
+    updateError,
+  });
 
   if (updateError) {
     throw new Error(`Failed to update profile: ${updateError.message}`);
   }
 
-  // Return the updated profile
-  return {
-    ...currentProfile,
-    name,
-  };
+  if (!updatedProfile) {
+    throw new Error("Profile not found or update failed");
+  }
+
+  return updatedProfile;
 }
 
 /**

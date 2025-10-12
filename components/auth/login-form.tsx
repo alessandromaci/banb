@@ -32,33 +32,45 @@ export function LoginForm() {
 
   // Check for existing profile when wallet connects
   useEffect(() => {
+    let isMounted = true;
+
     const checkProfile = async () => {
-      if (isConnected && address && !isLoggingIn) {
-        setIsLoggingIn(true);
-        setError(null);
+      if (!isConnected || !address || isLoggingIn) {
+        return;
+      }
 
-        try {
-          const profile = await getProfileByWallet(address);
+      setIsLoggingIn(true);
+      setError(null);
 
-          if (profile) {
-            // Save profile to context
-            setProfile(profile);
-            // Redirect to home
-            router.push("/home");
-          } else {
-            setError("No account found for this wallet. Please sign up first.");
-            setIsLoggingIn(false);
-          }
-        } catch (err) {
-          console.error("Failed to fetch profile:", err);
-          setError(err instanceof Error ? err.message : "Failed to login");
+      try {
+        const profile = await getProfileByWallet(address);
+
+        if (!isMounted) return;
+
+        if (profile) {
+          // Save profile to context
+          setProfile(profile);
+          // Redirect to home
+          router.push("/home");
+        } else {
+          setError("No account found for this wallet. Please sign up first.");
           setIsLoggingIn(false);
         }
+      } catch (err) {
+        if (!isMounted) return;
+
+        console.error("Failed to fetch profile:", err);
+        setError(err instanceof Error ? err.message : "Failed to login");
+        setIsLoggingIn(false);
       }
     };
 
     checkProfile();
-  }, [isConnected, address, router, setProfile, isLoggingIn]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isConnected, address, router, setProfile]);
 
   const connectWallet = (connectorId: string) => {
     const connector = connectors.find((c) => c.id === connectorId);
