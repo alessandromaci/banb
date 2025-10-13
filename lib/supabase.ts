@@ -21,8 +21,10 @@ export interface Recipient {
   profile_id: string; // Owner of this recipient entry
   name: string;
   status: "active" | "inactive";
+  recipient_type: "crypto" | "bank"; // NEW: Distinguish crypto vs bank recipients
   profile_id_link: string | null; // Link to profiles if recipient is an app user (friend)
   external_address: string | null; // External wallet if not an app user
+  bank_details: any | null; // NEW: Bank account details (IBAN, routing, etc.)
   created_at: string;
   updated_at?: string;
 }

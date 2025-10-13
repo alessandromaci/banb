@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { RecipientAvatar } from "@/components/ui/recipient-avatar";
 import {
   getRecipientsByProfile,
   searchRecipients,
@@ -247,14 +248,12 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
                     }
                     className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 transition-colors"
                   >
-                    <Avatar className="h-12 w-12 border-2 border-white/10">
-                      <AvatarFallback
-                        style={{ backgroundColor: getAvatarColor(recipient) }}
-                        className="text-white font-medium"
-                      >
-                        {getInitials(recipient)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <RecipientAvatar
+                      name={getDisplayName(recipient)}
+                      recipientType={recipient.recipient_type || "crypto"}
+                      size="md"
+                      showBadge={true}
+                    />
                     <div className="flex-1 text-left">
                       <div className="font-medium text-white">
                         {getDisplayName(recipient)}

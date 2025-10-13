@@ -55,11 +55,6 @@ export default function PaymentsPage() {
 
         {/* Friends List */}
         <div className="px-6 pb-24">
-          <div className="mb-4">
-            <h2 className="text-white/80 text-sm font-medium">
-              {searchTerm ? "Search results" : "Friends"}
-            </h2>
-          </div>
           <FriendList searchTerm={searchTerm} />
         </div>
       </div>

@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createRecipient } from "@/lib/recipients";
+import { createRecipient, createBankRecipient } from "@/lib/recipients";
 import { useUser } from "@/lib/user-context";
 
 interface RecipientFormProps {
@@ -60,9 +60,27 @@ export function RecipientForm({ type }: RecipientFormProps) {
         });
         router.push(`/payments/${type}/${recipient.id}/amount`);
       } else {
-        // For bank payments, use the existing flow
-        const recipientId = Date.now().toString();
-        router.push(`/payments/${type}/${recipientId}/amount`);
+        // For bank payments, create a recipient in the database
+        if (!profile?.id) {
+          setError("You must be logged in to add recipients");
+          setIsLoading(false);
+          return;
+        }
+
+        // Create bank recipient
+        const recipient = await createBankRecipient({
+          profile_id: profile.id,
+          name: `${formData.firstName} ${formData.lastName}`,
+          recipient_type: "bank",
+          bank_details: {
+            iban: formData.iban,
+            country: formData.country,
+            currency: formData.currency,
+          },
+          status: "active",
+        });
+
+        router.push(`/payments/${type}/${recipient.id}/amount`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add recipient");

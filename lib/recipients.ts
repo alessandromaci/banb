@@ -46,6 +46,15 @@ export async function getRecipient(
 }
 
 /**
+ * Get recipient by ID (alias for getRecipient)
+ */
+export async function getRecipientById(
+  recipientId: string
+): Promise<Recipient | null> {
+  return getRecipient(recipientId);
+}
+
+/**
  * Create a new recipient (add to friends list)
  */
 export async function createRecipient(data: {
@@ -219,40 +228,56 @@ export async function searchAvailableProfiles(
 }
 
 /**
- * Add a profile as a recipient
+ * Add a profile as a recipient using the secure API route
  */
 export async function addRecipient(
   profileId: string,
   recipientProfileId: string
 ): Promise<Recipient> {
-  // First, get the recipient's profile details
-  const { data: recipientProfile, error: profileError } = await supabase
-    .from("profiles")
-    .select("name, handle")
-    .eq("id", recipientProfileId)
-    .single();
+  const response = await fetch("/api/recipients", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      profile_id: profileId,
+      recipient_profile_id: recipientProfileId,
+    }),
+  });
 
-  if (profileError) {
-    throw new Error(`Failed to get recipient profile: ${profileError.message}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to add recipient");
   }
 
-  console.log("📝 Profile ID:", profileId);
-  console.log("👤 Recipient Profile ID:", recipientProfileId);
+  const data = await response.json();
+  return data.recipient;
+}
 
+/**
+ * Create a bank recipient directly in the database
+ */
+export async function createBankRecipient(recipientData: {
+  profile_id: string;
+  name: string;
+  recipient_type: "bank";
+  bank_details: any;
+  status: "active";
+}): Promise<Recipient> {
   const { data, error } = await supabase
     .from("recipients")
     .insert({
-      profile_id: profileId,
-      profile_id_link: recipientProfileId,
-      name: recipientProfile.name, // Use the actual name from the profile
-      status: "active",
+      profile_id: recipientData.profile_id,
+      name: recipientData.name,
+      recipient_type: recipientData.recipient_type,
+      bank_details: recipientData.bank_details,
+      status: recipientData.status,
     })
     .select()
     .single();
 
   if (error) {
-    console.error("RLS Error details:", error);
-    throw new Error(`Failed to add recipient: ${error.message}`);
+    throw new Error(`Failed to create bank recipient: ${error.message}`);
   }
 
   return data;
