@@ -1,4 +1,9 @@
-import { supabase, type Recipient, type Profile } from "./supabase";
+import {
+  supabase,
+  type Recipient,
+  type Profile,
+  type BankDetails,
+} from "./supabase";
 
 // Re-export types for convenience
 export type { Recipient, Profile };
@@ -261,7 +266,7 @@ export async function createBankRecipient(recipientData: {
   profile_id: string;
   name: string;
   recipient_type: "bank";
-  bank_details: any;
+  bank_details: BankDetails;
   status: "active";
 }): Promise<Recipient> {
   const { data, error } = await supabase

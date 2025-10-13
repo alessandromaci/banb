@@ -24,9 +24,18 @@ export interface Recipient {
   recipient_type: "crypto" | "bank"; // NEW: Distinguish crypto vs bank recipients
   profile_id_link: string | null; // Link to profiles if recipient is an app user (friend)
   external_address: string | null; // External wallet if not an app user
-  bank_details: any | null; // NEW: Bank account details (IBAN, routing, etc.)
+  bank_details: BankDetails | null; // NEW: Bank account details (IBAN, routing, etc.)
   created_at: string;
   updated_at?: string;
+}
+
+export interface BankDetails {
+  iban: string;
+  country: string;
+  currency: string;
+  routing_number?: string; // Optional for US banks
+  account_number?: string; // Optional for US banks
+  bank_name?: string; // Optional bank name
 }
 
 export interface Transaction {
