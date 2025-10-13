@@ -241,14 +241,17 @@ export async function updateTransactionStatus(
     .from("transactions")
     .update(updates)
     .eq("id", transactionId)
-    .select()
-    .single();
+    .select();
 
   if (error) {
     throw new Error(`Failed to update transaction: ${error.message}`);
   }
 
-  return data;
+  if (!data || data.length === 0) {
+    throw new Error(`Transaction with ID ${transactionId} not found`);
+  }
+
+  return data[0];
 }
 
 /**
