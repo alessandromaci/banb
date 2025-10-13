@@ -189,40 +189,36 @@ export function formatTransactionAmount(
 }
 
 /**
- * Create a new transaction
- * NOTE: This function requires sender_profile_id but we get it from the current user context
+ * Create a new transaction using the secure API route
  */
 export async function createTransaction(data: {
   recipient_id: string;
   chain: string;
   amount: string;
   token: string;
-  sender_profile_id?: string; // Made optional for now, should be required
+  sender_profile_id: string; // Required
 }): Promise<Transaction> {
-  // TODO: Get sender_profile_id from auth context
-  // For now, we'll need to pass it explicitly or get it from the caller
-  if (!data.sender_profile_id) {
-    throw new Error("sender_profile_id is required to create a transaction");
-  }
-
-  const { data: transaction, error } = await supabase
-    .from("transactions")
-    .insert({
+  const response = await fetch("/api/transactions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
       sender_profile_id: data.sender_profile_id,
       recipient_id: data.recipient_id,
       chain: data.chain,
       amount: data.amount,
       token: data.token,
-      status: "pending",
-    })
-    .select()
-    .single();
+    }),
+  });
 
-  if (error) {
-    throw new Error(`Failed to create transaction: ${error.message}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Failed to create transaction: ${error.error}`);
   }
 
-  return transaction;
+  const result = await response.json();
+  return result.transaction;
 }
 
 /**
