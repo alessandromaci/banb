@@ -19,7 +19,7 @@ import { createRecipient, createBankRecipient } from "@/lib/recipients";
 import { useUser } from "@/lib/user-context";
 
 interface RecipientFormProps {
-  type: "wallet" | "bank";
+  type: "crypto" | "bank";
 }
 
 export function RecipientForm({ type }: RecipientFormProps) {
@@ -36,7 +36,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
     setError(null);
 
     try {
-      if (type === "wallet") {
+      if (type === "crypto") {
         // Validate address before submission
         if (!formData.address || !isAddress(formData.address)) {
           setAddressError("Please enter a valid Ethereum address");
@@ -58,7 +58,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
           external_address: formData.address, // External wallet address
           status: "active",
         });
-        router.push(`/payments/${type}/${recipient.id}/amount`);
+        router.push(`/payments/crypto/${recipient.id}/amount`);
       } else {
         // For bank payments, create a recipient in the database
         if (!profile?.id) {
@@ -80,7 +80,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
           status: "active",
         });
 
-        router.push(`/payments/${type}/${recipient.id}/amount`);
+        router.push(`/payments/crypto/${recipient.id}/amount`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add recipient");
@@ -89,7 +89,7 @@ export function RecipientForm({ type }: RecipientFormProps) {
     }
   };
 
-  if (type === "wallet") {
+  if (type === "crypto") {
     return (
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (

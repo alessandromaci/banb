@@ -354,7 +354,7 @@ export function SignUpForm() {
                           onClick={handleDisconnect}
                           variant="ghost"
                           size="lg"
-                          className="w-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white"
+                          className="w-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white h-14"
                         >
                           Connect Different Wallet
                         </Button>

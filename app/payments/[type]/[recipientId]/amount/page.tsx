@@ -15,7 +15,7 @@ export default async function AmountPage({
   // Get recipient name based on type
   let recipientName = "Recipient";
 
-  if (resolvedParams.type === "friend" || resolvedParams.type === "recipient") {
+  if (resolvedParams.type === "crypto") {
     try {
       // Try to get recipient from database first
       const recipient = await getRecipientById(resolvedParams.recipientId);

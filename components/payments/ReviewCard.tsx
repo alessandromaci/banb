@@ -34,7 +34,7 @@ export function ReviewCard({
 
   // Fetch recipient data for crypto payments
   useEffect(() => {
-    if (type === "wallet" && recipientId) {
+    if (type === "crypto" && recipientId) {
       getRecipient(recipientId)
         .then(setRecipient)
         .catch((err) => setError(err.message));
@@ -47,7 +47,7 @@ export function ReviewCard({
       return;
     }
 
-    if (type === "wallet" && recipient && recipientId) {
+    if (type === "crypto" && recipient && recipientId) {
       try {
         // Get external wallet address
         const walletAddress = recipient.external_address;
@@ -80,9 +80,11 @@ export function ReviewCard({
         setError(err instanceof Error ? err.message : "Payment failed");
       }
     } else {
-      // For non-crypto payments, use existing flow
-      const txId = Date.now().toString();
-      router.push(`/payments/status/${txId}`);
+      // For non-crypto payments (bank), redirect to a success page
+      // since these don't create database transactions yet
+      router.push(
+        `/payments/success?type=${type}&amount=${amount}&recipient=${recipientName}`
+      );
     }
   };
 
@@ -111,7 +113,7 @@ export function ReviewCard({
             <div className="text-white/60 text-sm mb-1">Amount</div>
             <div className="text-white text-3xl font-light">
               ${amount}{" "}
-              {type === "wallet" && (
+              {type === "crypto" && (
                 <span className="text-lg text-white/70">USDC</span>
               )}
             </div>
@@ -145,7 +147,7 @@ export function ReviewCard({
       <div className="pb-6 pt-4">
         <Button
           onClick={handleSend}
-          disabled={isLoading || !profile || (type === "wallet" && !recipient)}
+          disabled={isLoading || !profile || (type === "crypto" && !recipient)}
           className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50"
         >
           {isLoading ? "Sending..." : !profile ? "Please log in" : "SEND"}

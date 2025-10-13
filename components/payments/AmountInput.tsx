@@ -32,7 +32,7 @@ export function AmountInput({
     isError: balanceError,
   } = useUSDCBalance(userAddress);
 
-  const needsBalanceCheck = type === "wallet" || type === "recipient";
+  const needsBalanceCheck = type === "crypto";
   const hasInsufficientBalance = Boolean(
     needsBalanceCheck &&
       formattedBalance !== undefined &&
@@ -134,7 +134,7 @@ export function AmountInput({
           <div className="space-y-2">
             <div className="text-white/70 text-sm mb-2 flex items-center justify-center gap-2">
               <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
-                {needsBalanceCheck ? (type === "wallet" ? "W" : "R") : "B"}
+                {needsBalanceCheck ? "C" : "B"}
               </span>
               Main ·{" "}
               {!isMounted ? (

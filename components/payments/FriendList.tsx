@@ -193,7 +193,7 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
       const newRecipient = await addRecipient(profile.id, recipientProfile.id);
 
       // Navigate to payment page with the new recipient
-      router.push(`/payments/recipient/${newRecipient.id}/amount`);
+      router.push(`/payments/crypto/${newRecipient.id}/amount`);
     } catch (error) {
       console.error("Failed to add recipient:", error);
       // You could add a toast notification here
@@ -244,7 +244,7 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
                   <button
                     key={recipient.id}
                     onClick={() =>
-                      router.push(`/payments/recipient/${recipient.id}/amount`)
+                      router.push(`/payments/crypto/${recipient.id}/amount`)
                     }
                     className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 transition-colors"
                   >
