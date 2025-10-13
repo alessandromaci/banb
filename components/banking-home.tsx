@@ -15,6 +15,8 @@ import {
   Send,
   Loader2,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -28,11 +30,8 @@ import {
   convertCurrency,
   formatCurrency,
 } from "@/lib/currency";
-import {
-  getRecentTransactions,
-  formatTransactionAmount,
-  type Transaction,
-} from "@/lib/transactions";
+import { getRecentTransactions, type Transaction } from "@/lib/transactions";
+import { TransactionCard } from "@/components/ui/transaction-card";
 
 export function BankingHome() {
   const [, setActiveTab] = useState("home");
@@ -45,6 +44,7 @@ export function BankingHome() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const router = useRouter();
   const { address } = useAccount();
@@ -71,7 +71,6 @@ export function BankingHome() {
     const initializeSDK = async () => {
       try {
         await sdk.actions.ready();
-        console.log("Farcaster SDK ready - splash screen hidden");
       } catch (error) {
         console.error("Failed to initialize Farcaster SDK:", error);
       }
@@ -113,6 +112,18 @@ export function BankingHome() {
   const openBaseScan = () => {
     if (address) {
       window.open(`https://basescan.org/address/${address}`, "_blank");
+    }
+  };
+
+  const copyAddress = async () => {
+    if (address) {
+      try {
+        await navigator.clipboard.writeText(address);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+      } catch (err) {
+        console.error("Failed to copy address:", err);
+      }
     }
   };
 
@@ -170,9 +181,22 @@ export function BankingHome() {
                     : formatCurrency(displayedBalance, currency)}
                 </div>
                 {address && isMounted && (
-                  <div className="text-sm text-white/70 mb-3">
-                    {address.slice(0, 6)}...{address.slice(-4)} -{" "}
-                    {usdcBalance || "0.00"} USDC
+                  <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-2">
+                    <button
+                      onClick={copyAddress}
+                      className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <span>
+                        {address.slice(0, 6)}...{address.slice(-4)}
+                      </span>
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <Copy className="h-4 w-4 opacity-60 hover:opacity-100" />
+                      )}
+                    </button>
+                    <span className="text-white/50">-</span>
+                    <span>{usdcBalance || "0.00"} USDC</span>
                   </div>
                 )}
               </>
@@ -273,52 +297,15 @@ export function BankingHome() {
                 </div>
               ) : (
                 <>
-                  {transactions.map((tx) => (
-                    <div
-                      key={tx.id}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-full bg-[#00704A] flex items-center justify-center">
-                          <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center">
-                            <span className="text-sm font-semibold text-[#00704A]">
-                              {tx.recipient_id?.charAt(0).toUpperCase() || "?"}
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-medium text-white">
-                            {tx.recipient_id || "Unknown"}
-                          </div>
-                          <div className="text-sm text-white/60">
-                            {new Date(tx.created_at).toLocaleTimeString(
-                              "en-US",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div
-                          className={`font-semibold ${
-                            tx.status === "success"
-                              ? "text-green-400"
-                              : tx.status === "failed"
-                              ? "text-red-400"
-                              : "text-white"
-                          }`}
-                        >
-                          {formatTransactionAmount(tx.amount, tx.token)}
-                        </div>
-                        <div className="text-xs text-white/60 capitalize">
-                          {tx.status}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                  {transactions
+                    .filter((tx) => tx.status === "success")
+                    .map((tx) => (
+                      <TransactionCard
+                        key={tx.id}
+                        transaction={tx}
+                        variant="default"
+                      />
+                    ))}
 
                   <Button
                     variant="ghost"
@@ -345,11 +332,8 @@ export function BankingHome() {
         onExploreBaseScan={openBaseScan}
         onThemeToggle={() => {
           setTheme(theme === "dark" ? "light" : "dark");
-          console.log("Theme toggled:", theme === "dark" ? "light" : "dark");
         }}
-        onAddInvestmentAccount={() => {
-          console.log("Add Investment Account clicked");
-        }}
+        onAddInvestmentAccount={() => {}}
         currency={currency}
         theme={theme}
       />

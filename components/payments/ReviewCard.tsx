@@ -56,14 +56,6 @@ export function ReviewCard({
           return;
         }
 
-        console.log("[ReviewCard] Initiating payment", {
-          senderProfileId: profile.id,
-          recipientId,
-          amount,
-          walletAddress,
-          network: "base",
-        });
-
         const result = await executePayment({
           recipientId,
           amount,
@@ -73,7 +65,6 @@ export function ReviewCard({
           sender_profile_id: profile.id, // Pass current user's profile ID
         });
 
-        console.log("[ReviewCard] Payment successful", result);
         router.push(`/payments/status/${result.txId}`);
       } catch (err) {
         console.error("[ReviewCard] Payment failed", err);

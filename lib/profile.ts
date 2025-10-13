@@ -112,12 +112,6 @@ export async function updateProfileName(
   profileId: string,
   name: string
 ): Promise<Profile> {
-  console.log(
-    "[updateProfileName] Starting update for profile:",
-    profileId,
-    "with name:",
-    name
-  );
 
   // Update the name
   const { data: updatedProfile, error: updateError } = await supabase
@@ -126,11 +120,6 @@ export async function updateProfileName(
     .eq("id", profileId)
     .select()
     .single();
-
-  console.log("[updateProfileName] Update result:", {
-    updatedProfile,
-    updateError,
-  });
 
   if (updateError) {
     throw new Error(`Failed to update profile: ${updateError.message}`);

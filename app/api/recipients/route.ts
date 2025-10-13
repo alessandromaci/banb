@@ -108,11 +108,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Insert the recipient (no RLS needed since it's server-side)
-    console.log("🔍 Attempting to insert recipient:", {
-      profile_id,
-      recipient_profile_id,
-      name: recipientProfile.name,
-    });
 
     const { data, error } = await supabaseAdmin
       .from("recipients")
@@ -141,8 +136,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log("✅ Successfully inserted recipient:", data);
 
     return NextResponse.json({
       success: true,

@@ -48,4 +48,9 @@ export interface Transaction {
   token: string;
   status: "pending" | "sent" | "success" | "failed";
   created_at: string;
+  recipient?: {
+    name: string;
+    profile_id: string;
+    external_address: string | null;
+  };
 }

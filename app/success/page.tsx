@@ -11,7 +11,6 @@ export default function Success() {
     const initializeSDK = async () => {
       try {
         await sdk.actions.ready();
-        console.log("Farcaster SDK ready - splash screen hidden");
       } catch (error) {
         console.error("Failed to initialize Farcaster SDK:", error);
       }
@@ -32,9 +31,7 @@ export default function Success() {
 
       // result.cast can be null if user cancels
       if (result?.cast) {
-        console.log("Cast created successfully:", result.cast.hash);
       } else {
-        console.log("User cancelled the cast");
       }
     } catch (error) {
       console.error("Error sharing cast:", error);
@@ -47,9 +44,7 @@ export default function Success() {
             text: `Yay! I just joined the waitlist for ${minikitConfig.miniapp.name.toUpperCase()}! `,
             url: process.env.NEXT_PUBLIC_URL || "",
           });
-          console.log("Shared successfully via native sharing");
         } catch (fallbackError) {
-          console.log("Native sharing also failed:", fallbackError);
         }
       }
     }

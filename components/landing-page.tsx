@@ -38,7 +38,7 @@ export function LandingPage() {
     const initializeSDK = async () => {
       try {
         await sdk.actions.ready();
-        console.log("Farcaster SDK ready - splash screen hidden");
+
       } catch (error) {
         console.error("Failed to initialize Farcaster SDK:", error);
       }

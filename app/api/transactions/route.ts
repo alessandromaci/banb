@@ -71,13 +71,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Create the transaction (no RLS needed since it's server-side)
-    console.log("🔍 Attempting to create transaction:", {
-      sender_profile_id,
-      recipient_id,
-      amount,
-      token,
-      chain,
-    });
 
     const { data, error } = await supabaseAdmin
       .from("transactions")
@@ -106,8 +99,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log("✅ Successfully created transaction:", data);
 
     return NextResponse.json({
       success: true,
