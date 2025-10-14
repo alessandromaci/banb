@@ -60,3 +60,26 @@
 - Type definitions co-located in `lib/supabase.ts`
 - React Query for server state caching
 - Wagmi/viem for blockchain interactions
+
+## Git Workflow
+
+### Branch Naming
+- Feature branches: `feature/[feature-name]` (e.g., `feature/payment-flow`)
+- Bug fixes: `fix/[issue-description]` (e.g., `fix/wallet-connection`)
+- Chores: `chore/[task-description]` (e.g., `chore/update-dependencies`)
+
+### Development Process
+1. **Start new work**: Create a feature branch from main
+2. **During development**: Make focused commits with clear messages
+3. **When complete**: Push branch and create PR for review
+4. **Commit messages**: Use conventional format:
+   - `feat: add payment recipient selection`
+   - `fix: resolve wallet connection timeout`
+   - `chore: setup steering rules for AI assistance`
+   - `docs: update API documentation`
+
+### Best Practices
+- Always work on a branch, never commit directly to main
+- Keep commits atomic and focused on a single concern
+- Write descriptive commit messages that explain the "why"
+- Push branches when feature/fix is complete and tested
