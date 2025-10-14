@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Crypto payment execution and transaction monitoring.
+ * Provides React hooks for executing USDC payments on Base chain and tracking transaction status.
+ * Integrates wagmi for blockchain interactions and Supabase for transaction persistence.
+ */
+
 "use client";
 
 import React, { useState, useCallback } from "react";
@@ -13,27 +19,95 @@ import { createTransaction, updateTransactionStatus } from "./transactions";
 import type { Transaction } from "./supabase";
 import ERC20_ABI from "./abi/ERC20.abi.json";
 
+/**
+ * Data required to execute a crypto payment.
+ * 
+ * @interface CryptoPaymentData
+ * @property {string} recipientId - Recipient ID from recipients table
+ * @property {string} amount - Amount to send as string (e.g., "100.50")
+ * @property {string} token - Token symbol (e.g., "USDC")
+ * @property {string} chain - Blockchain network (e.g., "base")
+ * @property {string} to - Recipient's wallet address
+ * @property {string} sender_profile_id - Current user's profile ID (required)
+ * @property {string} [tokenAddress] - Token contract address (optional, defaults to USDC)
+ * @property {number} [decimals] - Token decimals (optional, defaults to 6 for USDC)
+ */
 export interface CryptoPaymentData {
   recipientId: string;
   amount: string;
   token: string;
   chain: string;
   to: string;
-  sender_profile_id: string; // Required: Current user's profile ID
-  tokenAddress?: string; // USDC contract address
-  decimals?: number; // Token decimals (6 for USDC)
+  sender_profile_id: string;
+  tokenAddress?: string;
+  decimals?: number;
 }
 
+/**
+ * Result returned after executing a crypto payment.
+ * 
+ * @interface CryptoPaymentResult
+ * @property {string} hash - Blockchain transaction hash
+ * @property {string} txId - Database transaction ID (UUID)
+ * @property {"pending" | "sent" | "success" | "failed"} status - Transaction status
+ */
 export interface CryptoPaymentResult {
   hash: string;
   txId: string;
   status: "pending" | "sent" | "success" | "failed";
 }
 
-// USDC contract address on Base
+/**
+ * USDC contract address on Base mainnet.
+ * @constant {string}
+ */
 const USDC_BASE_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+
+/**
+ * USDC token decimals (6 decimals).
+ * @constant {number}
+ */
 const USDC_DECIMALS = 6;
 
+/**
+ * React hook for executing crypto payments.
+ * Handles the complete payment flow: database record creation, blockchain transaction,
+ * and status updates. Monitors transaction confirmation automatically.
+ * 
+ * @returns {Object} Payment execution state and function
+ * @returns {function} return.executePayment - Function to execute a payment
+ * @returns {boolean} return.isLoading - True while payment is processing
+ * @returns {string | undefined} return.error - Error message if payment failed
+ * 
+ * @example
+ * ```tsx
+ * function PaymentButton() {
+ *   const { executePayment, isLoading, error } = useCryptoPayment();
+ *   
+ *   const handlePay = async () => {
+ *     try {
+ *       const result = await executePayment({
+ *         recipientId: recipient.id,
+ *         amount: "100.00",
+ *         token: "USDC",
+ *         chain: "base",
+ *         to: recipient.external_address,
+ *         sender_profile_id: currentUser.id
+ *       });
+ *       console.log(`Payment sent: ${result.hash}`);
+ *     } catch (err) {
+ *       console.error("Payment failed:", err);
+ *     }
+ *   };
+ *   
+ *   return (
+ *     <button onClick={handlePay} disabled={isLoading}>
+ *       {isLoading ? "Processing..." : "Pay"}
+ *     </button>
+ *   );
+ * }
+ * ```
+ */
 export function useCryptoPayment() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +135,16 @@ export function useCryptoPayment() {
     // Handle transaction confirmation
   }, [txHash, isConfirming, isConfirmed]);
 
+  /**
+   * Executes a crypto payment with the provided data.
+   * Creates database record, executes blockchain transaction, and updates status.
+   * 
+   * @async
+   * @param {CryptoPaymentData} data - Payment data
+   * @returns {Promise<CryptoPaymentResult>} Payment result with hash and transaction ID
+   * @throws {Error} If wallet not connected
+   * @throws {Error} If blockchain transaction fails
+   */
   const executePayment = useCallback(
     async (data: CryptoPaymentData): Promise<CryptoPaymentResult> => {
       if (!userAddress) {
@@ -163,6 +247,41 @@ export function useCryptoPayment() {
   };
 }
 
+/**
+ * React hook for monitoring transaction status.
+ * Fetches transaction details and automatically updates status when blockchain confirmation is received.
+ * 
+ * @param {string | null} txId - Transaction ID to monitor (UUID)
+ * @returns {Object} Transaction monitoring state
+ * @returns {Transaction | null} return.transaction - Current transaction object
+ * @returns {boolean} return.isLoading - True while fetching or waiting for confirmation
+ * @returns {string | null} return.error - Error message if fetch failed
+ * @returns {function} return.refetch - Function to manually refetch transaction
+ * 
+ * @example
+ * ```tsx
+ * function TransactionStatus({ txId }: { txId: string }) {
+ *   const { transaction, isLoading, error, refetch } = useTransactionStatus(txId);
+ *   
+ *   if (isLoading) return <div>Loading...</div>;
+ *   if (error) return <div>Error: {error}</div>;
+ *   if (!transaction) return <div>Transaction not found</div>;
+ *   
+ *   return (
+ *     <div>
+ *       <p>Status: {transaction.status}</p>
+ *       <p>Amount: {transaction.amount} {transaction.token}</p>
+ *       {transaction.tx_hash && (
+ *         <a href={`https://basescan.org/tx/${transaction.tx_hash}`}>
+ *           View on Explorer
+ *         </a>
+ *       )}
+ *       <button onClick={refetch}>Refresh</button>
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
 export function useTransactionStatus(txId: string | null) {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -213,7 +332,29 @@ export function useTransactionStatus(txId: string | null) {
   };
 }
 
-// Utility: Get USDC balance for an address (can be used for UI display)
+/**
+ * React hook to fetch USDC balance for a wallet address.
+ * Reads from the USDC contract on Base chain and formats the balance.
+ * 
+ * @param {`0x${string}`} [address] - Wallet address to check balance for
+ * @returns {Object} Balance state
+ * @returns {string | undefined} return.formattedBalance - Formatted balance with 2 decimals (e.g., "100.50")
+ * @returns {boolean} return.isLoading - True while fetching balance
+ * @returns {boolean} return.isError - True if fetch failed
+ * 
+ * @example
+ * ```tsx
+ * function WalletBalance() {
+ *   const { address } = useAccount();
+ *   const { formattedBalance, isLoading, isError } = useUSDCBalance(address);
+ *   
+ *   if (isLoading) return <div>Loading balance...</div>;
+ *   if (isError) return <div>Error loading balance</div>;
+ *   
+ *   return <div>USDC Balance: ${formattedBalance}</div>;
+ * }
+ * ```
+ */
 export function useUSDCBalance(address?: `0x${string}`) {
   const {
     data: balance,
