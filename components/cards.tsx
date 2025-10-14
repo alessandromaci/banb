@@ -48,7 +48,7 @@ export function CardsPage() {
             >
               <div className="flex flex-col justify-between h-full">
                 <div className="flex items-start justify-between">
-                  <div className="text-2xl font-bold">banb</div>
+                  <div className="text-2xl font-bold">BANB</div>
                   <div className="text-sm opacity-80">
                     {cards[currentCard].type}
                   </div>

@@ -48,7 +48,7 @@ export interface Profile {
   name: string;
   handle: string;
   wallet_address: string;
-  balance: string; // numeric(20,2) in DB, returned as string
+  status?: "active" | "inactive"; // Optional for now
   created_at: string;
   updated_at: string;
 }
@@ -72,8 +72,10 @@ export interface Recipient {
   profile_id: string; // Owner of this recipient entry
   name: string;
   status: "active" | "inactive";
+  recipient_type: "crypto" | "bank"; // NEW: Distinguish crypto vs bank recipients
   profile_id_link: string | null; // Link to profiles if recipient is an app user (friend)
   external_address: string | null; // External wallet if not an app user
+  bank_details: BankDetails | null; // NEW: Bank account details (IBAN, routing, etc.)
   created_at: string;
   updated_at?: string;
 }
@@ -93,6 +95,7 @@ export interface Recipient {
  * @property {"pending" | "sent" | "success" | "failed"} status - Transaction status
  * @property {string} created_at - ISO timestamp of transaction creation
  */
+
 export interface Transaction {
   id: string;
   sender_profile_id: string; // NEW: Who sent this transaction
@@ -103,4 +106,18 @@ export interface Transaction {
   token: string;
   status: "pending" | "sent" | "success" | "failed";
   created_at: string;
+  recipient?: {
+    name: string;
+    profile_id: string;
+    external_address: string | null;
+  };
+}
+
+export interface BankDetails {
+  iban: string;
+  country: string;
+  currency: string;
+  routing_number?: string; // Optional for US banks
+  account_number?: string; // Optional for US banks
+  bank_name?: string; // Optional bank name
 }

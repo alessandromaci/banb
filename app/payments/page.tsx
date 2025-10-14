@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { ArrowLeft, QrCode } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -6,6 +9,8 @@ import { PaymentOptions } from "@/components/payments/PaymentOptions";
 import { FriendList } from "@/components/payments/FriendList";
 
 export default function PaymentsPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+
   return (
     <div className="min-h-screen bg-[#1E1B3D] text-white">
       <div className="mx-auto max-w-md">
@@ -36,7 +41,11 @@ export default function PaymentsPage() {
 
         {/* Search */}
         <div className="px-6 mb-6">
-          <SearchBar placeholder="Name, @Revtag, phone, email" />
+          <SearchBar
+            placeholder="Name, @handle"
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
         </div>
 
         {/* Payment Options */}
@@ -46,10 +55,7 @@ export default function PaymentsPage() {
 
         {/* Friends List */}
         <div className="px-6 pb-24">
-          <div className="mb-4">
-            <h2 className="text-white/80 text-sm font-medium">Friends · 3</h2>
-          </div>
-          <FriendList />
+          <FriendList searchTerm={searchTerm} />
         </div>
       </div>
     </div>

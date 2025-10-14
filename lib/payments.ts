@@ -58,32 +58,11 @@ export function useCryptoPayment() {
 
   // Log transaction hash when available
   React.useEffect(() => {
-    if (txHash) {
-      console.log("[useCryptoPayment] Transaction hash available", {
-        txHash,
-        isConfirming,
-        isConfirmed,
-      });
-    }
+    // Handle transaction confirmation
   }, [txHash, isConfirming, isConfirmed]);
 
   const executePayment = useCallback(
     async (data: CryptoPaymentData): Promise<CryptoPaymentResult> => {
-      console.log(
-        "[executePayment] ========== PAYMENT EXECUTION STARTED =========="
-      );
-      console.log("[executePayment] Payment details:", {
-        recipientId: data.recipientId,
-        recipientAddress: data.to,
-        amount: data.amount,
-        token: data.token,
-        chain: data.chain,
-      });
-      console.log(
-        "[executePayment] User wallet address:",
-        userAddress || "NOT CONNECTED"
-      );
-
       if (!userAddress) {
         const err =
           "Wallet not connected. Please connect your wallet to continue.";
@@ -97,9 +76,6 @@ export function useCryptoPayment() {
 
       try {
         // 1. Create transaction record in Supabase with pending status
-        console.log(
-          "[executePayment] Step 1: Creating transaction in database"
-        );
         const transaction = await createTransaction({
           sender_profile_id: data.sender_profile_id,
           recipient_id: data.recipientId,
@@ -107,17 +83,10 @@ export function useCryptoPayment() {
           amount: data.amount,
           token: data.token,
         });
-        console.log(
-          "[executePayment] ✓ Transaction created in DB:",
-          transaction.id
-        );
         setTransactionId(transaction.id);
 
         // 2. Prepare transaction parameters
         const amountWei = parseUnits(data.amount, USDC_DECIMALS);
-        console.log(
-          "[executePayment] Step 2: Preparing transaction parameters"
-        );
         console.log("[executePayment] Transfer details:", {
           contract: USDC_BASE_ADDRESS,
           to: data.to,
@@ -126,9 +95,6 @@ export function useCryptoPayment() {
         });
 
         // 3. Execute the transaction (skipping simulation due to connector limitations)
-        console.log(
-          "[executePayment] Step 3: Executing blockchain transaction..."
-        );
         const hash = await writeContractAsync({
           address: USDC_BASE_ADDRESS as `0x${string}`,
           abi: ERC20_ABI,
@@ -136,23 +102,25 @@ export function useCryptoPayment() {
           args: [data.to as `0x${string}`, amountWei],
           chainId: base.id,
         });
-        console.log("[executePayment] ✓ Transaction submitted! Hash:", hash);
-
         if (!hash) {
           console.error("[executePayment] ❌ No transaction hash returned");
           throw new Error("Transaction hash not available");
         }
 
         // 4. Update transaction with hash and sent status
-        console.log(
-          "[executePayment] Step 4: Updating database with transaction hash"
-        );
-        await updateTransactionStatus(transaction.id, "sent", hash);
-        console.log("[executePayment] ✓ Database updated");
+        // Add a small delay to ensure transaction is fully committed
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        console.log(
-          "[executePayment] ========== ✓ PAYMENT COMPLETED SUCCESSFULLY =========="
-        );
+        try {
+          await updateTransactionStatus(transaction.id, "sent", hash);
+        } catch (updateError) {
+          console.error(
+            "[executePayment] ❌ Failed to update transaction:",
+            updateError
+          );
+          // Don't throw here - the transaction was successful on-chain
+          // Just log the error and continue
+        }
         return {
           hash,
           txId: transaction.id,
@@ -171,9 +139,6 @@ export function useCryptoPayment() {
         // Update transaction status to failed if we have a transaction record
         if (transactionId) {
           try {
-            console.log(
-              "[executePayment] Marking transaction as failed in database"
-            );
             await updateTransactionStatus(transactionId, "failed");
           } catch (updateError) {
             console.error(
@@ -186,9 +151,6 @@ export function useCryptoPayment() {
         throw new Error(errorMessage);
       } finally {
         setIsLoading(false);
-        console.log(
-          "[executePayment] ========== EXECUTION FINISHED =========="
-        );
       }
     },
     [userAddress, writeContractAsync, transactionId]

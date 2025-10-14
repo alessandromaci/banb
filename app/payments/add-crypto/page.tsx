@@ -1,7 +1,7 @@
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { RecipientForm } from "@/components/payments/RecipientForm"
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { RecipientForm } from "@/components/payments/RecipientForm";
 
 export default function WalletPaymentPage() {
   return (
@@ -10,7 +10,11 @@ export default function WalletPaymentPage() {
         {/* Header */}
         <div className="flex items-center px-6 py-4">
           <Link href="/payments">
-            <Button size="icon" variant="ghost" className="h-10 w-10 text-white hover:bg-white/10">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-10 w-10 text-white hover:bg-white/10"
+            >
               <ArrowLeft className="h-6 w-6" />
             </Button>
           </Link>
@@ -23,9 +27,9 @@ export default function WalletPaymentPage() {
 
         {/* Form */}
         <div className="px-6 pb-24">
-          <RecipientForm type="wallet" />
+          <RecipientForm type="crypto" />
         </div>
       </div>
     </div>
-  )
+  );
 }

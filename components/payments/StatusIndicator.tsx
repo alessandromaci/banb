@@ -183,7 +183,7 @@ export function StatusIndicator() {
 
       <div className="pb-6 pt-4">
         <Button
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/home")}
           disabled={
             transaction.status === "pending" || transaction.status === "sent"
           }

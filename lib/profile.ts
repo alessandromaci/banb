@@ -75,11 +75,12 @@ async function generateHandle(name: string): Promise<string> {
     const randomPart = generateRandomString(3);
     const handle = `${prefix}${randomPart}banb`;
 
-    // Check if handle already exists in database
+    // Check if handle already exists in active profiles
     const { data, error } = await supabase
       .from("profiles")
       .select("handle")
       .eq("handle", handle)
+      .neq("status", "inactive") // Exclude inactive profiles
       .single();
 
     // If no data found (error code PGRST116), handle is unique
@@ -127,7 +128,6 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
       name: data.name,
       handle: handle,
       wallet_address: data.wallet_address.toLowerCase(),
-      balance: "0", // Initialize with 0 balance
     })
     .select()
     .single();
@@ -165,23 +165,29 @@ export async function updateProfileName(
   profileId: string,
   name: string
 ): Promise<Profile> {
-  const { data: profile, error } = await supabase
+
+  // Update the name
+  const { data: updatedProfile, error: updateError } = await supabase
     .from("profiles")
     .update({ name })
     .eq("id", profileId)
     .select()
     .single();
 
-  if (error) {
-    throw new Error(`Failed to update profile: ${error.message}`);
+  if (updateError) {
+    throw new Error(`Failed to update profile: ${updateError.message}`);
   }
 
-  return profile;
+  if (!updatedProfile) {
+    throw new Error("Profile not found or update failed");
+  }
+
+  return updatedProfile;
 }
 
 /**
- * Deletes a profile and all associated data (transactions and recipients).
- * This is a cascading delete operation that removes all user data.
+ * Soft Delete by by setting profile status to inactive.
+ * This preserves data integrity and transaction history.
  *
  * @async
  * @function deleteProfile
@@ -193,24 +199,13 @@ export async function updateProfileName(
  * await deleteProfile('user-uuid-123');
  */
 export async function deleteProfile(profileId: string): Promise<void> {
-  // Delete related data first (transactions, recipients)
-  // Transactions
-  await supabase
-    .from("transactions")
-    .delete()
-    .eq("sender_profile_id", profileId);
-
-  // Recipients
-  await supabase.from("recipients").delete().eq("profile_id", profileId);
-
-  // Finally delete the profile
   const { error } = await supabase
     .from("profiles")
-    .delete()
+    .update({ status: "inactive" })
     .eq("id", profileId);
 
   if (error) {
-    throw new Error(`Failed to delete profile: ${error.message}`);
+    throw new Error(`Failed to deactivate profile: ${error.message}`);
   }
 }
 
@@ -235,6 +230,7 @@ export async function getProfileByWallet(
     .from("profiles")
     .select("*")
     .eq("wallet_address", wallet_address.toLowerCase())
+    .neq("status", "inactive") // Exclude inactive profiles
     .single();
 
   if (error) {
@@ -264,6 +260,7 @@ export async function getProfile(id: string): Promise<Profile | null> {
     .from("profiles")
     .select("*")
     .eq("id", id)
+    .neq("status", "inactive") // Exclude inactive profiles
     .single();
 
   if (error) {

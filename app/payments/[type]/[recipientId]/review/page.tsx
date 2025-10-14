@@ -16,13 +16,7 @@ export default async function ReviewPage({
   let recipientName = "Recipient";
   let recipientDetails = "";
 
-  if (resolvedParams.type === "friend") {
-    const friend = friends.find(
-      (f) => f.id.toString() === resolvedParams.recipientId
-    );
-    recipientName = friend?.name || "Friend";
-    recipientDetails = friend?.username || "";
-  } else if (resolvedParams.type === "wallet") {
+  if (resolvedParams.type === "crypto") {
     // Fetch actual recipient data from database
     const recipient = await getRecipient(resolvedParams.recipientId);
     if (recipient) {

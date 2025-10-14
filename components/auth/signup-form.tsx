@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Wallet, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAccount, useConnect } from "wagmi";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { createProfile, getProfileByWallet } from "@/lib/profile";
 import { useUser } from "@/lib/user-context";
 
@@ -29,6 +29,7 @@ export function SignUpForm() {
 
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending: isConnecting } = useConnect();
+  const { disconnect } = useDisconnect();
   const { setProfile } = useUser();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -92,6 +93,12 @@ export function SignUpForm() {
     }
   };
 
+  const handleDisconnect = () => {
+    disconnect();
+    setExistingWallet(false);
+    setError(null);
+  };
+
   // Reset connecting state when connection completes
   if (isConnected && connectingConnectorId) {
     setConnectingConnectorId(null);
@@ -107,7 +114,7 @@ export function SignUpForm() {
           if (existingProfile) {
             setExistingWallet(true);
             setError(
-              "An account already exists with this wallet. Please sign in instead."
+              "An account already exists with this wallet. Please log in instead."
             );
           } else {
             setExistingWallet(false);
@@ -285,27 +292,22 @@ export function SignUpForm() {
                           </p>
                           <p className="text-sm text-white/70">
                             An account was already found with this wallet.
-                            Please sign in instead.
                           </p>
                         </div>
 
                         <Button
                           onClick={() => router.push("/login")}
                           size="lg"
-                          className="w-full rounded-full bg-white text-black hover:bg-white/90 h-14 text-base font-semibold"
+                          className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 text-base font-semibold"
                         >
                           Sign In Instead
                         </Button>
 
                         <Button
-                          onClick={() => {
-                            setExistingWallet(false);
-                            setError(null);
-                            // Disconnect wallet logic could go here if needed
-                          }}
+                          onClick={handleDisconnect}
                           variant="ghost"
                           size="lg"
-                          className="w-full text-white/60 hover:text-white"
+                          className="w-full rounded-full text-white/60 hover:text-white h-12 bg-white/10 hover:bg-white/20"
                         >
                           Try Different Wallet
                         </Button>
@@ -347,18 +349,19 @@ export function SignUpForm() {
                             "Create Account"
                           )}
                         </Button>
+
+                        <Button
+                          onClick={handleDisconnect}
+                          variant="ghost"
+                          size="lg"
+                          className="w-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white h-14"
+                        >
+                          Connect Different Wallet
+                        </Button>
                       </>
                     )}
                   </>
                 )}
-
-                <Button
-                  variant="ghost"
-                  onClick={() => setStep("details")}
-                  className="w-full text-white/60 hover:text-white hover:bg-white/5"
-                >
-                  Back
-                </Button>
               </div>
             </div>
           )}

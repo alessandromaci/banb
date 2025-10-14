@@ -9,9 +9,9 @@ import { useEffect, useState } from "react";
 import {
   getTransactionsByProfile,
   groupTransactionsByDate,
-  formatTransactionAmount,
   type Transaction,
 } from "@/lib/transactions";
+import { TransactionCard } from "@/components/ui/transaction-card";
 
 export default function TransactionsPage() {
   const { profile } = useUser();
@@ -38,9 +38,6 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, [profile?.id]);
 
-  const pendingTransactions = transactions.filter(
-    (tx) => tx.status === "pending" || tx.status === "sent"
-  );
   const completedTransactions = transactions.filter(
     (tx) => tx.status === "success"
   );
@@ -80,51 +77,6 @@ export default function TransactionsPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Pending Transactions */}
-              {pendingTransactions.length > 0 && (
-                <div>
-                  <h2 className="text-sm font-semibold text-white/60 mb-3 uppercase">
-                    Pending
-                  </h2>
-                  <Card className="bg-white/5 border-white/10 p-4 space-y-4">
-                    {pendingTransactions.map((tx) => (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                            <Loader2 className="h-5 w-5 text-yellow-400 animate-spin" />
-                          </div>
-                          <div>
-                            <div className="font-medium">
-                              {tx.recipient_id || "Unknown"}
-                            </div>
-                            <div className="text-sm text-white/60">
-                              {new Date(tx.created_at).toLocaleTimeString(
-                                "en-US",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium text-yellow-400">
-                            {formatTransactionAmount(tx.amount, tx.token)}
-                          </div>
-                          <div className="text-xs text-white/60 capitalize">
-                            {tx.status}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </Card>
-                </div>
-              )}
-
               {/* Grouped Transactions by Date */}
               {Object.entries(groupedTransactions).map(([date, txs]) => (
                 <div key={date}>
@@ -133,40 +85,11 @@ export default function TransactionsPage() {
                   </h2>
                   <Card className="bg-white/5 border-white/10 p-4 space-y-4">
                     {txs.map((tx) => (
-                      <div
+                      <TransactionCard
                         key={tx.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                            <span className="text-xl">
-                              {tx.recipient_id?.charAt(0).toUpperCase() || "?"}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="font-medium">
-                              {tx.recipient_id || "Unknown"}
-                            </div>
-                            <div className="text-sm text-white/60">
-                              {new Date(tx.created_at).toLocaleTimeString(
-                                "en-US",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium text-green-400">
-                            {formatTransactionAmount(tx.amount, tx.token)}
-                          </div>
-                          <div className="text-xs text-white/60 capitalize">
-                            {tx.status}
-                          </div>
-                        </div>
-                      </div>
+                        transaction={tx}
+                        variant="completed"
+                      />
                     ))}
                   </Card>
                 </div>

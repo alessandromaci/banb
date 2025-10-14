@@ -11,7 +11,7 @@ export function PaymentOptions() {
     {
       icon: Bitcoin,
       label: "Crypto",
-      onClick: () => router.push("/payments/wallet"),
+      onClick: () => router.push("/payments/add-crypto"),
     },
     {
       icon: Building2,

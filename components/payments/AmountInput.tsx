@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ export function AmountInput({
   const router = useRouter();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const { address: userAddress } = useAccount();
   const {
@@ -30,15 +32,54 @@ export function AmountInput({
     isError: balanceError,
   } = useUSDCBalance(userAddress);
 
-  const isWalletPayment = type === "wallet";
-
-  // Check if user has insufficient balance (only for wallet payments with valid balance)
+  const needsBalanceCheck = type === "crypto";
   const hasInsufficientBalance = Boolean(
-    isWalletPayment &&
+    needsBalanceCheck &&
       formattedBalance !== undefined &&
       amount &&
       parseFloat(amount) > parseFloat(formattedBalance)
   );
+
+  // Handle hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const formatNumber = (value: string) => {
+    const cleanValue = value.replace(/[^0-9.]/g, "").replace(/,/g, "");
+
+    // Prevent multiple decimal points
+    if ((cleanValue.match(/\./g) || []).length > 1) return amount;
+
+    // Handle empty or decimal-only input
+    if (cleanValue === "" || cleanValue === ".") return cleanValue;
+
+    const [integer, decimal] = cleanValue.split(".");
+
+    // Validate length limits
+    if (integer.length > 4 || (decimal && decimal.length > 2)) {
+      return amount;
+    }
+
+    return cleanValue;
+  };
+
+  const formatDisplayValue = (value: string) => {
+    if (!value || value === "0") return "0";
+    const numericValue = parseFloat(value);
+    if (isNaN(numericValue)) return "0";
+
+    // Always show commas for numbers >= 1000
+    if (numericValue >= 1000) {
+      return numericValue.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    // For numbers < 1000: raw value while focused, clean when not focused
+    return isFocused ? value : numericValue.toFixed(2).replace(/\.?0+$/, "");
+  };
 
   const handleContinue = () => {
     if (amount && Number.parseFloat(amount) > 0 && !hasInsufficientBalance) {
@@ -53,29 +94,53 @@ export function AmountInput({
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div className="text-center mb-8">
           <div className="text-white/70 text-sm mb-2">{recipientName}</div>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 relative">
             <span className="text-6xl font-light text-white">$</span>
-            <Input
-              type="number"
+            <div className="text-6xl font-light text-white">
+              {formatDisplayValue(amount)}
+            </div>
+            <input
+              type="text"
+              inputMode="decimal"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                const inputValue = !isFocused
+                  ? e.target.value.replace(/,/g, "")
+                  : e.target.value;
+                setAmount(formatNumber(inputValue));
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               placeholder="0"
-              className="text-6xl font-light text-white bg-transparent border-0 p-0 h-auto w-auto text-center focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              style={{ width: `${Math.max(amount.length, 1) * 0.6}em` }}
+              maxLength={8}
+              className="absolute opacity-0 pointer-events-auto"
+              style={{
+                caretColor: "#7B4CFF",
+                width: "100%",
+                height: "100%",
+                fontSize: "3.75rem",
+                fontWeight: "600",
+                textAlign: "center",
+                background: "transparent",
+                border: "none",
+                outline: "none",
+              }}
             />
           </div>
           <div className="text-white/50 text-sm mt-2">No fees</div>
         </div>
 
         <div className="w-full max-w-sm mx-auto">
-          {isWalletPayment ? (
-            <div className="space-y-2">
-              <div className="text-white/70 text-sm mb-2 flex items-center justify-center gap-2">
-                <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
-                  W
-                </span>
-                Main ·{" "}
-                {balanceLoading ? (
+          <div className="space-y-2">
+            <div className="text-white/70 text-sm mb-2 flex items-center justify-center gap-2">
+              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
+                {needsBalanceCheck ? "C" : "B"}
+              </span>
+              Main ·{" "}
+              {!isMounted ? (
+                "Loading..."
+              ) : needsBalanceCheck ? (
+                balanceLoading ? (
                   "Loading..."
                 ) : balanceError ? (
                   <span className="text-white/50 text-xs">Balance N/A</span>
@@ -83,23 +148,17 @@ export function AmountInput({
                   `$${formattedBalance} USDC`
                 ) : (
                   <span className="text-white/50 text-xs">—</span>
-                )}
-              </div>
-              {hasInsufficientBalance && (
-                <div className="text-red-400 text-xs text-center">
-                  Insufficient balance. You need ${amount} but only have $
-                  {formattedBalance}
-                </div>
+                )
+              ) : (
+                "Balance"
               )}
             </div>
-          ) : (
-            <div className="text-white/70 text-sm mb-2 flex items-center justify-center gap-2">
-              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs">
-                B
-              </span>
-              Main · Balance
-            </div>
-          )}
+            {hasInsufficientBalance && (
+              <div className="text-red-400 text-xs text-center">
+                Insufficient balance.
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
