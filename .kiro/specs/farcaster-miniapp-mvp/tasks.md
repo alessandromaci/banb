@@ -196,14 +196,130 @@ This implementation plan breaks down the BANB Farcaster MiniApp MVP into discret
   - Implement retry logic for failed database writes
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
 
-- [ ] 15. End-to-end integration testing and polish
+- [ ] 15. Implement currency conversion API and service
+  - Create `/app/api/currency/rates/route.ts` to fetch USDC to USD and EURO rates
+  - Integrate with CoinGecko API or similar price feed service
+  - Implement 5-minute caching for conversion rates
+  - Create `lib/currency.ts` with conversion utility functions
+  - Implement `useCurrencyConversion()` hook for fetching rates
+  - Implement `convertToFiat()` function for USDC to fiat conversion
+  - Implement `useCurrencyPreference()` hook for localStorage persistence
+  - Add error handling for rate fetch failures with fallback behavior
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.9, 11.10_
+
+- [ ]* 15.1 Write tests for currency conversion logic
+  - Test USDC to USD conversion accuracy
+  - Test USDC to EURO conversion accuracy
+  - Test currency formatting with symbols
+  - Test rate caching behavior
+  - Test fallback to USDC on error
+  - _Requirements: 11.3, 11.4, 11.6, 11.7_
+
+- [ ] 16. Build currency toggle and balance display components
+  - Create `components/currency/CurrencyToggle.tsx` with USD/EURO toggle
+  - Create `components/currency/BalanceDisplay.tsx` for fiat balance display
+  - Create `components/currency/TransactionAmountDisplay.tsx` for transaction amounts
+  - Integrate currency toggle into banking home dashboard
+  - Display balance in selected currency with proper formatting
+  - Show USDC amount as secondary display
+  - Add loading state for conversion rate fetch
+  - Display error state when rates unavailable
+  - Persist currency preference to localStorage
+  - _Requirements: 11.5, 11.6, 11.7, 11.8, 11.10_
+
+- [ ]* 16.1 Write tests for currency display components
+  - Test currency toggle state management
+  - Test balance calculation with different rates
+  - Test formatting for USD and EURO
+  - Test error state display
+  - _Requirements: 11.6, 11.7, 11.9_
+
+- [ ] 17. Add fiat conversion to transaction displays
+  - Update transaction list items to show fiat equivalent amounts
+  - Update payment review screen to show fiat conversion
+  - Update transaction status screen to show fiat amounts
+  - Ensure all amounts use selected currency preference
+  - Format amounts consistently across all screens
+  - _Requirements: 11.11_
+
+- [ ] 18. Create AI agent database schema and API endpoints
+  - Create `ai_operations` table in Supabase for audit trail
+  - Create `/app/api/ai/chat/route.ts` for AI message processing
+  - Create `/app/api/ai/execute/route.ts` for operation execution
+  - Implement authentication and rate limiting for AI endpoints
+  - Add input sanitization to prevent prompt injection
+  - Set up AI backend integration (OpenAI, Anthropic, or local model)
+  - _Requirements: 12.1, 12.2, 12.4, 12.6, 12.7, 12.9_
+
+- [ ] 19. Implement AI agent service layer
+  - Create `lib/ai-agent.ts` with AI interaction functions
+  - Implement `useAIAgent()` hook for chat interface
+  - Implement `executeAIOperation()` function for operation execution
+  - Implement `getPortfolioInsights()` function for spending analysis
+  - Add context retrieval functions (balance, transactions, recipients)
+  - Implement operation parsing from AI responses
+  - Add audit logging for all AI operations
+  - _Requirements: 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.10, 12.11_
+
+- [ ]* 19.1 Write tests for AI agent operation validation
+  - Test operation type validation
+  - Test payment operation data structure
+  - Test analysis operation data structure
+  - Test operation confirmation flow
+  - Test audit trail creation
+  - _Requirements: 12.4, 12.7, 12.11_
+
+- [ ] 20. Build AI agent chat interface
+  - Create `components/ai/AIAgentChat.tsx` with message history
+  - Create `components/ai/AIOperationConfirmation.tsx` for operation approval
+  - Create `components/ai/PortfolioInsightsCard.tsx` for insights display
+  - Add suggested prompts for common actions
+  - Implement typing indicator during AI processing
+  - Add message input with send button
+  - Integrate with `useAIAgent()` hook
+  - Handle operation confirmations with modal dialogs
+  - Display portfolio insights when requested
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.9, 12.10_
+
+- [ ] 21. Integrate AI agent into banking home
+  - Add AI chat interface to banking home dashboard
+  - Implement collapsible/expandable chat panel
+  - Add AI icon/button to trigger chat
+  - Ensure AI has access to user context (profile, balance, transactions)
+  - Test AI-suggested payment flow end-to-end
+  - Test portfolio analysis features
+  - Add user consent flow for AI features
+  - _Requirements: 12.1, 12.2, 12.3, 12.9_
+
+- [ ] 22. Implement AI operation execution and security
+  - Add confirmation modal for all AI-suggested operations
+  - Implement operation validation before execution
+  - Add security warnings for payment operations
+  - Log all AI operations to ai_operations table
+  - Implement operation result tracking
+  - Add user ability to view AI operation history
+  - Ensure all AI operations follow same security rules as manual operations
+  - _Requirements: 12.4, 12.5, 12.6, 12.7, 12.8, 12.11_
+
+- [ ]* 22.1 Write tests for AI security measures
+  - Test prompt injection prevention
+  - Test operation validation
+  - Test confirmation requirement enforcement
+  - Test audit logging
+  - _Requirements: 12.6, 12.7, 12.11_
+
+- [ ] 23. End-to-end integration testing and polish
   - Test complete payment flow from dashboard to success
+  - Test currency conversion with different currencies
+  - Test AI agent chat and operation execution
   - Verify all error states display correctly
   - Test with real USDC on Base Mainnet (small amounts)
   - Verify transaction confirmation polling works
   - Test recipient management (add, search, select)
   - Verify balance updates after payment
   - Test session persistence across page refreshes
+  - Test AI-suggested payments end-to-end
+  - Test portfolio insights accuracy
   - Fix any UI/UX issues discovered during testing
   - Prepare demo script for hackathon presentation
   - _Requirements: All requirements_
@@ -213,7 +329,9 @@ This implementation plan breaks down the BANB Farcaster MiniApp MVP into discret
 **Critical Path (Must Have)**:
 - Tasks 1-10: Core payment flow from auth to transaction completion
 - Task 13: MiniApp configuration for Farcaster integration
-- Task 15: End-to-end testing
+- Tasks 15-17: Currency conversion features
+- Tasks 18-22: AI agent integration
+- Task 23: End-to-end testing
 
 **Nice to Have (If Time Permits)**:
 - Tasks marked with `*`: Unit tests for validation
@@ -221,8 +339,22 @@ This implementation plan breaks down the BANB Farcaster MiniApp MVP into discret
 - Task 12: Mobile optimizations
 - Task 14: Advanced data sync
 
+**Feature Priority**:
+1. **Core Payment Flow** (Tasks 1-10): Essential for basic functionality
+2. **Currency Conversion** (Tasks 15-17): Enhances user experience with familiar currencies
+3. **AI Agent** (Tasks 18-22): Differentiator feature for hackathon, showcases innovation
+
 **Demo Preparation**:
 - Have test USDC ready on Base Mainnet
 - Prepare 2-3 test recipient addresses
 - Test the full flow multiple times before presenting
+- Prepare AI demo prompts: "Analyze my spending", "Send $50 to Alice"
+- Test currency toggle between USD and EURO
 - Have backup plan if network is slow (show video recording)
+- Highlight AI agent as key innovation in presentation
+
+**AI Backend Setup**:
+- Choose AI provider: OpenAI (fastest), Anthropic (most capable), or Ollama (free/local)
+- Set up API keys in environment variables
+- Test AI responses before demo
+- Prepare fallback responses if AI is unavailable

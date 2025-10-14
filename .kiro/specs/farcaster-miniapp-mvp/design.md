@@ -107,6 +107,44 @@ Poll for Confirmation → useWaitForTransactionReceipt
 Update Transaction (status: success) → Success Screen
 ```
 
+#### Currency Conversion Flow
+```
+Banking Home Loads → Fetch USDC Balance from Blockchain
+    ↓
+Fetch Conversion Rates from /api/currency/rates
+    ↓
+Check Cache (5-minute TTL) → Return Cached or Fetch Fresh
+    ↓
+Calculate Fiat Equivalent (USDC × Rate)
+    ↓
+Display Balance in Selected Currency (USD/EURO)
+    ↓
+User Toggles Currency → Update Preference in localStorage
+    ↓
+Recalculate and Display New Currency
+```
+
+#### AI Agent Flow
+```
+User Sends Message → /api/ai/chat with Context
+    ↓
+Retrieve User Context (Balance, Transactions, Recipients)
+    ↓
+Send to AI Backend (OpenAI/Anthropic/Local)
+    ↓
+AI Processes Request → Generates Response
+    ↓
+Parse Response for Operations → Extract Actionable Items
+    ↓
+IF Operation Detected → Present Confirmation Modal
+    ↓
+User Confirms → /api/ai/execute
+    ↓
+Execute Operation → Update ai_operations Table
+    ↓
+Return Result → Display in Chat
+```
+
 ## Components and Interfaces
 
 ### 1. User Layer Components
@@ -154,21 +192,28 @@ Update Transaction (status: success) → Success Screen
 - **Purpose**: Main dashboard showing balance and transactions
 - **Key Features**:
   - USDC balance display with loading state
+  - Multi-currency toggle (USD/EURO) for balance display
   - Quick action buttons (Send, Add, Withdraw, More)
-  - Transaction history list (10 most recent)
-  - AI chat input (placeholder for future)
+  - Transaction history list (10 most recent) with fiat conversion
+  - AI chat input for portfolio management
 - **State**:
   - `balance: string | undefined`
   - `isLoadingBalance: boolean`
   - `transactions: Transaction[]`
   - `isLoadingTransactions: boolean`
+  - `selectedCurrency: 'USD' | 'EURO'`
+  - `conversionRates: { usd: number, euro: number }`
+  - `isLoadingRates: boolean`
 - **Hooks**:
   - `useUSDCBalance(address)` from lib/payments
   - `useUser()` from lib/user-context
+  - `useCurrencyConversion()` from lib/currency
 - **Data Sources**:
   - Balance: Base blockchain via Wagmi
   - Transactions: Supabase via `getRecentTransactions()`
+  - Conversion Rates: Price feed API (CoinGecko or similar)
 - **Refresh**: Pull-to-refresh triggers data reload
+- **Currency Persistence**: Selected currency saved to localStorage
 
 
 #### Payment Flow Components (`components/payments/`)
@@ -264,6 +309,94 @@ Update Transaction (status: success) → Success Screen
 - **Polling**: Auto-refreshes until status is success or failed
 - **Navigation**: "Done" button returns to `/home`
 
+#### Currency Components (`components/currency/`)
+
+**CurrencyToggle.tsx**
+- **Purpose**: Allow users to switch between USD and EURO display
+- **Key Features**:
+  - Toggle button with currency symbols ($ / €)
+  - Visual indication of selected currency
+  - Smooth transition animation
+- **State**:
+  - `selectedCurrency: 'USD' | 'EURO'`
+- **Hooks**: `useCurrencyPreference()` from lib/currency
+- **Behavior**: Updates preference in localStorage on toggle
+
+**BalanceDisplay.tsx**
+- **Purpose**: Show balance in selected fiat currency
+- **Key Features**:
+  - Large formatted balance with currency symbol
+  - Loading skeleton during fetch
+  - Error state with fallback to USDC
+  - Small USDC amount shown below fiat value
+- **Props**:
+  - `usdcBalance: string`
+  - `currency: 'USD' | 'EURO'`
+  - `conversionRates: ConversionRates`
+- **Calculation**: Converts USDC to fiat using current rates
+- **Formatting**: 
+  - USD: "$1,234.56"
+  - EURO: "€1.234,56"
+
+**TransactionAmountDisplay.tsx**
+- **Purpose**: Show transaction amounts with fiat conversion
+- **Key Features**:
+  - Primary amount in USDC
+  - Secondary amount in selected fiat currency
+  - Compact formatting for list views
+- **Props**:
+  - `amount: string`
+  - `token: string`
+  - `currency: 'USD' | 'EURO'`
+  - `conversionRates: ConversionRates`
+- **Display Format**: "10.50 USDC (~$10.50)"
+
+#### AI Agent Components (`components/ai/`)
+
+**AIAgentChat.tsx**
+- **Purpose**: Main interface for AI-powered banking assistant
+- **Key Features**:
+  - Chat message history display
+  - Message input with send button
+  - Typing indicator when AI is processing
+  - Suggested prompts for common actions
+  - Operation confirmation modals
+- **State**:
+  - `messages: AIAgentMessage[]`
+  - `inputValue: string`
+  - `pendingOperation: AIOperation | null`
+- **Hooks**: `useAIAgent()` from lib/ai-agent
+- **Suggested Prompts**:
+  - "Analyze my spending this month"
+  - "Who do I send money to most often?"
+  - "Send $50 to Alice"
+  - "Show my balance trend"
+
+**AIOperationConfirmation.tsx**
+- **Purpose**: Confirm AI-suggested operations before execution
+- **Key Features**:
+  - Operation details display
+  - Clear explanation of what will happen
+  - Approve/Reject buttons
+  - Security warning for payment operations
+- **Props**:
+  - `operation: AIOperation`
+  - `onConfirm: () => void`
+  - `onReject: () => void`
+- **Display**: Modal overlay with operation summary
+
+**PortfolioInsightsCard.tsx**
+- **Purpose**: Display AI-generated portfolio insights
+- **Key Features**:
+  - Spending summary metrics
+  - Top recipients chart
+  - Spending trend indicator
+  - Average transaction amount
+- **Props**:
+  - `insights: PortfolioInsights`
+- **Visualization**: Simple bar charts and trend arrows
+- **Refresh**: Updates when new transactions occur
+
 ### 2. Service Layer (lib/)
 
 #### payments.ts
@@ -331,6 +464,132 @@ function useUSDCBalance(address?: `0x${string}`): {
 1. Calls ERC20 `balanceOf()` via `useReadContract()`
 2. Formats balance from wei to decimal (6 decimals for USDC)
 3. Returns formatted string with 2 decimal places
+
+#### currency.ts
+
+**useCurrencyConversion() Hook**
+```typescript
+interface ConversionRates {
+  usd: number;
+  euro: number;
+  lastUpdated: number;
+}
+
+function useCurrencyConversion(): {
+  rates: ConversionRates | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+```
+
+**Implementation Details**:
+1. Fetches USDC to USD and USDC to EURO rates from price feed API
+2. Caches rates in memory with 5-minute TTL
+3. Auto-refreshes on mount and when cache expires
+4. Provides manual refetch function
+
+**convertToFiat() Function**
+```typescript
+function convertToFiat(
+  usdcAmount: string,
+  currency: 'USD' | 'EURO',
+  rates: ConversionRates
+): string
+```
+
+**Implementation Details**:
+1. Parses USDC amount as float
+2. Multiplies by appropriate conversion rate
+3. Formats with currency symbol and 2 decimal places
+4. Returns formatted string (e.g., "$10.50" or "€9.80")
+
+**useCurrencyPreference() Hook**
+```typescript
+function useCurrencyPreference(): {
+  currency: 'USD' | 'EURO';
+  setCurrency: (currency: 'USD' | 'EURO') => void;
+}
+```
+
+**Implementation Details**:
+1. Reads currency preference from localStorage
+2. Defaults to 'USD' if not set
+3. Persists changes to localStorage
+4. Provides setter function for UI toggle
+
+#### ai-agent.ts
+
+**useAIAgent() Hook**
+```typescript
+interface AIAgentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+interface AIAgentContext {
+  balance: string;
+  transactions: Transaction[];
+  recipients: Recipient[];
+}
+
+function useAIAgent(): {
+  messages: AIAgentMessage[];
+  isProcessing: boolean;
+  sendMessage: (message: string) => Promise<void>;
+  clearHistory: () => void;
+  error: string | null;
+}
+```
+
+**Implementation Details**:
+1. Maintains conversation history in state
+2. Automatically retrieves user context (balance, transactions, recipients)
+3. Sends messages to AI backend with context
+4. Parses AI responses for actionable operations
+5. Presents operations to user for confirmation
+
+**executeAIOperation() Function**
+```typescript
+interface AIOperation {
+  type: 'payment' | 'analysis' | 'query';
+  data: any;
+}
+
+async function executeAIOperation(
+  operation: AIOperation,
+  userConfirmed: boolean
+): Promise<{ success: boolean; result: any }>
+```
+
+**Implementation Details**:
+1. Validates operation type and data
+2. Requires user confirmation for payment operations
+3. Executes operation using existing service functions
+4. Logs operation to audit trail
+5. Returns result for display to user
+
+**getPortfolioInsights() Function**
+```typescript
+interface PortfolioInsights {
+  totalSpent: string;
+  topRecipients: Array<{ name: string; amount: string }>;
+  spendingTrend: 'increasing' | 'decreasing' | 'stable';
+  averageTransaction: string;
+}
+
+async function getPortfolioInsights(
+  profileId: string
+): Promise<PortfolioInsights>
+```
+
+**Implementation Details**:
+1. Fetches all transactions for profile
+2. Calculates spending metrics
+3. Identifies frequent recipients
+4. Analyzes spending patterns over time
+5. Returns structured insights for AI or UI display
 
 
 #### recipients.ts
@@ -518,6 +777,151 @@ Authorization: Bearer <jwt_token>
 - Local: Defaults to `localhost:3000`
 - CORS-aware: Prioritizes Origin header for cross-origin requests
 
+#### /api/currency/rates (GET)
+
+**Purpose**: Fetch current USDC to USD and EURO conversion rates
+
+**Query Parameters**: None
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "rates": {
+    "usd": 1.0,
+    "euro": 0.93
+  },
+  "lastUpdated": 1234567890
+}
+```
+
+**Response (Error)**:
+```json
+{
+  "success": false,
+  "message": "Unable to fetch conversion rates"
+}
+```
+
+**Implementation Details**:
+1. Fetches rates from CoinGecko API or similar price feed
+2. Caches rates for 5 minutes using in-memory cache
+3. Returns cached rates if available and fresh
+4. Handles API failures gracefully with fallback rates
+5. Rate limits: 1 request per 5 minutes per client
+
+**External API**:
+- Provider: CoinGecko Free API
+- Endpoint: `https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=usd,eur`
+- Rate Limit: 10-30 calls/minute (free tier)
+
+#### /api/ai/chat (POST)
+
+**Purpose**: Process AI agent chat messages and return responses
+
+**Request Body**:
+```json
+{
+  "message": "Analyze my spending this month",
+  "context": {
+    "profileId": "uuid",
+    "includeBalance": true,
+    "includeTransactions": true,
+    "includeRecipients": true
+  }
+}
+```
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "response": "Based on your transactions, you've spent $450 this month...",
+  "operation": null
+}
+```
+
+**Response (With Operation)**:
+```json
+{
+  "success": true,
+  "response": "I can send $50 to Alice for you. Would you like me to proceed?",
+  "operation": {
+    "type": "payment",
+    "data": {
+      "recipient_id": "uuid",
+      "amount": "50.00"
+    }
+  }
+}
+```
+
+**Response (Error)**:
+```json
+{
+  "success": false,
+  "message": "Unable to process request"
+}
+```
+
+**Implementation Details**:
+1. Validates user authentication via session
+2. Retrieves requested context data (balance, transactions, recipients)
+3. Sends message + context to AI backend (OpenAI, Anthropic, or local model)
+4. Parses AI response for actionable operations
+5. Returns response and optional operation for user confirmation
+6. Rate limits: 10 requests per minute per user
+
+**AI Backend Options**:
+- Option 1: OpenAI GPT-4 API (requires API key)
+- Option 2: Anthropic Claude API (requires API key)
+- Option 3: Local model via Ollama (no API key, slower)
+
+**Security Considerations**:
+- Never send private keys or sensitive credentials to AI
+- Sanitize user input to prevent prompt injection
+- Validate all AI-suggested operations before execution
+- Log all AI interactions for audit
+
+#### /api/ai/execute (POST)
+
+**Purpose**: Execute AI-suggested operations after user confirmation
+
+**Request Body**:
+```json
+{
+  "operationId": "uuid",
+  "confirmed": true
+}
+```
+
+**Response (Success)**:
+```json
+{
+  "success": true,
+  "result": {
+    "transactionId": "uuid",
+    "status": "pending"
+  }
+}
+```
+
+**Response (Error)**:
+```json
+{
+  "success": false,
+  "message": "Operation execution failed"
+}
+```
+
+**Implementation Details**:
+1. Validates user authentication and operation ownership
+2. Retrieves operation from ai_operations table
+3. Verifies user_confirmed flag
+4. Executes operation using appropriate service function
+5. Updates operation record with result
+6. Returns execution result
+
 
 ## Data Models
 
@@ -642,6 +1046,65 @@ CREATE INDEX idx_transactions_hash ON transactions(tx_hash);
 - Optimized for querying by recipient with recent-first ordering
 - Fast lookups by status and tx_hash
 
+#### ai_operations Table
+```sql
+CREATE TABLE ai_operations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  operation_type TEXT NOT NULL CHECK (operation_type IN ('payment', 'analysis', 'query')),
+  operation_data JSONB NOT NULL,
+  user_confirmed BOOLEAN DEFAULT FALSE,
+  executed BOOLEAN DEFAULT FALSE,
+  result JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_ai_operations_profile ON ai_operations(profile_id, created_at DESC);
+CREATE INDEX idx_ai_operations_type ON ai_operations(operation_type);
+```
+
+**Purpose**: Audit trail for AI agent operations
+
+**Key Fields**:
+- `id`: Primary key (UUID)
+- `profile_id`: User who initiated the operation (FK to profiles)
+- `operation_type`: Type of operation (payment, analysis, query)
+- `operation_data`: JSON containing operation details
+- `user_confirmed`: Whether user approved the operation
+- `executed`: Whether operation was successfully executed
+- `result`: JSON containing operation result or error
+- `created_at`: Timestamp
+
+**Operation Data Examples**:
+```json
+// Payment operation
+{
+  "recipient_id": "uuid",
+  "amount": "10.50",
+  "note": "AI suggested payment"
+}
+
+// Analysis operation
+{
+  "analysis_type": "spending_pattern",
+  "time_range": "30_days"
+}
+
+// Query operation
+{
+  "query": "top recipients",
+  "filters": {}
+}
+```
+
+**Relationships**:
+- Many-to-one with `profiles` (profile_id)
+
+**Privacy Considerations**:
+- All AI operations logged for transparency
+- Users can view their AI operation history
+- Data retention policy: 90 days
+
 ### Blockchain Data Models
 
 #### USDC Token (ERC20)
@@ -760,6 +1223,58 @@ Symbol: USDC
   - "Cannot send to yourself"
   - "Minimum amount is 0.01 USDC"
 - **Recovery**: User adjusts action
+
+#### 5. Currency Conversion Errors
+
+**Rate Fetch Failures**
+- **Cause**: API unavailable, rate limit exceeded, network error
+- **Handling**: Display USDC balance with note about unavailable conversion
+- **User Message**: "Fiat conversion unavailable. Showing USDC balance."
+- **Recovery**: Auto-retry after 5 minutes, provide manual refresh button
+
+**Stale Rates**
+- **Cause**: Cache expired, no fresh data available
+- **Handling**: Use last known rates with timestamp indicator
+- **User Message**: "Rates last updated 10 minutes ago"
+- **Recovery**: Background refresh, show age of rates
+
+**Invalid Currency Selection**
+- **Cause**: Corrupted localStorage, unsupported currency
+- **Handling**: Reset to default (USD)
+- **User Message**: None (silent recovery)
+- **Recovery**: Clear invalid preference, use default
+
+#### 6. AI Agent Errors
+
+**AI Backend Unavailable**
+- **Cause**: API timeout, service down, rate limit
+- **Handling**: Display error in chat interface
+- **User Message**: "AI assistant is temporarily unavailable. Please try again later."
+- **Recovery**: Allow retry, queue messages for later
+
+**Invalid AI Operation**
+- **Cause**: Malformed operation data, unsupported operation type
+- **Handling**: Reject operation, log error
+- **User Message**: "Unable to process this request. Please try rephrasing."
+- **Recovery**: User sends new message
+
+**Operation Execution Failure**
+- **Cause**: Insufficient balance, invalid recipient, network error
+- **Handling**: Update operation record with error, notify user
+- **User Message**: "Operation failed: [specific reason]"
+- **Recovery**: Allow user to retry or modify operation
+
+**Prompt Injection Detected**
+- **Cause**: User attempts to manipulate AI with malicious prompts
+- **Handling**: Sanitize input, reject suspicious patterns
+- **User Message**: "Invalid request format"
+- **Recovery**: User must rephrase message
+
+**Context Retrieval Failure**
+- **Cause**: Database error, permissions issue
+- **Handling**: Proceed with limited context, notify user
+- **User Message**: "Some data unavailable. Responses may be limited."
+- **Recovery**: Retry context fetch in background
 
 ### Error Logging Strategy
 
@@ -961,6 +1476,67 @@ export async function test() {
 - Invalid transitions (success → pending)
 - Status badge color mapping
 - Timestamp formatting
+
+**Example**:
+```javascript
+import assert from 'node:assert/strict';
+
+export async function test() {
+  // Test valid status transition
+  const validTransitions = {
+    'pending': ['sent', 'failed'],
+    'sent': ['success', 'failed'],
+    'success': [],
+    'failed': []
+  };
+  
+  assert.deepEqual(validTransitions['pending'], ['sent', 'failed']);
+}
+```
+
+#### 5. Currency Conversion Logic
+
+**File**: `tests/currency.test.mjs`
+
+**Test Cases**:
+- USDC to USD conversion accuracy
+- USDC to EURO conversion accuracy
+- Currency formatting (symbols, decimals)
+- Rate caching behavior
+- Fallback to USDC on error
+
+**Example**:
+```javascript
+import assert from 'node:assert/strict';
+import { convertToFiat } from '../lib/currency.js';
+
+export async function test() {
+  const rates = { usd: 1.0, euro: 0.93, lastUpdated: Date.now() };
+  
+  // Test USD conversion
+  const usdResult = convertToFiat('10.50', 'USD', rates);
+  assert.equal(usdResult, '$10.50');
+  
+  // Test EURO conversion
+  const euroResult = convertToFiat('10.50', 'EURO', rates);
+  assert.equal(euroResult, '€9.77');
+  
+  // Test zero amount
+  const zeroResult = convertToFiat('0', 'USD', rates);
+  assert.equal(zeroResult, '$0.00');
+}
+```
+
+#### 6. AI Agent Operation Validation
+
+**File**: `tests/ai-agent.test.mjs`
+
+**Test Cases**:
+- Operation type validation
+- Payment operation data structure
+- Analysis operation data structure
+- Operation confirmation flow
+- Audit trail creation
 
 **Example**:
 ```javascript

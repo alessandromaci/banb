@@ -153,3 +153,39 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 5. WHEN the user returns to the app THEN the system SHALL load the latest data from Supabase
 6. WHEN offline THEN the system SHALL display cached data with an offline indicator
 7. WHEN connection is restored THEN the system SHALL sync pending changes automatically
+
+### Requirement 11: Multi-Currency Balance Display
+
+**User Story:** As a user, I want to view my balance in USD or EURO instead of just USDC, so that I can understand my account value in familiar fiat currencies.
+
+#### Acceptance Criteria
+
+1. WHEN the banking home loads THEN the system SHALL fetch the current USDC to USD conversion rate from a reliable price feed API
+2. WHEN the banking home loads THEN the system SHALL fetch the current USDC to EURO conversion rate from a reliable price feed API
+3. WHEN the USDC balance is retrieved THEN the system SHALL calculate the equivalent USD amount using the conversion rate
+4. WHEN the USDC balance is retrieved THEN the system SHALL calculate the equivalent EURO amount using the conversion rate
+5. WHEN displaying the balance THEN the system SHALL show a currency toggle or selector allowing users to switch between USD and EURO views
+6. WHEN the user selects USD THEN the system SHALL display the balance formatted with $ symbol and 2 decimal places
+7. WHEN the user selects EURO THEN the system SHALL display the balance formatted with € symbol and 2 decimal places
+8. WHEN the conversion rate is loading THEN the system SHALL show a loading indicator for the fiat balance
+9. IF the conversion rate fetch fails THEN the system SHALL display the USDC balance with a note that fiat conversion is unavailable
+10. WHEN the user's currency preference is set THEN the system SHALL persist it locally and use it on subsequent visits
+11. WHEN displaying transaction amounts THEN the system SHALL also show the converted fiat value based on the selected currency
+
+### Requirement 12: AI Agent Integration for Portfolio Management
+
+**User Story:** As a user, I want AI agents to help manage my banking portfolio by automatically crafting operations and retrieving necessary data, so that I can benefit from intelligent automation and enhanced decision-making.
+
+#### Acceptance Criteria
+
+1. WHEN the user accesses the AI agent feature THEN the system SHALL display an interface to interact with AI-powered banking assistants
+2. WHEN the user requests portfolio analysis THEN the AI agent SHALL retrieve the user's balance, transaction history, and recipient data automatically
+3. WHEN the AI agent analyzes the portfolio THEN the system SHALL provide insights such as spending patterns, frequent recipients, and balance trends
+4. WHEN the user asks the AI agent to perform an operation THEN the system SHALL validate the request and present a confirmation before execution
+5. IF the AI agent suggests a payment THEN the system SHALL pre-fill the payment form with recipient and amount for user review
+6. WHEN the AI agent retrieves data THEN the system SHALL ensure all data access respects user permissions and privacy settings
+7. WHEN the AI agent crafts an operation THEN the system SHALL log the action for audit purposes in the transactions or activity log
+8. IF the AI agent cannot complete a request THEN the system SHALL provide a clear explanation and suggest alternative actions
+9. WHEN the user enables AI features THEN the system SHALL request explicit consent and explain what data the AI will access
+10. WHEN the AI agent provides recommendations THEN the system SHALL display them with clear reasoning and allow the user to accept or reject
+11. WHEN AI operations are executed THEN the system SHALL follow the same security and validation rules as manual operations
