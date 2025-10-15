@@ -5,12 +5,12 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { getInvestmentOption, type InvestmentOption } from "@/lib/investments";
 import { useInvestmentPayment } from "@/lib/investment-payments";
 import { useUser } from "@/lib/user-context";
 
-export default function InvestmentReviewPage() {
+function InvestmentReviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const optionId = searchParams.get("option");
@@ -191,5 +191,17 @@ export default function InvestmentReviewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function InvestmentReviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <InvestmentReviewContent />
+    </Suspense>
   );
 }

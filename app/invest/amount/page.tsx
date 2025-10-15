@@ -5,12 +5,12 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { getInvestmentOption, type InvestmentOption } from "@/lib/investments";
 import { useUSDCBalance } from "@/lib/payments";
 import { useAccount } from "wagmi";
 
-export default function InvestmentAmountPage() {
+function InvestmentAmountContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const optionId = searchParams.get("option");
@@ -190,5 +190,17 @@ export default function InvestmentAmountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function InvestmentAmountPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    }>
+      <InvestmentAmountContent />
+    </Suspense>
   );
 }
