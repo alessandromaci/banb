@@ -54,3 +54,32 @@ export interface Transaction {
     external_address: string | null;
   };
 }
+
+export interface Investment {
+  id: string;
+  profile_id: string;
+  investment_name: string;
+  investment_type: "morpho_vault" | "savings_account";
+  vault_address?: string;
+  amount_invested: string; // numeric(20,8) in DB, returned as string
+  current_rewards: string; // numeric(20,8) in DB, returned as string
+  apr: number; // decimal(5,2) in DB
+  status: "pending" | "active" | "completed" | "failed";
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface InvestmentMovement {
+  id: string;
+  profile_id: string;
+  investment_id: string;
+  movement_type: "deposit" | "withdrawal" | "reward" | "fee";
+  amount: string; // numeric(20,8) in DB, returned as string
+  token: string;
+  tx_hash?: string;
+  chain: string;
+  status: "pending" | "confirmed" | "failed";
+  metadata?: Record<string, any>; // JSONB field for additional data
+  created_at: string;
+  updated_at?: string;
+}
