@@ -138,7 +138,7 @@ export default function InvestmentStatusPage() {
                 </div>
                 <div className="text-white/60 mb-4">
                   Your funds have been successfully invested in{" "}
-                  {movement.metadata?.investment_name || "Investment"}
+                  {String(movement.metadata?.investment_name || "Investment")}
                 </div>
                 <div className="space-y-3">
                   <div className="text-white/40 text-sm">

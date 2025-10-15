@@ -20,7 +20,7 @@ export async function updateTransactionStatus(
     // Get the status of the call batch using Porto provider
     const status = await provider.request({
       method: "wallet_getCallsStatus",
-      params: [batchId],
+      params: [batchId as `0x${string}`],
     });
 
     // Check if the transaction is confirmed (status 200 = success)
