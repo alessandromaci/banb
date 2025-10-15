@@ -1,166 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import { supabase, type InvestmentMovement } from "./supabase";
-
-/**
- * React hook to manage investment movements for a user.
- * Fetches and manages investment movements (deposits, withdrawals, rewards) from Supabase.
- *
- * @param {string} profileId - User profile ID to fetch movements for
- * @returns {Object} Investment movements state and actions
- * @returns {InvestmentMovement[]} return.movements - Array of investment movements
- * @returns {boolean} return.isLoading - True while fetching movements
- * @returns {string | null} return.error - Error message if fetch failed
- * @returns {Function} return.createMovement - Function to create new movement
- * @returns {Function} return.updateMovementStatus - Function to update movement status
- *
- * @example
- * ```tsx
- * function InvestmentHistory() {
- *   const { movements, isLoading, error, createMovement } = useInvestmentMovements(profileId);
- *
- *   if (isLoading) return <div>Loading movements...</div>;
- *   if (error) return <div>Error: {error}</div>;
- *
- *   return (
- *     <div>
- *       {movements.map(movement => (
- *         <div key={movement.id}>{movement.amount} {movement.token}</div>
- *       ))}
- *     </div>
- *   );
- * }
- * ```
- */
-export function useInvestmentMovements(profileId?: string) {
-  const [movements, setMovements] = useState<InvestmentMovement[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!profileId) return;
-
-    const fetchMovements = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const { data, error } = await supabase
-          .from("investment_movements")
-          .select("*")
-          .eq("profile_id", profileId)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          throw new Error(
-            `Failed to fetch investment movements: ${error.message}`
-          );
-        }
-
-        setMovements(data || []);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to fetch investment movements"
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMovements();
-  }, [profileId]);
-
-  const createMovement = async (data: {
-    profile_id: string;
-    investment_id: string;
-    movement_type: "deposit" | "withdrawal" | "reward" | "fee";
-    amount: string;
-    token?: string;
-    tx_hash?: string;
-    chain?: string;
-    metadata?: Record<string, unknown>;
-  }): Promise<InvestmentMovement> => {
-    const { data: movement, error } = await supabase
-      .from("investment_movements")
-      .insert({
-        ...data,
-        token: data.token || "USDC",
-        chain: data.chain || "base",
-        status: "pending",
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create investment movement: ${error.message}`);
-    }
-
-    setMovements((prev) => [movement, ...prev]);
-    return movement;
-  };
-
-  const updateMovementStatus = async (
-    movementId: string,
-    status: "pending" | "confirmed" | "failed",
-    txHash?: string
-  ): Promise<InvestmentMovement> => {
-    const updates: { status: string; tx_hash?: string } = { status };
-    if (txHash) {
-      updates.tx_hash = txHash;
-    }
-
-    const { data, error } = await supabase
-      .from("investment_movements")
-      .update(updates)
-      .eq("id", movementId)
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to update investment movement: ${error.message}`);
-    }
-
-    setMovements((prev) =>
-      prev.map((mov) => (mov.id === movementId ? data : mov))
-    );
-
-    return data;
-  };
-
-  return {
-    movements,
-    isLoading,
-    error,
-    createMovement,
-    updateMovementStatus,
-  };
-}
-
-/**
- * Get investment movements for a specific investment.
- *
- * @param {string} investmentId - Investment ID to fetch movements for
- * @returns {Promise<InvestmentMovement[]>} Array of investment movements
- * @throws {Error} If database query fails
- */
-export async function getInvestmentMovements(
-  investmentId: string
-): Promise<InvestmentMovement[]> {
-  const { data, error } = await supabase
-    .from("investment_movements")
-    .select("*")
-    .eq("investment_id", investmentId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to fetch investment movements: ${error.message}`);
-  }
-
-  return data || [];
-}
 
 /**
  * Get total invested amount for a profile using database function.
@@ -243,16 +81,40 @@ export async function getInvestmentSummary(profileId: string) {
  */
 export async function getInvestmentSummaryByVault(profileId: string) {
   try {
-    // Get all investments for the profile
-    const { data: investments, error: investmentsError } = await supabase
-      .from("investments")
-      .select("*")
-      .eq("profile_id", profileId)
-      .in("status", ["active", "pending"])
-      .order("created_at", { ascending: false });
+    // Get all investments for the profile with retry logic
+    let investments, investmentsError;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        const result = await supabase
+          .from("investments")
+          .select("*")
+          .eq("profile_id", profileId)
+          .in("status", ["active", "pending"])
+          .order("created_at", { ascending: false });
+
+        investments = result.data;
+        investmentsError = result.error;
+        break;
+      } catch (networkError) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          console.warn(
+            `Network error fetching investments (attempt ${retryCount}):`,
+            networkError
+          );
+          return []; // Return empty array instead of throwing
+        }
+        // Wait before retry
+        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
+      }
+    }
 
     if (investmentsError) {
-      throw new Error(`Failed to get investments: ${investmentsError.message}`);
+      console.warn("Supabase error fetching investments:", investmentsError);
+      return []; // Return empty array instead of throwing
     }
 
     if (!investments || investments.length === 0) {
@@ -332,15 +194,39 @@ export async function getInvestmentHistory(
   limit: number = 50
 ) {
   try {
-    const { data, error } = await supabase
-      .from("investment_movements")
-      .select("*")
-      .eq("profile_id", profileId)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    let data, error;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        const result = await supabase
+          .from("investment_movements")
+          .select("*")
+          .eq("profile_id", profileId)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+
+        data = result.data;
+        error = result.error;
+        break;
+      } catch (networkError) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          console.warn(
+            `Network error fetching investment history (attempt ${retryCount}):`,
+            networkError
+          );
+          return []; // Return empty array instead of throwing
+        }
+        // Wait before retry
+        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
+      }
+    }
 
     if (error) {
-      throw new Error(`Failed to get investment history: ${error.message}`);
+      console.warn("Supabase error fetching investment history:", error);
+      return []; // Return empty array instead of throwing
     }
 
     return data || [];
@@ -387,37 +273,3 @@ export async function createDepositMovement(data: {
     });
 }
 
-/**
- * Create a reward movement when user earns rewards from investments.
- *
- * @param {Object} data - Reward movement data
- * @param {string} data.profile_id - User profile ID
- * @param {string} data.investment_id - Investment ID
- * @param {string} data.amount - Reward amount
- * @param {Object} [data.metadata] - Additional metadata
- * @returns {Promise<InvestmentMovement>} Created reward movement
- * @throws {Error} If database insert fails
- */
-export async function createRewardMovement(data: {
-  profile_id: string;
-  investment_id: string;
-  amount: string;
-  metadata?: Record<string, unknown>;
-}): Promise<InvestmentMovement> {
-  return await supabase
-    .from("investment_movements")
-    .insert({
-      ...data,
-      movement_type: "reward",
-      token: "USDC",
-      chain: "base",
-      status: "confirmed", // Rewards are typically confirmed immediately
-    })
-    .select()
-    .single()
-    .then(({ data, error }) => {
-      if (error)
-        throw new Error(`Failed to create reward movement: ${error.message}`);
-      return data;
-    });
-}

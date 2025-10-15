@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase, type Investment } from "./supabase";
 import {
   createDepositMovement,
@@ -209,7 +209,7 @@ export function useInvestments(profileId?: string) {
     return data;
   };
 
-  const fetchInvestmentSummary = async () => {
+  const fetchInvestmentSummary = useCallback(async () => {
     if (!profileId) return null;
 
     try {
@@ -217,7 +217,7 @@ export function useInvestments(profileId?: string) {
     } catch (err) {
       return null;
     }
-  };
+  }, [profileId]);
 
   return {
     investments,

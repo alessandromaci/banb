@@ -19,7 +19,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useAccount } from "wagmi";
@@ -189,6 +189,7 @@ export function BankingHome() {
         const accounts = await getInvestmentSummaryByVault(profile.id);
         setInvestmentAccounts(accounts);
       } catch (error) {
+        console.error("Error fetching investment data:", error);
         // Set empty arrays to prevent app crash
         setInvestmentAccounts([]);
         setInvestmentSummary({
@@ -202,43 +203,57 @@ export function BankingHome() {
     fetchInvestmentData();
   }, [profile?.id, getInvestmentSummary]);
 
-  // Calculate investment account balance using summary data
-  const investmentBalance = investmentSummary?.totalValue || 0;
-  const currentAccount = investmentAccounts[currentInvestmentAccount];
+  // Memoize currentAccount to prevent unnecessary re-renders
+  const currentAccount = useMemo(() => {
+    return investmentAccounts[currentInvestmentAccount];
+  }, [investmentAccounts, currentInvestmentAccount]);
+
   const currentAccountBalance = currentAccount?.total_value || 0;
+
+  // Memoize fetchMovements to prevent unnecessary re-renders
+  const fetchMovements = useCallback(async () => {
+    if (!profile?.id || activeAccount !== "investment") return;
+
+    setMovementsLoading(true);
+    try {
+      // Get current account at the time of execution to avoid stale closure
+      const currentAccountData = investmentAccounts[currentInvestmentAccount];
+
+      if (currentAccountData) {
+        const movements = await getInvestmentHistory(profile.id, 10);
+        setInvestmentMovements(movements);
+
+        const monthlyRewards = parseFloat(
+          String(currentAccountData?.total_rewards || "0")
+        );
+        setMonthlyRewards(monthlyRewards);
+      } else {
+        setInvestmentMovements([]);
+        setMonthlyRewards(0);
+      }
+    } catch (error) {
+      console.error("Error in fetchMovements:", error);
+      setInvestmentMovements([]);
+      setMonthlyRewards(0);
+    } finally {
+      setMovementsLoading(false);
+    }
+  }, [
+    profile?.id,
+    activeAccount,
+    investmentAccounts,
+    currentInvestmentAccount,
+  ]);
 
   // Fetch investment movements for current account
   useEffect(() => {
-    if (profile?.id && activeAccount === "investment") {
-      const fetchMovements = async () => {
-        setMovementsLoading(true);
-        try {
-          if (currentAccount) {
-            const movements = await getInvestmentHistory(profile.id, 10);
-            setInvestmentMovements(movements);
-
-            const monthlyRewards = parseFloat(
-              String(currentAccount.total_rewards || "0")
-            );
-            setMonthlyRewards(monthlyRewards);
-          } else {
-            setInvestmentMovements([]);
-            setMonthlyRewards(0);
-          }
-        } catch (error) {
-          setInvestmentMovements([]);
-          setMonthlyRewards(0);
-        } finally {
-          setMovementsLoading(false);
-        }
-      };
-
+    if (activeAccount === "investment") {
       fetchMovements();
     } else if (activeAccount === "main") {
       setInvestmentMovements([]);
       setMonthlyRewards(0);
     }
-  }, [profile?.id, activeAccount, currentAccount]);
+  }, [activeAccount, fetchMovements]);
 
   const toggleCurrency = () => {
     setCurrency(currency === "USD" ? "EUR" : "USD");
@@ -473,7 +488,7 @@ export function BankingHome() {
                         `/invest/amount?vault=${
                           currentAccount.vault_address
                         }&name=${encodeURIComponent(
-                          currentAccount.investment_name
+                          currentAccount.investment_name || ""
                         )}`
                       );
                     }
@@ -563,15 +578,15 @@ export function BankingHome() {
           {/* Transactions/Investments Card */}
 
           {/* Rewards Summary */}
-          {activeAccount === "investment" && (
+          {activeAccount === "investment" && currentAccount && (
             <RewardsSummaryCard
               totalRewards={
-                typeof currentAccount.total_rewards === "number"
+                typeof currentAccount?.total_rewards === "number"
                   ? currentAccount.total_rewards
-                  : parseFloat(String(currentAccount.total_rewards || "0"))
+                  : parseFloat(String(currentAccount?.total_rewards || "0"))
               }
               monthlyRewards={monthlyRewards}
-              apr={currentAccount.apr || 0}
+              apr={currentAccount?.apr || 0}
             />
           )}
 
