@@ -186,7 +186,7 @@ export function useInvestments(profileId?: string) {
     status: Investment["status"],
     currentRewards?: string
   ): Promise<Investment> => {
-    const updates: any = { status };
+    const updates: { status: string; current_rewards?: string } = { status };
     if (currentRewards !== undefined) {
       updates.current_rewards = currentRewards;
     }

@@ -13,7 +13,7 @@ export interface InvestmentMovementStatus {
   chain: string;
   status: "pending" | "confirmed" | "failed";
   tx_hash: string | null;
-  metadata: any;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

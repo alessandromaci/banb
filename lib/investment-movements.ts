@@ -81,7 +81,7 @@ export function useInvestmentMovements(profileId?: string) {
     token?: string;
     tx_hash?: string;
     chain?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<InvestmentMovement> => {
     const { data: movement, error } = await supabase
       .from("investment_movements")
@@ -107,7 +107,7 @@ export function useInvestmentMovements(profileId?: string) {
     status: "pending" | "confirmed" | "failed",
     txHash?: string
   ): Promise<InvestmentMovement> => {
-    const updates: any = { status };
+    const updates: { status: string; tx_hash?: string } = { status };
     if (txHash) {
       updates.tx_hash = txHash;
     }
@@ -367,7 +367,7 @@ export async function createDepositMovement(data: {
   investment_id: string;
   amount: string;
   tx_hash?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<InvestmentMovement> {
   return await supabase
     .from("investment_movements")
@@ -402,7 +402,7 @@ export async function createRewardMovement(data: {
   profile_id: string;
   investment_id: string;
   amount: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<InvestmentMovement> {
   return await supabase
     .from("investment_movements")

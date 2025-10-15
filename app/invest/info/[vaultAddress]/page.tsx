@@ -181,15 +181,26 @@ export default function InvestmentInfoPage() {
                 </tr>
               </thead>
               <tbody>
-                {vaultInfo.strategy.map((item: any, index: number) => (
-                  <tr key={index} className="border-b border-gray-800">
-                    <td className="py-3 px-4">{item.market}</td>
-                    <td className="py-3 px-4 text-gray-300">{item.exposure}</td>
-                    <td className="py-3 px-4 text-gray-300">
-                      {item.allocation}
-                    </td>
-                  </tr>
-                ))}
+                {vaultInfo.strategy.map(
+                  (
+                    item: {
+                      market: string;
+                      exposure: string;
+                      allocation: string;
+                    },
+                    index: number
+                  ) => (
+                    <tr key={index} className="border-b border-gray-800">
+                      <td className="py-3 px-4">{item.market}</td>
+                      <td className="py-3 px-4 text-gray-300">
+                        {item.exposure}
+                      </td>
+                      <td className="py-3 px-4 text-gray-300">
+                        {item.allocation}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>
