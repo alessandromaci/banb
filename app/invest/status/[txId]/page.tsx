@@ -121,9 +121,9 @@ export default function InvestmentStatusPage() {
                     >
                       {step.label}
                     </div>
-                    {index === currentStep && movement.status === "active" && (
+                    {index === currentStep && movement.status === "confirmed" && (
                       <div className="text-white/60 text-sm">
-                        {movement.metadata?.investment_name || "Investment"}
+                        {String(movement.metadata?.investment_name || "Investment")}
                       </div>
                     )}
                   </div>

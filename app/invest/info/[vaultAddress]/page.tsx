@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, ExternalLink, Copy, Check } from "lucide-react";
-import { getVaultData } from "@/lib/vault-data";
+import { getVaultData, type VaultData } from "@/lib/vault-data";
 
 /**
  * Investment vault information page displaying detailed vault data.
@@ -18,15 +18,7 @@ export default function InvestmentInfoPage() {
   const router = useRouter();
   const vaultAddress = params.vaultAddress as string;
 
-  const [vaultInfo, setVaultInfo] = useState<{
-    name: string;
-    description: string;
-    totalDeposits: number;
-    liquidity: number;
-    apy: number;
-    strategy: Array<{ market: string; exposure: string; allocation: string }>;
-    risks: Array<{ title: string; description: string }>;
-  } | null>(null);
+  const [vaultInfo, setVaultInfo] = useState<VaultData | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +26,7 @@ export default function InvestmentInfoPage() {
     const fetchVaultInfo = async () => {
       try {
         const vault = getVaultData(vaultAddress);
-        setVaultInfo(vault);
+        setVaultInfo(vault || null);
       } catch (error) {
         console.error("Failed to fetch vault info:", error);
       } finally {
