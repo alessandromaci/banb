@@ -72,9 +72,35 @@ export function BankingHome() {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Investment State
-  const [investmentAccounts, setInvestmentAccounts] = useState<any[]>([]);
+  const [investmentAccounts, setInvestmentAccounts] = useState<
+    Array<{
+      vault_address: string;
+      total_invested: number;
+      total_rewards: number;
+      total_value: number;
+      investment_name: string;
+      investment_id: string;
+      apr: number;
+      status: string;
+    }>
+  >([]);
   const [currentInvestmentAccount, setCurrentInvestmentAccount] = useState(0);
-  const [investmentMovements, setInvestmentMovements] = useState<any[]>([]);
+  const [investmentMovements, setInvestmentMovements] = useState<
+    Array<{
+      id: string;
+      profile_id: string;
+      investment_id: string;
+      movement_type: "deposit" | "withdrawal" | "reward" | "fee";
+      amount: string;
+      token: string;
+      tx_hash?: string;
+      chain: string;
+      status: "pending" | "confirmed" | "failed";
+      metadata?: Record<string, unknown>;
+      created_at: string;
+      updated_at?: string;
+    }>
+  >([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [monthlyRewards, setMonthlyRewards] = useState(0);
 
@@ -174,7 +200,7 @@ export function BankingHome() {
     };
 
     fetchInvestmentData();
-  }, [profile?.id]);
+  }, [profile?.id, getInvestmentSummary]);
 
   // Calculate investment account balance using summary data
   const investmentBalance = investmentSummary?.totalValue || 0;
@@ -192,7 +218,7 @@ export function BankingHome() {
             setInvestmentMovements(movements);
 
             const monthlyRewards = parseFloat(
-              currentAccount.total_rewards || "0"
+              String(currentAccount.total_rewards || "0")
             );
             setMonthlyRewards(monthlyRewards);
           } else {
@@ -212,7 +238,7 @@ export function BankingHome() {
       setInvestmentMovements([]);
       setMonthlyRewards(0);
     }
-  }, [profile?.id, activeAccount, currentAccount?.vault_address]);
+  }, [profile?.id, activeAccount, currentAccount]);
 
   const toggleCurrency = () => {
     setCurrency(currency === "USD" ? "EUR" : "USD");
@@ -539,7 +565,11 @@ export function BankingHome() {
           {/* Rewards Summary */}
           {activeAccount === "investment" && (
             <RewardsSummaryCard
-              totalRewards={parseFloat(currentAccount.total_rewards || "0")}
+              totalRewards={
+                typeof currentAccount.total_rewards === "number"
+                  ? currentAccount.total_rewards
+                  : parseFloat(String(currentAccount.total_rewards || "0"))
+              }
               monthlyRewards={monthlyRewards}
               apr={currentAccount.apr || 0}
             />

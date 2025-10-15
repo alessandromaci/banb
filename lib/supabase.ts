@@ -79,7 +79,7 @@ export interface InvestmentMovement {
   tx_hash?: string;
   chain: string;
   status: "pending" | "confirmed" | "failed";
-  metadata?: Record<string, any>; // JSONB field for additional data
+  metadata?: Record<string, unknown>; // JSONB field for additional data
   created_at: string;
   updated_at?: string;
 }

@@ -76,7 +76,7 @@ export function LoginForm() {
     return () => {
       isMounted = false;
     };
-  }, [isConnected, address, router, setProfile]);
+  }, [isConnected, address, router, setProfile, isLoggingIn]);
 
   const connectWallet = (connectorId: string) => {
     const connector = connectors.find((c) => c.id === connectorId);

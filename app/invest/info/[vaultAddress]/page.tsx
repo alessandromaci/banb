@@ -18,7 +18,15 @@ export default function InvestmentInfoPage() {
   const router = useRouter();
   const vaultAddress = params.vaultAddress as string;
 
-  const [vaultInfo, setVaultInfo] = useState<any>(null);
+  const [vaultInfo, setVaultInfo] = useState<{
+    name: string;
+    description: string;
+    totalDeposits: number;
+    liquidity: number;
+    apy: number;
+    strategy: Array<{ market: string; exposure: string; allocation: string }>;
+    risks: Array<{ title: string; description: string }>;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
 

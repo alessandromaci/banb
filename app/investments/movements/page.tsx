@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { getInvestmentHistory } from "@/lib/investment-movements";
+import type { InvestmentMovement } from "@/lib/supabase";
 import { useUser } from "@/lib/user-context";
 
 /**
@@ -18,7 +19,7 @@ import { useUser } from "@/lib/user-context";
 export default function InvestmentMovementsPage() {
   const router = useRouter();
   const { profile } = useUser();
-  const [movements, setMovements] = useState<any[]>([]);
+  const [movements, setMovements] = useState<InvestmentMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

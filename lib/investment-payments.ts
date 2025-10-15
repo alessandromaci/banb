@@ -294,7 +294,6 @@ export function useInvestmentPayment(profileId?: string) {
       userAddress,
       sendCallsAsync,
       createInvestment,
-      createDepositMovement,
       updateInvestmentStatus,
       investmentId,
     ]
