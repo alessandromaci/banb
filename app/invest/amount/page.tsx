@@ -195,11 +195,13 @@ function InvestmentAmountContent() {
 
 export default function InvestmentAmountPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="text-white">Loading...</div>
+        </div>
+      }
+    >
       <InvestmentAmountContent />
     </Suspense>
   );
