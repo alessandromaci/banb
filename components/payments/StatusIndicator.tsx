@@ -45,7 +45,7 @@ export function StatusIndicator() {
       // If status is "success", all steps should be complete
       setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 0);
     }
-  }, [transaction]);
+  }, [transaction, steps]);
 
   if (isLoading) {
     return (

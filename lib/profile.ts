@@ -1,12 +1,35 @@
+/**
+ * @fileoverview Profile management functions for user account operations.
+ * Handles profile creation, updates, deletion, and retrieval with unique handle generation.
+ */
+
 import { supabase, type Profile } from "./supabase";
 
+/**
+ * Data required to create a new profile.
+ * 
+ * @interface CreateProfileData
+ * @property {string} name - User's display name
+ * @property {string} wallet_address - Ethereum wallet address
+ */
 export interface CreateProfileData {
   name: string;
   wallet_address: string;
 }
 
 /**
- * Generate a random alphanumeric string with pattern: number, letter, number
+ * Generates a random alphanumeric string with pattern: number, letter, number.
+ * Used internally for creating unique handle suffixes.
+ * 
+ * @private
+ * @param {number} length - Length of string to generate (should be multiple of 3)
+ * @returns {string} Random string following n-l-n pattern
+ * 
+ * @example
+ * ```typescript
+ * generateRandomString(3) // => "7x2" (number, letter, number)
+ * generateRandomString(6) // => "3a5b8c" (repeating pattern)
+ * ```
  */
 function generateRandomString(length: number): string {
   const numbers = "0123456789";
@@ -30,9 +53,22 @@ function generateRandomString(length: number): string {
 }
 
 /**
- * Generate a unique handle from name
+ * Generates a unique handle from a user's name.
  * Format: {first3letters}{3randomchars}banb
- * Example: "John Doe" -> "joh7x2banb"
+ * Attempts up to 10 times to find a unique handle.
+ * 
+ * @private
+ * @async
+ * @param {string} name - User's name to generate handle from
+ * @returns {Promise<string>} Unique handle in format "abc7x2banb"
+ * @throws {Error} If unique handle cannot be generated after 10 attempts
+ * 
+ * @example
+ * ```typescript
+ * await generateHandle("John Doe")     // => "joh7x2banb"
+ * await generateHandle("Alice")        // => "ali3k9banb"
+ * await generateHandle("Bo")           // => "box4m1banb" (padded with 'x')
+ * ```
  */
 async function generateHandle(name: string): Promise<string> {
   // Get first 3 letters (lowercase, no spaces)
@@ -73,7 +109,24 @@ async function generateHandle(name: string): Promise<string> {
 }
 
 /**
- * Create a new user profile
+ * Creates a new user profile with auto-generated unique handle.
+ * Wallet address is stored in lowercase for consistency.
+ * 
+ * @async
+ * @param {CreateProfileData} data - Profile creation data
+ * @returns {Promise<Profile>} Created profile object
+ * @throws {Error} If wallet is already registered
+ * @throws {Error} If name is already taken (handle collision)
+ * @throws {Error} If database operation fails
+ * 
+ * @example
+ * ```typescript
+ * const profile = await createProfile({
+ *   name: "John Doe",
+ *   wallet_address: "0x1234..."
+ * });
+ * console.log(profile.handle); // => "joh7x2banb"
+ * ```
  */
 export async function createProfile(data: CreateProfileData): Promise<Profile> {
   // Generate a unique handle
@@ -106,7 +159,23 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
 }
 
 /**
- * Update profile name
+ * Updates a profile's display name.
+ * Note: Handle is not regenerated when name changes.
+ * 
+ * @async
+ * @param {string} profileId - UUID of the profile to update
+ * @param {string} name - New display name
+ * @returns {Promise<Profile>} Updated profile object
+ * @throws {Error} If profile not found
+ * @throws {Error} If database operation fails
+ * 
+ * @example
+ * ```typescript
+ * const updated = await updateProfileName(
+ *   "550e8400-e29b-41d4-a716-446655440000",
+ *   "Jane Smith"
+ * );
+ * ```
  */
 export async function updateProfileName(
   profileId: string,
@@ -133,8 +202,20 @@ export async function updateProfileName(
 }
 
 /**
- * Soft delete profile by setting status to inactive
- * This preserves data integrity and transaction history
+ * Soft deletes a profile by setting status to inactive.
+ * This preserves data integrity and transaction history.
+ * Profile will be excluded from queries that filter by active status.
+ * 
+ * @async
+ * @param {string} profileId - UUID of the profile to deactivate
+ * @returns {Promise<void>}
+ * @throws {Error} If database operation fails
+ * 
+ * @example
+ * ```typescript
+ * await deleteProfile("550e8400-e29b-41d4-a716-446655440000");
+ * // Profile is now inactive but data remains in database
+ * ```
  */
 export async function deleteProfile(profileId: string): Promise<void> {
   const { error } = await supabase
@@ -148,7 +229,24 @@ export async function deleteProfile(profileId: string): Promise<void> {
 }
 
 /**
- * Get profile by wallet address
+ * Retrieves a profile by wallet address.
+ * Wallet address is converted to lowercase for case-insensitive matching.
+ * Only returns active profiles (excludes inactive).
+ * 
+ * @async
+ * @param {string} wallet_address - Ethereum wallet address
+ * @returns {Promise<Profile | null>} Profile if found, null otherwise
+ * @throws {Error} If database operation fails
+ * 
+ * @example
+ * ```typescript
+ * const profile = await getProfileByWallet("0x1234...");
+ * if (profile) {
+ *   console.log(`Found: ${profile.name}`);
+ * } else {
+ *   console.log("No profile found for this wallet");
+ * }
+ * ```
  */
 export async function getProfileByWallet(
   wallet_address: string
@@ -171,7 +269,21 @@ export async function getProfileByWallet(
 }
 
 /**
- * Get profile by ID
+ * Retrieves a profile by its UUID.
+ * Only returns active profiles (excludes inactive).
+ * 
+ * @async
+ * @param {string} id - Profile UUID
+ * @returns {Promise<Profile | null>} Profile if found, null otherwise
+ * @throws {Error} If database operation fails
+ * 
+ * @example
+ * ```typescript
+ * const profile = await getProfile("550e8400-e29b-41d4-a716-446655440000");
+ * if (profile) {
+ *   console.log(`Profile: ${profile.name} (@${profile.handle})`);
+ * }
+ * ```
  */
 export async function getProfile(id: string): Promise<Profile | null> {
   const { data: profile, error } = await supabase

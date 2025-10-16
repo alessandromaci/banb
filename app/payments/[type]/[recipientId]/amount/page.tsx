@@ -2,7 +2,6 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AmountInput } from "@/components/payments/AmountInput";
-import { friends } from "@/lib/mockFriends";
 import { getRecipientById } from "@/lib/recipients";
 
 export default async function AmountPage({
@@ -21,20 +20,9 @@ export default async function AmountPage({
       const recipient = await getRecipientById(resolvedParams.recipientId);
       if (recipient) {
         recipientName = recipient.name;
-      } else {
-        // Fallback to mock friends
-        const friend = friends.find(
-          (f) => f.id.toString() === resolvedParams.recipientId
-        );
-        recipientName = friend?.name || "Friend";
       }
     } catch (error) {
       console.error("Error fetching recipient:", error);
-      // Fallback to mock friends
-      const friend = friends.find(
-        (f) => f.id.toString() === resolvedParams.recipientId
-      );
-      recipientName = friend?.name || "Friend";
     }
   } else {
     recipientName = "New recipient";

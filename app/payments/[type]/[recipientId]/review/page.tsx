@@ -2,7 +2,6 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/payments/ReviewCard";
-import { friends } from "@/lib/mockFriends";
 import { getRecipient } from "@/lib/recipients";
 
 export default async function ReviewPage({
