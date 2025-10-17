@@ -157,7 +157,7 @@ export function SignUpForm() {
   ]);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col relative">
+    <div className="h-dvh bg-black text-white flex flex-col relative overflow-hidden touch-none">
       {step === "wallet" && (
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-6 z-10">
           <Button
@@ -171,7 +171,7 @@ export function SignUpForm() {
         </div>
       )}
 
-      <div className="flex-1 flex items-center justify-center px-6">
+      <div className="flex-1 flex items-center justify-center px-6 overflow-y-auto">
         {step === "details" ? (
           <div className="mx-auto max-w-md space-y-6 w-full">
             <div className="flex items-center justify-center">
@@ -425,9 +425,8 @@ export function SignUpForm() {
       </div>
 
       <div className="w-full py-6 px-6">
+        <div className="w-full h-px bg-white/20 mb-4"></div>
         <div className="mx-auto max-w-md">
-          <div className="w-full h-px bg-white mb-4"></div>
-
           <div className="flex flex-col items-center gap-1">
             <p className="text-xs text-white/50 text-center font-sans">
               Project built during
