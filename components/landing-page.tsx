@@ -3,29 +3,24 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { sdk } from "@farcaster/miniapp-sdk";
 import Image from "next/image";
 
 const slides = [
   {
-    title: "TRY THE FUTURE OF FINANCE",
-    subtitle: "Welcome to BANB",
+    title: "ENTER THE FUTURE OF MONEY",
     background: "lightspeed",
   },
   {
-    title: "SEND MONEY INSTANTLY WITH STABLECOINS",
-    subtitle: "Transfer stable funds to anyone, anywhere",
+    title: "BUILT ON-CHAIN WITH STABLECOINS",
     background: "particles",
   },
   {
-    title: "ELEVATE YOUR FINANCIAL EXPERIENCE WITH AI",
-    subtitle: "Manage your finances like never before",
+    title: "EXPERIENCE YOUR FINANCES WITH AI",
     background: "waves",
   },
   {
-    title: "SECURE & PROTECTED",
-    subtitle: "High-grade security for your peace of mind",
+    title: "SIMPLICITY AND SECURITY FIRST",
     background: "grid",
   },
 ];
@@ -38,7 +33,6 @@ export function LandingPage() {
     const initializeSDK = async () => {
       try {
         await sdk.actions.ready();
-
       } catch (error) {
         console.error("Failed to initialize Farcaster SDK:", error);
       }
@@ -53,14 +47,6 @@ export function LandingPage() {
     }, 5000);
     return () => clearInterval(timer);
   }, []);
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
@@ -95,18 +81,14 @@ export function LandingPage() {
               height={16}
             />
           </div>
-          <span className="text-sm text-white/80">
-            {slides[currentSlide].subtitle}
+          <span className="text-sm text-white/80 font-bold font-sans text-2xl">
+            BANB
           </span>
         </div>
 
         {/* Main Content */}
         <div className="flex-1 flex items-center justify-center">
           <div className="max-w-md space-y-8">
-            <h1 className="text-4xl font-bold leading-tight text-white text-balance">
-              {slides[currentSlide].title}
-            </h1>
-
             {/* Carousel Indicators */}
             <div className="flex justify-center gap-2">
               {slides.map((_, index) => (
@@ -123,29 +105,15 @@ export function LandingPage() {
               ))}
             </div>
 
-            {/* Navigation Arrows */}
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={prevSlide}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm transition-colors hover:bg-white/20"
-                aria-label="Previous slide"
-              >
-                <ChevronLeft className="h-5 w-5 text-white" />
-              </button>
-              <button
-                onClick={nextSlide}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm transition-colors hover:bg-white/20"
-                aria-label="Next slide"
-              >
-                <ChevronRight className="h-5 w-5 text-white" />
-              </button>
-            </div>
+            <h1 className="text-4xl font-bold leading-tight text-white text-balance text-center">
+              {slides[currentSlide].title}
+            </h1>
           </div>
         </div>
 
         {/* Bottom Buttons */}
-        <div className="space-y-3 pb-8">
-          <Link href="/signup" className="block">
+        <div className="flex justify-center w-full gap-4 pb-4">
+          <Link href="/signup" className="block flex-1 max-w-48">
             <Button
               size="lg"
               className="w-full rounded-full bg-white text-black hover:bg-white/90 h-14 text-base font-semibold"
@@ -153,7 +121,7 @@ export function LandingPage() {
               Sign up
             </Button>
           </Link>
-          <Link href="/login" className="block">
+          <Link href="/login" className="block flex-1 max-w-48">
             <Button
               size="lg"
               variant="ghost"
@@ -186,7 +154,7 @@ export function LandingPage() {
         .lightspeed::before {
           content: "";
           position: absolute;
-          top: 50%;
+          top: 30%;
           left: 50%;
           width: 200%;
           height: 200%;
