@@ -231,7 +231,7 @@ export function SignUpForm() {
                   </Link>
                 </>
               ) : (
-                <>We'll create an account if you don't have one.</>
+                <>We&apos;ll create an account if you don&apos;t have one.</>
               )}
             </p>
           </div>
