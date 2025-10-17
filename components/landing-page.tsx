@@ -112,7 +112,7 @@ export function LandingPage() {
         </div>
 
         {/* Bottom Buttons */}
-        <div className="flex justify-center w-full gap-4 pb-6">
+        <div className="flex justify-center w-full gap-4 pb-4">
           <Link href="/signup" className="block flex-1 max-w-48">
             <Button
               size="lg"
