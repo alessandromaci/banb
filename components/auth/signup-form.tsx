@@ -168,9 +168,13 @@ export function SignUpForm() {
           >
             <ArrowLeft className="h-6 w-6" />
           </Button>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+            <span className="font-bold">B</span>
+          </div>
         </div>
       )}
 
+      {/* Content */}
       <div className="flex-1 flex items-center justify-center px-6 overflow-y-auto">
         {step === "details" ? (
           <div className="mx-auto max-w-md space-y-6 w-full">
@@ -226,7 +230,10 @@ export function SignUpForm() {
               {existingWallet ? (
                 <>
                   You already have an account.{" "}
-                  <Link href="/login" className="text-white underline">
+                  <Link
+                    href="/login"
+                    className="text-white underline underline-offset-4"
+                  >
                     Log in
                   </Link>
                 </>
@@ -349,15 +356,15 @@ export function SignUpForm() {
                 <>
                   {isCheckingWallet ? (
                     <div
-                      className={`p-4 rounded-xl border ${
+                      className={`p-6 rounded-xl border ${
                         connectedWalletType === "farcaster"
                           ? "bg-[#7C65C1]/40 border-[#7C65C1]/50"
                           : "bg-[#3B7FD9]/40 border-[#3B7FD9]/50"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Loader2 className="h-8 w-8 animate-spin text-white" />
-                        <p className="text-white/80 font-medium font-sans">
+                        <Loader2 className="h-10 w-10 animate-spin text-white" />
+                        <p className="text-semibold text-white font-sans text-lg">
                           Creating your account...
                         </p>
                       </div>
@@ -366,7 +373,10 @@ export function SignUpForm() {
                     <div className="text-center space-y-4">
                       <p className="text-sm text-white/60 font-sans">
                         You already have an account.{" "}
-                        <Link href="/login" className="text-white underline">
+                        <Link
+                          href="/login"
+                          className="text-white underline underline-offset-4"
+                        >
                           Log in
                         </Link>
                       </p>
