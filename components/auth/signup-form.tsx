@@ -186,12 +186,12 @@ export function SignUpForm() {
               </div>
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold font-sans text-center">
+              <h1 className="text-2xl sm:text-3xl font-bold font-sans text-center">
                 Create your account
               </h1>
-              <p className="text-white/60 text-center text-sm font-sans">
+              <p className="text-white/60 text-center text-xs sm:text-sm font-sans px-4">
                 to enter the future of money with{" "}
-                <span className="font-bold text-white text-sm">BANB</span>
+                <span className="font-bold text-white">BANB</span>
               </p>
             </div>
 
@@ -244,11 +244,11 @@ export function SignUpForm() {
             </div>
 
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold font-sans text-center">
-                Connect Wallet
+              <h1 className="text-2xl sm:text-3xl font-bold font-sans text-center">
+                Get Started
               </h1>
-              <p className="text-white/60 text-center text-sm font-sans">
-                Choose a wallet to connect your account
+              <p className="text-white/60 text-center text-xs sm:text-sm font-sans px-4">
+                Connect your wallet, or create one instantly.
               </p>
             </div>
 
@@ -256,54 +256,9 @@ export function SignUpForm() {
               {!isConnected ? (
                 <>
                   <Button
-                    onClick={() => connectWallet("farcaster")}
-                    disabled={isConnecting}
-                    className="w-full h-20 rounded-xl bg-[#7C65C1]/40 border border-[#7C65C1]/50 hover:bg-[#7C65C1]/80 text-white justify-start px-6 transition-all duration-300 group relative overflow-hidden"
-                  >
-                    <div className="absolute right-0 top-0 bottom-0 w-40 overflow-hidden opacity-0 group-hover:opacity-30 pointer-events-none transition-opacity duration-300">
-                      <div className="absolute right-2 top-4 scale-[0.5] group-hover:scale-[3] transition-all duration-700 ease-out origin-top-right">
-                        <Image
-                          src="/farcaster-logo.svg"
-                          alt=""
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4 relative z-10">
-                      <div className="flex h-12 w-12 items-center justify-center transition-all duration-300 relative">
-                        {isConnecting &&
-                        connectingConnectorId === "farcaster" ? (
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        ) : (
-                          <Image
-                            src="/farcaster-logo.png"
-                            alt="Farcaster"
-                            width={40}
-                            height={40}
-                            className="object-contain"
-                          />
-                        )}
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold">
-                            Farcaster Wallet
-                          </span>
-                        </div>
-                        <div className="text-xs text-white/60">
-                          Connect instantly with your Farcaster profile.
-                        </div>
-                      </div>
-                    </div>
-                  </Button>
-
-                  <Button
                     onClick={() => connectWallet("xyz.ithaca.porto")}
                     disabled={isConnecting}
-                    className="w-full h-20 rounded-xl bg-[#3B7FD9]/40 border border-[#3B7FD9]/50 hover:bg-[#3B7FD9]/80 text-white justify-start px-6 transition-all duration-300 group relative overflow-hidden"
+                    className="w-full min-h-[5rem] h-auto py-4 rounded-xl bg-[#3B7FD9]/40 border border-[#3B7FD9]/50 hover:bg-[#3B7FD9]/80 text-white justify-start px-6 transition-all duration-300 group relative overflow-hidden"
                   >
                     <div className="absolute right-0 top-0 bottom-0 w-40 overflow-hidden opacity-0 group-hover:opacity-30 pointer-events-none transition-opacity duration-300">
                       <div className="absolute right-2 top-4 scale-[0.5] group-hover:scale-[3] transition-all duration-700 ease-out origin-top-right">
@@ -317,8 +272,8 @@ export function SignUpForm() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4 relative z-10">
-                      <div className="flex h-12 w-12 items-center justify-center transition-all duration-300 relative">
+                    <div className="flex items-start gap-4 relative z-10 w-full">
+                      <div className="flex h-12 w-12 items-center justify-center transition-all duration-300 relative flex-shrink-0">
                         {isConnecting &&
                         connectingConnectorId === "xyz.ithaca.porto" ? (
                           <Loader2 className="h-6 w-6 animate-spin text-white" />
@@ -332,13 +287,60 @@ export function SignUpForm() {
                           />
                         )}
                       </div>
-                      <div className="text-left flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold">Porto Wallet</span>
+                      <div className="text-left flex-1 min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="font-semibold text-sm sm:text-base whitespace-normal">
+                            Porto — best for new users
+                          </span>
                         </div>
-                        <div className="text-xs text-white/60">
-                          Create new wallet securely with your email.
+                        <p className="text-xs text-white/60 whitespace-normal break-words leading-relaxed">
+                          Create a new wallet securely with your email.
+                        </p>
+                      </div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    onClick={() => connectWallet("farcaster")}
+                    disabled={isConnecting}
+                    className="w-full min-h-[5rem] h-auto py-4 rounded-xl bg-[#7C65C1]/40 border border-[#7C65C1]/50 hover:bg-[#7C65C1]/80 text-white justify-start px-6 transition-all duration-300 group relative overflow-hidden"
+                  >
+                    <div className="absolute right-0 top-0 bottom-0 w-40 overflow-hidden opacity-0 group-hover:opacity-30 pointer-events-none transition-opacity duration-300">
+                      <div className="absolute right-2 top-4 scale-[0.5] group-hover:scale-[3] transition-all duration-700 ease-out origin-top-right">
+                        <Image
+                          src="/farcaster-logo.svg"
+                          alt=""
+                          width={40}
+                          height={40}
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4 relative z-10 w-full">
+                      <div className="flex h-12 w-12 items-center justify-center transition-all duration-300 relative flex-shrink-0">
+                        {isConnecting &&
+                        connectingConnectorId === "farcaster" ? (
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
+                        ) : (
+                          <Image
+                            src="/farcaster-logo.png"
+                            alt="Farcaster"
+                            width={40}
+                            height={40}
+                            className="object-contain"
+                          />
+                        )}
+                      </div>
+                      <div className="text-left flex-1 min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="font-semibold text-sm sm:text-base whitespace-normal">
+                            Farcaster Wallet
+                          </span>
                         </div>
+                        <p className="text-xs text-white/60 whitespace-normal break-words leading-relaxed">
+                          Connect instantly with your Farcaster profile.
+                        </p>
                       </div>
                     </div>
                   </Button>
@@ -437,7 +439,7 @@ export function SignUpForm() {
                 target="_blank"
               >
                 <Image
-                  src="/base-batches-black-background.png"
+                  src="/base-batches.svg"
                   alt="base"
                   width={100}
                   height={100}

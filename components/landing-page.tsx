@@ -49,7 +49,7 @@ export function LandingPage() {
   }, []);
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black">
+    <div className="relative h-dvh w-full overflow-hidden bg-black touch-none">
       {/* Animated Backgrounds */}
       <div className="absolute inset-0">
         {slides.map((slide, index) => (
@@ -112,11 +112,11 @@ export function LandingPage() {
         </div>
 
         {/* Bottom Buttons */}
-        <div className="flex justify-center w-full gap-4 pb-4">
+        <div className="flex justify-center w-full gap-4 pb-8">
           <Link href="/signup" className="block flex-1 max-w-48">
             <Button
               size="lg"
-              className="w-full rounded-full bg-white text-black hover:bg-white/90 h-14 text-base font-semibold"
+              className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 sm:h-14 text-sm sm:text-base font-semibold"
             >
               Sign up
             </Button>
@@ -125,11 +125,38 @@ export function LandingPage() {
             <Button
               size="lg"
               variant="ghost"
-              className="w-full rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 h-14 text-base font-semibold"
+              className="w-full rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 h-12 sm:h-14 text-sm sm:text-base font-semibold"
             >
               Log in
             </Button>
           </Link>
+        </div>
+
+        {/* Footer */}
+        <div className="w-full py-2 px-6">
+          <div className="mx-auto max-w-md">
+            <div className="w-full h-px bg-white mb-4"></div>
+
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-white/50 text-center font-sans">
+                Project built during
+              </p>
+
+              <div className="h-6 w-auto flex items-center justify-center">
+                <Link
+                  href="https://devfolio.co/projects/babblockchain-agent-bank-17b9"
+                  target="_blank"
+                >
+                  <Image
+                    src="/base-batches.svg"
+                    alt="base"
+                    width={100}
+                    height={100}
+                  />
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
