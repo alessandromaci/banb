@@ -18,6 +18,8 @@ import {
   Search,
   Copy,
   Check,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -35,6 +37,7 @@ import { getRecentTransactions, type Transaction } from "@/lib/transactions";
 import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
+import { AIBar } from "@/components/ai-bar";
 import { useInvestments } from "@/lib/investments";
 import {
   getInvestmentSummaryByVault,
@@ -319,7 +322,7 @@ export function BankingHome() {
       {/* Mobile Container */}
       <div className="mx-auto max-w-md">
         {/* Header */}
-        <div className="pt-3 px-6 pb-6">
+        <div className="pt-6 px-6 pb-6">
           <div className="flex items-center justify-between mb-10">
             <button
               onClick={() => router.push("/profile")}
@@ -335,7 +338,11 @@ export function BankingHome() {
                 <div className="text-xs text-white/60">@{profile?.handle}</div>
               </div>
             </button>
-            <div className="flex items-center gap-3">
+            <Button className="bg-white text-indigo-600 hover:bg-white/90 rounded-full px-6 py-2 font-semibold shadow-lg shadow-white/20 transition-all hover:scale-105">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Upgrade
+            </Button>
+            {/* <div className="flex items-center gap-3">
               <Button
                 size="icon"
                 variant="ghost"
@@ -352,7 +359,7 @@ export function BankingHome() {
               >
                 <CreditCard className="h-5 w-5" />
               </Button>
-            </div>
+            </div> */}
           </div>
 
           {/* Balance Section */}
@@ -495,9 +502,11 @@ export function BankingHome() {
                   }
                 }}
               >
-                <Plus className="h-7 w-7" />
+                <Plus className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">Add</span>
+              <span className="text-sm text-white/90 font-medium">
+                Add money
+              </span>
             </div>
 
             {/* Withdraw Button */}
@@ -507,7 +516,7 @@ export function BankingHome() {
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
                   if (activeAccount === "main") {
-                    router.push("/withdraw");
+                    router.push("/invest/select");
                   } else {
                     // Investment account - withdraw from vault (disabled for now)
                     // TODO: Implement withdrawal functionality
@@ -515,11 +524,9 @@ export function BankingHome() {
                 }}
                 disabled={activeAccount === "investment"}
               >
-                <ArrowDownToLine className="h-7 w-7" />
+                <TrendingUp className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">
-                Withdraw
-              </span>
+              <span className="text-sm text-white/90 font-medium">Invest</span>
             </div>
 
             {/* Send/Info Button */}
@@ -542,9 +549,9 @@ export function BankingHome() {
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
                 {activeAccount === "main" ? (
-                  <Send className="h-7 w-7" />
+                  <Send className="size-6" />
                 ) : (
-                  <Info className="h-7 w-7" />
+                  <Info className="size-6" />
                 )}
               </Button>
               <span className="text-sm text-white/90 font-medium">
@@ -555,28 +562,17 @@ export function BankingHome() {
             {/* More Button */}
             <div className="flex flex-col items-center gap-3">
               <Button
-                onClick={() => setMoreMenuOpen(true)}
+                onClick={() => router.push("/cards")}
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                <MoreHorizontal className="h-7 w-7" />
+                <CreditCard className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">More</span>
+              <span className="text-sm text-white/90 font-medium">
+                Link card
+              </span>
             </div>
           </div>
-
-          {/* Search Bar */}
-          <div className="relative mb-10">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
-            <Input
-              placeholder="Ask anything"
-              className="pl-12 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-14 rounded-2xl backdrop-blur-sm"
-            />
-            <AudioLines className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
-          </div>
-
-          {/* Transactions/Investments Card */}
-
           {/* Rewards Summary */}
           {activeAccount === "investment" && currentAccount && (
             <RewardsSummaryCard
@@ -590,7 +586,7 @@ export function BankingHome() {
             />
           )}
 
-          <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-6 shadow-xl">
+          <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-10 shadow-xl">
             <div className="space-y-4">
               {activeAccount === "main" ? (
                 // Show transactions for main account
@@ -658,6 +654,9 @@ export function BankingHome() {
               )}
             </div>
           </Card>
+
+          {/* AI Bar */}
+          <AIBar />
         </div>
 
         {/* Bottom Spacer for Navigation */}
