@@ -88,10 +88,10 @@ export function AIBar() {
 
       <motion.div
         layout
-        className="fixed left-0 right-0 z-50 flex justify-center"
-        style={{ bottom: isExpanded ? "20%" : "88px" }}
+        className="fixed left-0 right-0 z-50 flex justify-center px-4"
         animate={{
-          y: isExpanded ? 0 : 0,
+          bottom: isExpanded ? "50%" : "20px",
+          y: isExpanded ? "50%" : 0,
         }}
         transition={{
           type: "spring",
@@ -102,10 +102,9 @@ export function AIBar() {
       >
         <motion.div
           layout
-          className="relative"
+          className="relative w-full"
           animate={{
-            width: isExpanded ? "calc(100% - 2rem)" : "70%",
-            maxWidth: isExpanded ? "28rem" : "20rem",
+            maxWidth: isExpanded ? "28rem" : "18rem",
           }}
           transition={{
             type: "spring",
@@ -182,10 +181,10 @@ export function AIBar() {
                       className="flex items-center justify-center"
                     >
                       <Image
-                        src="/banb_large_icon.png"
+                        src="/banb-logo-black.svg"
                         alt="BANB Logo"
-                        width={32}
-                        height={32}
+                        width={60}
+                        height={60}
                       />
                     </motion.div>
                   )}
@@ -201,7 +200,7 @@ export function AIBar() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
                     <Image
-                      src="/banb_large_icon.png"
+                      src="/banb-logo-black.svg"
                       alt="BANB Logo"
                       width={28}
                       height={28}

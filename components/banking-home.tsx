@@ -20,6 +20,8 @@ import {
   Check,
   Sparkles,
   TrendingUp,
+  Receipt,
+  Activity,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -38,6 +40,7 @@ import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
 import { AIBar } from "@/components/ai-bar";
+import { InsightsCarousel } from "@/components/insights-carousel";
 import { useInvestments } from "@/lib/investments";
 import {
   getInvestmentSummaryByVault,
@@ -338,28 +341,13 @@ export function BankingHome() {
                 <div className="text-xs text-white/60">@{profile?.handle}</div>
               </div>
             </button>
-            <Button className="bg-white text-indigo-600 hover:bg-white/90 rounded-full px-6 py-2 font-semibold shadow-lg shadow-white/20 transition-all hover:scale-105">
+            <Button
+              className="bg-white text-indigo-600 hover:bg-white/90 rounded-full px-6 py-2 font-semibold shadow-lg shadow-white/20 transition-all hover:scale-105"
+              onClick={() => router.push("/upgrade")}
+            >
               <Sparkles className="h-4 w-4 mr-2" />
               Upgrade
             </Button>
-            {/* <div className="flex items-center gap-3">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => router.push("/analytics")}
-                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg shadow-indigo-500/20"
-              >
-                <BarChart3 className="h-5 w-5" />
-              </Button>
-              <Button
-                onClick={() => router.push("/cards")}
-                size="icon"
-                variant="ghost"
-                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg shadow-indigo-500/20"
-              >
-                <CreditCard className="h-5 w-5" />
-              </Button>
-            </div> */}
           </div>
 
           {/* Balance Section */}
@@ -479,9 +467,9 @@ export function BankingHome() {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-4 gap-6 mb-10">
+          <div className="grid grid-cols-4 gap-4 mb-10">
             {/* Add Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
@@ -504,13 +492,13 @@ export function BankingHome() {
               >
                 <Plus className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
                 Add money
               </span>
             </div>
 
             {/* Withdraw Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
@@ -526,11 +514,13 @@ export function BankingHome() {
               >
                 <TrendingUp className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">Invest</span>
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
+                Invest
+              </span>
             </div>
 
             {/* Send/Info Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 onClick={() => {
                   if (activeAccount === "main") {
@@ -554,13 +544,13 @@ export function BankingHome() {
                   <Info className="size-6" />
                 )}
               </Button>
-              <span className="text-sm text-white/90 font-medium">
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
                 {activeAccount === "main" ? "Send" : "Info"}
               </span>
             </div>
 
             {/* More Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 onClick={() => router.push("/cards")}
                 size="icon"
@@ -568,11 +558,14 @@ export function BankingHome() {
               >
                 <CreditCard className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">
-                Link card
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
+                Get card
               </span>
             </div>
           </div>
+
+          <InsightsCarousel />
+
           {/* Rewards Summary */}
           {activeAccount === "investment" && currentAccount && (
             <RewardsSummaryCard
@@ -596,13 +589,21 @@ export function BankingHome() {
                       <Loader2 className="h-6 w-6 animate-spin text-white/60" />
                     </div>
                   ) : transactions.length === 0 ? (
-                    <div className="text-center py-8 text-white/60">
-                      <p>No transactions yet</p>
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
+                          <Receipt className="h-5 w-5 text-white/60" />
+                        </div>
+                        <div className="font-sans text-white">
+                          No transactions yet
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
                       {transactions
                         .filter((tx) => tx.status === "success")
+                        .slice(0, 3)
                         .map((tx) => (
                           <TransactionCard
                             key={tx.id}
@@ -611,13 +612,16 @@ export function BankingHome() {
                           />
                         ))}
 
-                      <Button
-                        variant="ghost"
-                        onClick={() => router.push("/transactions")}
-                        className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                      >
-                        See all
-                      </Button>
+                      {transactions.filter((tx) => tx.status === "success")
+                        .length > 3 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => router.push("/transactions")}
+                          className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                        >
+                          See all
+                        </Button>
+                      )}
                     </>
                   )}
                 </>
@@ -630,24 +634,33 @@ export function BankingHome() {
                       <Loader2 className="h-6 w-6 animate-spin text-white/60" />
                     </div>
                   ) : investmentMovements.length === 0 ? (
-                    <div className="text-center py-8 text-white/60">
-                      <p>No activity yet</p>
+                    <div className="flex items-center justify-between py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
+                          <Activity className="h-5 w-5 text-white/60" />
+                        </div>
+                        <div className="font-medium text-white">
+                          No activity yet
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
-                      {investmentMovements.map((movement) => (
+                      {investmentMovements.slice(0, 3).map((movement) => (
                         <InvestmentMovementCard
                           key={movement.id}
                           movement={movement}
                         />
                       ))}
-                      <Button
-                        variant="ghost"
-                        onClick={() => router.push("/investments/movements")}
-                        className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                      >
-                        See all
-                      </Button>
+                      {investmentMovements.length > 3 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => router.push("/investments/movements")}
+                          className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                        >
+                          See all
+                        </Button>
+                      )}
                     </>
                   )}
                 </>
