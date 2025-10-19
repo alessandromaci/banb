@@ -181,7 +181,7 @@ export function SignUpForm() {
             <div className="flex items-center justify-center">
               <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center p-2">
                 <Image
-                  src="/banb.png"
+                  src="/banb-white-icon.png"
                   alt="BANB"
                   className="h-full w-full object-contain"
                   width={32}

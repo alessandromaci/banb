@@ -783,7 +783,12 @@ export function BankingHome() {
                 className="flex flex-col items-center gap-1 py-2 transition-colors"
               >
                 <div className="size-10 bg-white rounded-full flex items-center justify-center shadow-lg">
-                  <Image src="/banb.svg" alt="BANB AI" width={24} height={24} />
+                  <Image
+                    src="/banb-white-icon.svg"
+                    alt="BANB AI"
+                    width={24}
+                    height={24}
+                  />
                 </div>
                 <span className="text-xs">Ask BANB</span>
               </button>
