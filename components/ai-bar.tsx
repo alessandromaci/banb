@@ -15,13 +15,34 @@ const greetingMessages = [
   "Looking for transaction insights?",
 ];
 
-export function AIBar() {
-  const [isExpanded, setIsExpanded] = useState(false);
+interface AIBarProps {
+  isExpanded?: boolean;
+  onToggle?: (expanded: boolean) => void;
+  hideCollapsed?: boolean;
+}
+
+export function AIBar({
+  isExpanded: externalIsExpanded,
+  onToggle,
+  hideCollapsed = false,
+}: AIBarProps = {}) {
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [isGreeting, setIsGreeting] = useState(false);
   const [currentGreeting, setCurrentGreeting] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
+
+  // Use external state if provided, otherwise use internal state
+  const isExpanded =
+    externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
+  const setIsExpanded = (value: boolean) => {
+    if (onToggle) {
+      onToggle(value);
+    } else {
+      setInternalIsExpanded(value);
+    }
+  };
 
   useEffect(() => {
     if (!isExpanded) {
@@ -66,6 +87,11 @@ export function AIBar() {
     }
     setInputValue("");
   };
+
+  // If hideCollapsed is true and not expanded, don't render anything
+  if (hideCollapsed && !isExpanded) {
+    return null;
+  }
 
   return (
     <>

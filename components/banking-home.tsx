@@ -3,28 +3,27 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { MoreMenu } from "@/components/more-menu";
 import {
-  AudioLines,
-  ArrowDownToLine,
   BarChart3,
   CreditCard,
   Plus,
-  MoreHorizontal,
   Send,
   Info,
   Loader2,
-  Search,
   Copy,
   Check,
   Sparkles,
   TrendingUp,
   Receipt,
   Activity,
+  Home,
+  User,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useAccount } from "wagmi";
 import { useUSDCBalance } from "@/lib/payments";
@@ -62,7 +61,7 @@ import {
  */
 export function BankingHome() {
   // UI State
-  const [, setActiveTab] = useState("home");
+  const [activeTab, setActiveTab] = useState("home");
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [activeAccount, setActiveAccount] = useState<"main" | "investment">(
@@ -72,6 +71,7 @@ export function BankingHome() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
 
   // Touch/Swipe State
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -467,7 +467,7 @@ export function BankingHome() {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-4 gap-4 mb-10">
+          <div className="grid grid-cols-4 gap-4 mb-8">
             {/* Add Button */}
             <div className="flex flex-col items-center gap-2">
               <Button
@@ -564,6 +564,7 @@ export function BankingHome() {
             </div>
           </div>
 
+          {/* Carousel */}
           <InsightsCarousel />
 
           {/* Rewards Summary */}
@@ -667,9 +668,80 @@ export function BankingHome() {
               )}
             </div>
           </Card>
+        </div>
 
-          {/* AI Bar */}
-          <AIBar />
+        {/* AI Bar - Controlled by Navigation Button */}
+        <AIBar
+          isExpanded={isAIBarExpanded}
+          onToggle={setIsAIBarExpanded}
+          hideCollapsed={true}
+        />
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-[#1A0F3D]/95 backdrop-blur-lg border-t border-white/10">
+          <div className="mx-auto max-w-md px-6 py-3">
+            <div className="grid grid-cols-5 gap-2">
+              <button
+                onClick={() => setActiveTab("home")}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "home" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <Home className="size-10" />
+                <span className="text-xs">Home</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("analytics");
+                  router.push("/analytics");
+                }}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "analytics" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <BarChart3 className="size-10" />
+                <span className="text-xs">Analytics</span>
+              </button>
+
+              {/* Center AI Button */}
+              <button
+                onClick={() => {
+                  setIsAIBarExpanded(!isAIBarExpanded);
+                }}
+                className="flex flex-col items-center gap-1 py-2 transition-colors"
+              >
+                <div className="size-10 bg-white rounded-full flex items-center justify-center shadow-lg">
+                  <Image src="/banb.svg" alt="BANB AI" width={24} height={24} />
+                </div>
+                <span className="text-xs">Ask BANB</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("cards");
+                  router.push("/cards");
+                }}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "cards" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <CreditCard className="size-10" />
+                <span className="text-xs">Cards</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("profile");
+                  router.push("/profile");
+                }}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "profile" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <User className="size-10" />
+                <span className="text-xs">Profile</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Spacer for Navigation */}

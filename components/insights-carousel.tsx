@@ -10,23 +10,41 @@ interface InsightCard {
   id: string;
   text: string;
   action: () => void;
+  imageUrl?: string;
 }
 
 function InsightCard({ card }: { card: InsightCard }) {
   const [showLogo, setShowLogo] = useState(true);
 
-  // Toggle between logo and text for this specific card
+  // Toggle between logo and text for cards without images
   useEffect(() => {
-    const toggleInterval = setInterval(() => {
-      setShowLogo((prev) => !prev);
-    }, 4000);
-    return () => clearInterval(toggleInterval);
-  }, []);
+    if (!card.imageUrl) {
+      const toggleInterval = setInterval(() => {
+        setShowLogo((prev) => !prev);
+      }, 4000);
+      return () => clearInterval(toggleInterval);
+    }
+  }, [card.imageUrl]);
 
+  // If card has an image, show only the static image
+  if (card.imageUrl) {
+    return (
+      <Card
+        onClick={card.action}
+        className="flex-shrink-0 w-[calc(100vw-3rem)] bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-xl shadow-xl cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl snap-center overflow-hidden p-0 leading-none"
+      >
+        <div className="h-20 w-full flex items-center justify-center relative block">
+          <Image src={card.imageUrl} alt="Carousel" width={400} height={150} />
+        </div>
+      </Card>
+    );
+  }
+
+  // For text-only cards, show the animation
   return (
     <Card
       onClick={card.action}
-      className="flex-shrink-0 w-[calc(100vw-3rem)] bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-xl shadow-xl cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl snap-center"
+      className="flex-shrink-0 w-[calc(100vw-3rem)] bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-xl shadow-xl cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl snap-center overflow-hidden"
     >
       <div className="h-12 px-5 flex items-center justify-center">
         <AnimatePresence mode="wait">
@@ -71,19 +89,22 @@ export function InsightsCarousel() {
 
   const cards: InsightCard[] = [
     {
-      id: "ai-insight",
-      text: "You've earned +2.3 USDC this week.",
-      action: () => router.push("/analytics"),
+      id: "welcome",
+      text: "welcome",
+      action: () => router.push("/deposit"),
+      imageUrl: "/carousel.svg",
     },
     {
-      id: "goal",
-      text: "Save 50 USDC to unlock your first AI reward tier.",
-      action: () => console.log("Set goal"),
+      id: "fees in usdc",
+      text: "fees in usdc",
+      action: () => router.push("/payments"),
+      imageUrl: "/carousel-2.svg",
     },
     {
-      id: "tip",
-      text: "Send USDC instantly with 0 fees as a Premium user.",
-      action: () => router.push("/upgrade"),
+      id: "ai",
+      text: "ai",
+      action: () => router.push("/home"),
+      imageUrl: "/carousel-3.svg",
     },
   ];
 
