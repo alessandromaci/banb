@@ -293,6 +293,22 @@ export function BankingHome() {
     }
   };
 
+  // Helper function to split balance into integer and decimal parts
+  const formatBalanceWithDifferentSizes = (
+    balance: number,
+    currency: Currency
+  ) => {
+    const formatted = formatCurrency(balance, currency);
+    const symbol = currency === "USD" ? "$" : "€";
+    const numberPart = formatted.replace(symbol, "");
+
+    const parts = numberPart.split(".");
+    const integerPart = parts[0];
+    const decimalPart = parts[1] || "00";
+
+    return { symbol, integerPart, decimalPart };
+  };
+
   // Swipe handling for account switching
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
@@ -363,10 +379,38 @@ export function BankingHome() {
             </div>
             {activeAccount === "main" ? (
               <>
-                <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out">
-                  {!isMounted || balanceLoading || rateLoading
-                    ? `${currency === "USD" ? "$" : "€"}...`
-                    : formatCurrency(displayedBalance, currency)}
+                <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
+                  {!isMounted || balanceLoading || rateLoading ? (
+                    `${currency === "USD" ? "$" : "€"}...`
+                  ) : (
+                    <>
+                      <span>
+                        {
+                          formatBalanceWithDifferentSizes(
+                            displayedBalance,
+                            currency
+                          ).symbol
+                        }
+                      </span>
+                      <span>
+                        {
+                          formatBalanceWithDifferentSizes(
+                            displayedBalance,
+                            currency
+                          ).integerPart
+                        }
+                      </span>
+                      <span className="text-4xl">
+                        .
+                        {
+                          formatBalanceWithDifferentSizes(
+                            displayedBalance,
+                            currency
+                          ).decimalPart
+                        }
+                      </span>
+                    </>
+                  )}
                 </div>
                 {address && isMounted && (
                   <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-2">
@@ -392,10 +436,38 @@ export function BankingHome() {
               <>
                 {hasInvestmentAccount ? (
                   <>
-                    <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out">
-                      {!isMounted || investmentsLoading
-                        ? `${currency === "USD" ? "$" : "€"}...`
-                        : formatCurrency(currentAccountBalance, currency)}
+                    <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
+                      {!isMounted || investmentsLoading ? (
+                        `${currency === "USD" ? "$" : "€"}...`
+                      ) : (
+                        <>
+                          <span>
+                            {
+                              formatBalanceWithDifferentSizes(
+                                currentAccountBalance,
+                                currency
+                              ).symbol
+                            }
+                          </span>
+                          <span>
+                            {
+                              formatBalanceWithDifferentSizes(
+                                currentAccountBalance,
+                                currency
+                              ).integerPart
+                            }
+                          </span>
+                          <span className="text-4xl">
+                            .
+                            {
+                              formatBalanceWithDifferentSizes(
+                                currentAccountBalance,
+                                currency
+                              ).decimalPart
+                            }
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-2">
                       <button
