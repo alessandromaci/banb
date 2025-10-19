@@ -547,6 +547,16 @@ export function BankingHome() {
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
                   if (activeAccount === "main") {
+                    // Store deposit data in sessionStorage
+                    sessionStorage.setItem(
+                      "depositData",
+                      JSON.stringify({
+                        balance: displayedBalance.toString(),
+                        currency: currency,
+                        account: "main",
+                        walletAddress: address || "",
+                      })
+                    );
                     router.push("/deposit");
                   } else {
                     // Investment account - add more to same vault

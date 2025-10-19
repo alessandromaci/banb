@@ -1,13 +1,13 @@
-"use client";
+"use client"
 
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import type React from "react"
+import { Button } from "@/components/ui/button"
 
 interface AmountInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  currency?: "USD" | "EUR";
-  presetAmounts?: number[];
+  value: string
+  onChange: (value: string) => void
+  currency?: "USD" | "EUR"
+  presetAmounts?: number[]
 }
 
 export function AmountInput({
@@ -16,111 +16,42 @@ export function AmountInput({
   currency = "USD",
   presetAmounts = [30, 50, 100, 500],
 }: AmountInputProps) {
-  const symbol = currency === "USD" ? "$" : "€";
-  const numericValue = Number.parseFloat(value) || 0;
-  const [isFocused, setIsFocused] = useState(false);
+  const symbol = currency === "USD" ? "$" : "€"
+  const numericValue = Number.parseFloat(value) || 0
 
   const handlePresetClick = (amount: number) => {
-    onChange(amount.toString());
-  };
-
-  const formatNumber = (value: string) => {
-    // Remove all non-numeric characters except decimal point
-    const cleanValue = value.replace(/[^0-9.]/g, "").replace(/,/g, "");
-
-    // Prevent multiple decimal points
-    const decimalCount = (cleanValue.match(/\./g) || []).length;
-    if (decimalCount > 1) {
-      return value; // Don't update if multiple decimals
-    }
-
-    // Limit to 7 characters total
-    if (cleanValue.length > 7) {
-      return value; // Don't update if too long
-    }
-
-    // If there's a decimal point, limit to 2 decimal places
-    if (cleanValue.includes(".")) {
-      const [integer, decimal] = cleanValue.split(".");
-      if (decimal && decimal.length > 2) {
-        return value; // Don't update if too many decimal places
-      }
-    }
-
-    return cleanValue;
-  };
+    onChange(amount.toString())
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let inputValue = e.target.value;
-
-    // If we're showing formatted value, we need to clean it first
-    if (!isFocused) {
-      // Remove commas and other formatting
-      inputValue = inputValue.replace(/,/g, "");
+    const newValue = e.target.value.replace(/[^0-9.]/g, "")
+    // Prevent multiple decimal points
+    if ((newValue.match(/\./g) || []).length <= 1) {
+      onChange(newValue)
     }
-
-    const formattedValue = formatNumber(inputValue);
-    onChange(formattedValue);
-  };
-
-  const formatDisplayValue = (value: string) => {
-    if (!value || value === "0") return "0";
-
-    const numericValue = parseFloat(value);
-    if (isNaN(numericValue)) return "0";
-
-    // Only add commas for numbers >= 1000
-    if (numericValue >= 1000) {
-      return numericValue.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      });
-    } else {
-      // For numbers < 1000, just show with up to 2 decimal places
-      return numericValue.toFixed(2).replace(/\.?0+$/, "");
-    }
-  };
-
-  // Show formatted value in a display overlay when not focused
-  const displayValue = isFocused ? value : formatDisplayValue(value);
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 w-full">
       {/* Main Amount Display */}
       <div className="flex flex-col items-center gap-2 w-full">
-        <div className="flex items-center justify-center w-full max-w-md relative">
-          <div className="text-6xl font-bold text-white">
-            {symbol}
-            {formatDisplayValue(value)}
-          </div>
+        <div className="relative w-full max-w-md">
           <input
             type="text"
             inputMode="decimal"
             value={value}
             onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
             placeholder="0"
-            maxLength={7}
-            className="absolute opacity-0 pointer-events-auto"
-            style={{
-              caretColor: "#7B4CFF",
-              width: "100%",
-              height: "100%",
-              fontSize: "3.75rem",
-              fontWeight: "600",
-              textAlign: "center",
-              background: "transparent",
-              border: "none",
-              outline: "none",
-            }}
+            className="w-full bg-transparent text-6xl font-semibold text-white text-center outline-none border-none focus:outline-none focus:ring-0"
+            style={{ caretColor: "#7B4CFF" }}
           />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-6xl font-semibold text-white/30 pointer-events-none">
+            {symbol}
+          </span>
         </div>
 
         {/* USDC Equivalent */}
-        <p className="text-sm text-white/50">
-          ≈ {numericValue.toFixed(2)} USDC
-        </p>
+        <p className="text-sm text-white/50">≈ {numericValue.toFixed(2)} USDC</p>
       </div>
 
       {/* Preset Amount Buttons */}
@@ -138,5 +69,5 @@ export function AmountInput({
         ))}
       </div>
     </div>
-  );
+  )
 }
