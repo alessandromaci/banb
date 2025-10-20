@@ -98,7 +98,7 @@ export default function PaymentsPage() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <div className="flex-1 ml-2">
-            <h1 className="text-xl font-medium">Send money</h1>
+            <h1 className="text-xl font-medium">Send</h1>
             <p className="text-sm text-white/50">
               Balance: ${formattedBalance || "0.00"}
             </p>

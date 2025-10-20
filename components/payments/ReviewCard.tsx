@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Check, ArrowLeftRight, Loader2, Lock } from "lucide-react";
+import { Loader2, Lock, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -196,10 +196,12 @@ export function ReviewCard({
 
         {/* Confirmation text */}
         <div className="text-center">
-          <h2 className="text-xl font-medium text-white mb-2">
+          <h2 className="text-lg font-medium text-white/50 mb-2">
             Confirm transaction to
           </h2>
-          <p className="text-white/70">{getConfirmationRecipient()}</p>
+          <p className="text-white fomt-sans font-medium font-bold text-2xl">
+            {getConfirmationRecipient()}
+          </p>
         </div>
 
         {/* Transaction details */}

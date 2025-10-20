@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/payments/ReviewCard";
@@ -43,15 +43,13 @@ export default async function ReviewPage({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-8">
           <h1 className="text-xl font-medium">Send</h1>
-          <Link
-            href={`/payments/${resolvedParams.type}/${resolvedParams.recipientId}/amount`}
-          >
+          <Link href="/payments">
             <Button
               size="icon"
               variant="ghost"
               className="text-white hover:bg-white/10 rounded-full"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <X className="w-6 h-6" />
             </Button>
           </Link>
         </div>
