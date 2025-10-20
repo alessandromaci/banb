@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StickyNote } from "lucide-react";
 import { useUSDCBalance } from "@/lib/payments";
 import { NumberPad } from "./NumberPad";
 
@@ -23,7 +21,6 @@ export function AmountInput({
 }: AmountInputProps) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
   const [isMounted, setIsMounted] = useState(false);
 
   const { address: userAddress } = useAccount();
@@ -88,9 +85,7 @@ export function AmountInput({
 
   const handleContinue = () => {
     if (amount && Number.parseFloat(amount) > 0 && !hasInsufficientBalance) {
-      router.push(
-        `/payments/${type}/${recipientId}/review?amount=${amount}&note=${note}`
-      );
+      router.push(`/payments/${type}/${recipientId}/review?amount=${amount}`);
     }
   };
 

@@ -174,7 +174,7 @@ export function StatusIndicator() {
 
           {/* Transaction hash with inline buttons */}
           {transaction.tx_hash && (
-            <div className="pt-4 ">
+            <div className="pt-4">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-white text-sm">TX Hash</span>
                 <div className="flex items-center gap-2">

@@ -11,8 +11,8 @@ import { useCryptoPayment } from "@/lib/payments";
 import { getRecipient, createRecipient } from "@/lib/recipients";
 import { useUser } from "@/lib/user-context";
 import type { Recipient } from "@/lib/supabase";
-import { useEstimateGas, useGasPrice } from "wagmi";
-import { parseUnits, formatUnits } from "viem";
+import { useGasPrice } from "wagmi";
+import { formatUnits } from "viem";
 import { base } from "wagmi/chains";
 
 interface ReviewCardProps {
@@ -31,7 +31,6 @@ export function ReviewCard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const amount = searchParams.get("amount") || "0";
-  const note = searchParams.get("note") || "";
 
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,20 +46,27 @@ export function ReviewCard({
     : null;
 
   // Get gas price for fee estimation
-  const { data: gasPrice } = useGasPrice({
+  const { data: gasPrice, isLoading: isGasPriceLoading } = useGasPrice({
     chainId: base.id,
   });
 
-  // Estimate gas fee (approximate for USDC transfer)
-  const estimatedGasLimit = BigInt(65000); // Typical gas limit for ERC20 transfer
-  const gasFeeinWei =
-    gasPrice && estimatedGasLimit ? gasPrice * estimatedGasLimit : BigInt(0);
-  const gasFeeInEth = gasFeeinWei
-    ? parseFloat(formatUnits(gasFeeinWei, 18))
-    : 0;
-  // Approximate ETH to USD conversion (you could fetch real-time price)
-  const ethPriceUSD = 2500; // Approximate, could be dynamic
-  const gasFeeInUSD = gasFeeInEth * ethPriceUSD;
+  // Estimate gas fee for USDC transfer
+  const estimatedGasLimit = BigInt(65000);
+  const gasFeeInUSD = gasPrice
+    ? parseFloat(formatUnits(gasPrice * estimatedGasLimit, 18)) * 3000 // ETH price ~$3000
+    : null;
+
+  // Debug log for gas fee calculation
+  useEffect(() => {
+    if (gasPrice) {
+      console.log("Gas price (wei):", gasPrice.toString());
+      console.log(
+        "Gas fee in ETH:",
+        formatUnits(gasPrice * estimatedGasLimit, 18)
+      );
+      console.log("Gas fee in USD:", gasFeeInUSD);
+    }
+  }, [gasPrice, gasFeeInUSD, estimatedGasLimit]);
 
   // Fetch recipient data for crypto payments
   useEffect(() => {
@@ -143,11 +149,16 @@ export function ReviewCard({
     }
   };
 
-  // Get display address
-  const displayAddress =
-    isUnknownAddress && unknownAddress
-      ? `${unknownAddress.slice(0, 6)}...${unknownAddress.slice(-4)}`
-      : recipientDetails;
+  // Get display address (always truncate if it's an address format)
+  const displayAddress = (() => {
+    const address =
+      isUnknownAddress && unknownAddress ? unknownAddress : recipientDetails;
+    // Check if it's an address format (0x...)
+    if (address && address.startsWith("0x") && address.length > 20) {
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
+    return address;
+  })();
 
   // Determine the recipient display name for "Confirm transaction to"
   const getConfirmationRecipient = () => {
@@ -178,7 +189,7 @@ export function ReviewCard({
           <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
             <ArrowLeftRight className="w-8 h-8 text-white" />
           </div>
-          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-green-500 flex items-center justify-center border-2 border-[#0E0E0F]">
+          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center border-2 border-[#0E0E0F]">
             <Lock className="w-4 h-4 text-white" />
           </div>
         </div>
@@ -247,11 +258,13 @@ export function ReviewCard({
 
           <div className="flex justify-between items-center">
             <span className="text-white/60">Fee Estimate</span>
-            <div className="flex items-center gap-2">
-              <span className="text-white">
-                ${gasFeeInUSD > 0 ? gasFeeInUSD.toFixed(2) : "~0.01"}
-              </span>
-            </div>
+            <span className="text-white">
+              {isGasPriceLoading
+                ? "Calculating..."
+                : gasFeeInUSD
+                ? `$${gasFeeInUSD.toFixed(4)}`
+                : "~$0.01"}
+            </span>
           </div>
         </div>
 

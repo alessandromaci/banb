@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, QrCode, AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { normalize } from "viem/ens";
@@ -9,7 +9,6 @@ import { mainnet } from "viem/chains";
 import { createPublicClient, http, isAddress } from "viem";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/payments/SearchBar";
-import { PaymentOptions } from "@/components/payments/PaymentOptions";
 import { FriendList } from "@/components/payments/FriendList";
 import { useUser } from "@/lib/user-context";
 import { getRecipientsByProfile } from "@/lib/recipients";
@@ -24,7 +23,6 @@ export default function PaymentsPage() {
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
   const [isResolvingENS, setIsResolvingENS] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
-  const [isKnownFriend, setIsKnownFriend] = useState(false);
 
   // ENS resolution
   useEffect(() => {
@@ -58,9 +56,9 @@ export default function PaymentsPage() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
-  // Check if address is a known friend
+  // Check if address is known friend
   useEffect(() => {
-    const checkIfKnownFriend = async () => {
+    const checkAddress = async () => {
       if (!profile?.id) return;
 
       const addressToCheck = resolvedAddress || searchTerm;
@@ -71,20 +69,18 @@ export default function PaymentsPage() {
 
       try {
         const recipients = await getRecipientsByProfile(profile.id);
-        const isFriend = recipients.some(
+        const isKnown = recipients.some(
           (r) =>
             r.external_address?.toLowerCase() === addressToCheck.toLowerCase()
         );
-
-        setIsKnownFriend(isFriend);
-        setShowWarning(!isFriend);
+        setShowWarning(!isKnown);
       } catch (error) {
         console.error("Error checking friends:", error);
         setShowWarning(false);
       }
     };
 
-    checkIfKnownFriend();
+    checkAddress();
   }, [resolvedAddress, searchTerm, profile?.id]);
 
   const handleContinueWithAddress = () => {
@@ -101,7 +97,7 @@ export default function PaymentsPage() {
       <div className="mx-auto max-w-md px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="flex-1 -ml-2">
+          <div className="flex-1 ml-2">
             <h1 className="text-xl font-medium">Send money</h1>
             <p className="text-sm text-white/50">
               Balance: ${formattedBalance || "0.00"}
@@ -137,7 +133,7 @@ export default function PaymentsPage() {
         </div>
 
         {/* Warning for unknown addresses */}
-        {showWarning && !isKnownFriend && (
+        {showWarning && (
           <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
@@ -156,13 +152,6 @@ export default function PaymentsPage() {
             </div>
           </div>
         )}
-
-        {/* Payment Options - only show if no valid address entered */}
-        {/* {!showWarning && !isAddress(resolvedAddress || searchTerm) && (
-          <div className="mb-8">
-            <PaymentOptions />
-          </div>
-        )} */}
 
         {/* Friends List */}
         <div className="pb-24">
