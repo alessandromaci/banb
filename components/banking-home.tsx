@@ -3,24 +3,27 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { MoreMenu } from "@/components/more-menu";
 import {
-  AudioLines,
-  ArrowDownToLine,
   BarChart3,
   CreditCard,
   Plus,
-  MoreHorizontal,
   Send,
   Info,
   Loader2,
-  Search,
   Copy,
   Check,
+  Sparkles,
+  TrendingUp,
+  Receipt,
+  Activity,
+  Home,
+  User,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { useAccount } from "wagmi";
 import { useUSDCBalance } from "@/lib/payments";
@@ -35,6 +38,8 @@ import { getRecentTransactions, type Transaction } from "@/lib/transactions";
 import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
+import { AIBar } from "@/components/ai-bar";
+import { InsightsCarousel } from "@/components/insights-carousel";
 import { useInvestments } from "@/lib/investments";
 import {
   getInvestmentSummaryByVault,
@@ -56,7 +61,7 @@ import {
  */
 export function BankingHome() {
   // UI State
-  const [, setActiveTab] = useState("home");
+  const [activeTab, setActiveTab] = useState("home");
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [activeAccount, setActiveAccount] = useState<"main" | "investment">(
@@ -66,6 +71,7 @@ export function BankingHome() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
 
   // Touch/Swipe State
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -287,6 +293,22 @@ export function BankingHome() {
     }
   };
 
+  // Helper function to split balance into integer and decimal parts
+  const formatBalanceWithDifferentSizes = (
+    balance: number,
+    currency: Currency
+  ) => {
+    const formatted = formatCurrency(balance, currency);
+    const symbol = currency === "USD" ? "$" : "€";
+    const numberPart = formatted.replace(symbol, "");
+
+    const parts = numberPart.split(".");
+    const integerPart = parts[0];
+    const decimalPart = parts[1] || "00";
+
+    return { symbol, integerPart, decimalPart };
+  };
+
   // Swipe handling for account switching
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
@@ -319,7 +341,7 @@ export function BankingHome() {
       {/* Mobile Container */}
       <div className="mx-auto max-w-md">
         {/* Header */}
-        <div className="pt-3 px-6 pb-6">
+        <div className="pt-6 px-6 pb-6">
           <div className="flex items-center justify-between mb-10">
             <button
               onClick={() => router.push("/profile")}
@@ -335,24 +357,13 @@ export function BankingHome() {
                 <div className="text-xs text-white/60">@{profile?.handle}</div>
               </div>
             </button>
-            <div className="flex items-center gap-3">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => router.push("/analytics")}
-                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg shadow-indigo-500/20"
-              >
-                <BarChart3 className="h-5 w-5" />
-              </Button>
-              <Button
-                onClick={() => router.push("/cards")}
-                size="icon"
-                variant="ghost"
-                className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 text-white shadow-lg shadow-indigo-500/20"
-              >
-                <CreditCard className="h-5 w-5" />
-              </Button>
-            </div>
+            <Button
+              className="bg-white text-indigo-600 hover:bg-white/90 rounded-full px-6 py-2 font-semibold shadow-lg shadow-white/20 transition-all hover:scale-105"
+              onClick={() => router.push("/upgrade")}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Upgrade
+            </Button>
           </div>
 
           {/* Balance Section */}
@@ -368,13 +379,41 @@ export function BankingHome() {
             </div>
             {activeAccount === "main" ? (
               <>
-                <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out">
-                  {!isMounted || balanceLoading || rateLoading
-                    ? `${currency === "USD" ? "$" : "€"}...`
-                    : formatCurrency(displayedBalance, currency)}
+                <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
+                  {!isMounted || balanceLoading || rateLoading ? (
+                    `${currency === "USD" ? "$" : "€"}...`
+                  ) : (
+                    <>
+                      <span>
+                        {
+                          formatBalanceWithDifferentSizes(
+                            displayedBalance,
+                            currency
+                          ).symbol
+                        }
+                      </span>
+                      <span>
+                        {
+                          formatBalanceWithDifferentSizes(
+                            displayedBalance,
+                            currency
+                          ).integerPart
+                        }
+                      </span>
+                      <span className="text-4xl">
+                        .
+                        {
+                          formatBalanceWithDifferentSizes(
+                            displayedBalance,
+                            currency
+                          ).decimalPart
+                        }
+                      </span>
+                    </>
+                  )}
                 </div>
                 {address && isMounted && (
-                  <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-2">
+                  <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-1">
                     <button
                       onClick={copyAddress}
                       className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
@@ -383,13 +422,22 @@ export function BankingHome() {
                         {address.slice(0, 6)}...{address.slice(-4)}
                       </span>
                       {copied ? (
-                        <Check className="h-4 w-4 text-green-400" />
+                        <Check className="h-4 w-4 text-white" />
                       ) : (
                         <Copy className="h-4 w-4 opacity-60 hover:opacity-100" />
                       )}
                     </button>
                     <span className="text-white/50">-</span>
-                    <span>{usdcBalance || "0.00"} USDC</span>
+                    <span className="flex items-center gap-1 font-sans">
+                      {usdcBalance || "0.00"}{" "}
+                      {/* <Image
+                        src="/usdc-logo.png"
+                        alt="USDC"
+                        width={15}
+                        height={15}
+                      /> */}{" "}
+                      USDC
+                    </span>
                   </div>
                 )}
               </>
@@ -397,10 +445,38 @@ export function BankingHome() {
               <>
                 {hasInvestmentAccount ? (
                   <>
-                    <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out">
-                      {!isMounted || investmentsLoading
-                        ? `${currency === "USD" ? "$" : "€"}...`
-                        : formatCurrency(currentAccountBalance, currency)}
+                    <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
+                      {!isMounted || investmentsLoading ? (
+                        `${currency === "USD" ? "$" : "€"}...`
+                      ) : (
+                        <>
+                          <span>
+                            {
+                              formatBalanceWithDifferentSizes(
+                                currentAccountBalance,
+                                currency
+                              ).symbol
+                            }
+                          </span>
+                          <span>
+                            {
+                              formatBalanceWithDifferentSizes(
+                                currentAccountBalance,
+                                currency
+                              ).integerPart
+                            }
+                          </span>
+                          <span className="text-4xl">
+                            .
+                            {
+                              formatBalanceWithDifferentSizes(
+                                currentAccountBalance,
+                                currency
+                              ).decimalPart
+                            }
+                          </span>
+                        </>
+                      )}
                     </div>
                     <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-2">
                       <button
@@ -472,14 +548,24 @@ export function BankingHome() {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-4 gap-6 mb-10">
+          <div className="grid grid-cols-4 gap-4 mb-8">
             {/* Add Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
                   if (activeAccount === "main") {
+                    // Store deposit data in sessionStorage
+                    sessionStorage.setItem(
+                      "depositData",
+                      JSON.stringify({
+                        balance: displayedBalance.toString(),
+                        currency: currency,
+                        account: "main",
+                        walletAddress: address || "",
+                      })
+                    );
                     router.push("/deposit");
                   } else {
                     // Investment account - add more to same vault
@@ -495,19 +581,21 @@ export function BankingHome() {
                   }
                 }}
               >
-                <Plus className="h-7 w-7" />
+                <Plus className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">Add</span>
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
+                Add money
+              </span>
             </div>
 
             {/* Withdraw Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
                   if (activeAccount === "main") {
-                    router.push("/withdraw");
+                    router.push("/invest/select");
                   } else {
                     // Investment account - withdraw from vault (disabled for now)
                     // TODO: Implement withdrawal functionality
@@ -515,15 +603,15 @@ export function BankingHome() {
                 }}
                 disabled={activeAccount === "investment"}
               >
-                <ArrowDownToLine className="h-7 w-7" />
+                <TrendingUp className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">
-                Withdraw
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
+                Invest
               </span>
             </div>
 
             {/* Send/Info Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
                 onClick={() => {
                   if (activeAccount === "main") {
@@ -542,40 +630,33 @@ export function BankingHome() {
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
                 {activeAccount === "main" ? (
-                  <Send className="h-7 w-7" />
+                  <Send className="size-6" />
                 ) : (
-                  <Info className="h-7 w-7" />
+                  <Info className="size-6" />
                 )}
               </Button>
-              <span className="text-sm text-white/90 font-medium">
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
                 {activeAccount === "main" ? "Send" : "Info"}
               </span>
             </div>
 
             {/* More Button */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
               <Button
-                onClick={() => setMoreMenuOpen(true)}
+                onClick={() => router.push("/cards")}
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                <MoreHorizontal className="h-7 w-7" />
+                <CreditCard className="size-6" />
               </Button>
-              <span className="text-sm text-white/90 font-medium">More</span>
+              <span className="text-xs text-white/90 font-medium whitespace-nowrap">
+                Get card
+              </span>
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="relative mb-10">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
-            <Input
-              placeholder="Ask anything"
-              className="pl-12 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-14 rounded-2xl backdrop-blur-sm"
-            />
-            <AudioLines className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
-          </div>
-
-          {/* Transactions/Investments Card */}
+          {/* Carousel */}
+          <InsightsCarousel />
 
           {/* Rewards Summary */}
           {activeAccount === "investment" && currentAccount && (
@@ -590,7 +671,7 @@ export function BankingHome() {
             />
           )}
 
-          <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-6 shadow-xl">
+          <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-10 shadow-xl">
             <div className="space-y-4">
               {activeAccount === "main" ? (
                 // Show transactions for main account
@@ -600,13 +681,21 @@ export function BankingHome() {
                       <Loader2 className="h-6 w-6 animate-spin text-white/60" />
                     </div>
                   ) : transactions.length === 0 ? (
-                    <div className="text-center py-8 text-white/60">
-                      <p>No transactions yet</p>
+                    <div className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
+                          <Receipt className="h-5 w-5 text-white/60" />
+                        </div>
+                        <div className="font-sans text-white">
+                          No transactions yet
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
                       {transactions
                         .filter((tx) => tx.status === "success")
+                        .slice(0, 3)
                         .map((tx) => (
                           <TransactionCard
                             key={tx.id}
@@ -615,13 +704,16 @@ export function BankingHome() {
                           />
                         ))}
 
-                      <Button
-                        variant="ghost"
-                        onClick={() => router.push("/transactions")}
-                        className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                      >
-                        See all
-                      </Button>
+                      {transactions.filter((tx) => tx.status === "success")
+                        .length > 3 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => router.push("/transactions")}
+                          className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                        >
+                          See all
+                        </Button>
+                      )}
                     </>
                   )}
                 </>
@@ -634,30 +726,118 @@ export function BankingHome() {
                       <Loader2 className="h-6 w-6 animate-spin text-white/60" />
                     </div>
                   ) : investmentMovements.length === 0 ? (
-                    <div className="text-center py-8 text-white/60">
-                      <p>No activity yet</p>
+                    <div className="flex items-center justify-between py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
+                          <Activity className="h-5 w-5 text-white/60" />
+                        </div>
+                        <div className="font-medium text-white">
+                          No activity yet
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>
-                      {investmentMovements.map((movement) => (
+                      {investmentMovements.slice(0, 3).map((movement) => (
                         <InvestmentMovementCard
                           key={movement.id}
                           movement={movement}
                         />
                       ))}
-                      <Button
-                        variant="ghost"
-                        onClick={() => router.push("/investments/movements")}
-                        className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                      >
-                        See all
-                      </Button>
+                      {investmentMovements.length > 3 && (
+                        <Button
+                          variant="ghost"
+                          onClick={() => router.push("/investments/movements")}
+                          className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                        >
+                          See all
+                        </Button>
+                      )}
                     </>
                   )}
                 </>
               )}
             </div>
           </Card>
+        </div>
+
+        {/* AI Bar - Controlled by Navigation Button */}
+        <AIBar
+          isExpanded={isAIBarExpanded}
+          onToggle={setIsAIBarExpanded}
+          hideCollapsed={true}
+        />
+
+        {/* Bottom Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-[#1A0F3D]/95 backdrop-blur-lg border-t border-white/10">
+          <div className="mx-auto max-w-md px-6 py-3">
+            <div className="grid grid-cols-5 gap-2">
+              <button
+                onClick={() => setActiveTab("home")}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "home" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <Home className="size-8" />
+                <span className="text-xs">Home</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("analytics");
+                  router.push("/analytics");
+                }}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "analytics" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <BarChart3 className="size-8" />
+                <span className="text-xs">Analytics</span>
+              </button>
+
+              {/* Center AI Button */}
+              <button
+                onClick={() => {
+                  setIsAIBarExpanded(!isAIBarExpanded);
+                }}
+                className="flex flex-col items-center gap-1 py-2 transition-colors"
+              >
+                <div className="size-8 bg-white rounded-full flex items-center justify-center shadow-lg">
+                  <Image
+                    src="/banb-white-icon.svg"
+                    alt="BANB AI"
+                    width={18}
+                    height={18}
+                  />
+                </div>
+                <span className="text-xs">Ask BANB</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab("cards");
+                  router.push("/cards");
+                }}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "cards" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <CreditCard className="size-8" />
+                <span className="text-xs">Cards</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab("profile");
+                  router.push("/profile");
+                }}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "profile" ? "text-white" : "text-white/50"
+                }`}
+              >
+                <User className="size-8" />
+                <span className="text-xs">Profile</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Spacer for Navigation */}

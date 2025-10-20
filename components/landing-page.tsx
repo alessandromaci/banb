@@ -74,7 +74,7 @@ export function LandingPage() {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
             {/* <span className="font-bold text-white">BANB</span> */}
             <Image
-              src="/banb.png"
+              src="/banb-white-icon.png"
               alt="BANB"
               className="h-4 w-4"
               width={16}
