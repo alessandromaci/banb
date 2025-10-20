@@ -1,139 +1,161 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { ArrowLeft, Check, Sparkles, Crown, Zap } from "lucide-react"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { X, Check, Wallet, Sparkles, Crown } from "lucide-react";
 
 export default function UpgradePage() {
-  const router = useRouter()
-  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null)
+  const router = useRouter();
+  const [selectedPlan, setSelectedPlan] = useState<
+    "free" | "pro" | "ambassador"
+  >("pro");
 
-  const plans = [
-    {
+  const plans = {
+    free: {
       id: "free",
       name: "Free",
-      price: "$0",
-      period: "forever",
-      icon: Zap,
-      gradient: "from-gray-600 via-gray-700 to-gray-800",
-      features: ["Basic transactions", "Standard support", "Limited AI insights", "Standard gas fees"],
-      cta: "Current Plan",
+      price: "Always free",
+      icon: Wallet,
+      logoStyle: "outline", // white outline
+      features: [
+        "All the core features included to send, invest, and spend your stablecoins.",
+        "Limited number of BANB AI requests per month",
+        "Access to one spending and investment account",
+      ],
+      cta: "You're on this plan",
       disabled: true,
     },
-    {
-      id: "premium",
-      name: "Premium",
-      price: "$3.99",
-      period: "monthly",
+    pro: {
+      id: "pro",
+      name: "Pro",
+      price: "$3.99 / month",
       icon: Sparkles,
-      gradient: "from-blue-500 via-purple-500 to-pink-500",
+      logoStyle: "gradient", // blue→violet gradient
       features: [
-        "0 gas fees on all transactions",
-        "Advanced AI insights",
-        "Early access to new features",
-        "Premium support",
+        "No gas fees up to 100 transactions per month",
+        "Access to more investment opportunities",
+        "Extended number of BANB AI requests per month",
+        "Access to analytics and tax reports",
+        "Priority support",
       ],
-      cta: "Subscribe $3.99",
-      popular: true,
+      cta: "Upgrade to Pro",
+      disabled: false,
     },
-    {
+    ambassador: {
       id: "ambassador",
       name: "Ambassador",
-      price: "$39.99",
-      period: "one-time",
+      price: "$39.99 one-time",
       icon: Crown,
-      gradient: "from-amber-500 via-orange-500 to-rose-500",
+      logoStyle: "metallic", // metallic purple-gold
       features: [
-        "Lifetime premium benefits",
-        "Private Telegram group access",
-        "Recognition badge",
-        "Priority feature requests",
+        "Lifetime Pro benefits",
+        "Dedicated support line",
+        "Access to private Telegram group to shape BANB's roadmap",
+        "Early access to future BANB products",
       ],
-      cta: "Join Ambassador",
+      cta: "Join as Ambassador",
+      disabled: false,
     },
-  ]
+  };
+
+  const currentPlan = plans[selectedPlan];
+  const Icon = currentPlan.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#3B1EFF] via-[#5B3FFF] to-[#1A0F3D] text-white">
+    <div className="min-h-screen bg-gradient-to-b from-black via-black to-indigo-950 text-white">
       <div className="mx-auto max-w-md px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-10 ml-2 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-white pl-2">Plans</h1>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.back()}
-            className="mb-6 text-white hover:bg-white/10 rounded-full"
+            onClick={() => router.push("/home")}
+            className="text-white hover:bg-white/10 rounded-full"
           >
-            <ArrowLeft className="h-6 w-6" />
+            <X className="h-6 w-6" />
           </Button>
-          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
-            Upgrade Your BANB Experience
-          </h1>
-          <p className="text-white/70 text-lg">Choose the plan that fits you.</p>
         </div>
 
-        {/* Plans */}
-        <div className="space-y-6 mb-24">
-          {plans.map((plan) => {
-            const Icon = plan.icon
-            const isHovered = hoveredPlan === plan.id
+        <div className="flex justify-center gap-3 mb-8">
+          {(["free", "pro", "ambassador"] as const).map((planId) => (
+            <button
+              key={planId}
+              onClick={() => setSelectedPlan(planId)}
+              className={`px-6 py-2.5 rounded-full font-medium transition-all duration-300 ${
+                selectedPlan === planId
+                  ? "bg-white/20 text-white shadow-lg"
+                  : "bg-transparent text-white/50 hover:text-white/80"
+              }`}
+            >
+              {plans[planId].name}
+            </button>
+          ))}
+        </div>
 
-            return (
-              <Card
-                key={plan.id}
-                onMouseEnter={() => setHoveredPlan(plan.id)}
-                onMouseLeave={() => setHoveredPlan(null)}
-                className={`relative bg-gradient-to-br ${plan.gradient} border-0 rounded-3xl p-6 shadow-xl transition-all duration-300 ${
-                  isHovered ? "scale-[1.02] shadow-2xl" : ""
-                } ${plan.popular ? "ring-2 ring-white/30" : ""}`}
+        <div className="mb-8 transition-all duration-500 ease-in-out">
+          <Card className="bg-gradient-to-br from-gray-900/80 to-black/80 border-white/10 rounded-3xl p-8 shadow-2xl backdrop-blur-sm">
+            {/* Plan Header */}
+            <div className="flex items-start justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  {currentPlan.name}
+                </h2>
+                <p className="text-base text-white/70">{currentPlan.price}</p>
+              </div>
+
+              <div
+                className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+                  currentPlan.logoStyle === "outline"
+                    ? "border-2 border-white/40 bg-transparent"
+                    : currentPlan.logoStyle === "gradient"
+                    ? "bg-gradient-to-br from-[#3B1EFF] to-[#7B4CFF]"
+                    : "bg-gradient-to-br from-purple-600 to-amber-500"
+                }`}
               >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-purple-600 px-4 py-1 rounded-full text-xs font-bold shadow-lg">
-                    MOST POPULAR
+                <Icon
+                  className={`h-10 w-10 ${
+                    currentPlan.logoStyle === "outline"
+                      ? "text-white/60"
+                      : "text-white"
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Features List */}
+            <ul className="space-y-4 mb-8">
+              {currentPlan.features.map((feature, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <div className="h-6 w-6 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="h-4 w-4 text-white" />
                   </div>
-                )}
+                  <span className="text-white/80 text-sm leading-relaxed">
+                    {feature}
+                  </span>
+                </li>
+              ))}
+            </ul>
 
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Icon className="h-6 w-6 text-white" />
-                      <h2 className="text-2xl font-bold text-white">{plan.name}</h2>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-white">{plan.price}</span>
-                      <span className="text-white/70 text-sm">/ {plan.period}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Check className="h-3 w-3 text-white" />
-                      </div>
-                      <span className="text-white/90 text-sm leading-relaxed">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  disabled={plan.disabled}
-                  className={`w-full rounded-xl font-semibold transition-all duration-300 ${
-                    plan.disabled
-                      ? "bg-white/20 text-white/50 cursor-not-allowed"
-                      : "bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm"
-                  } ${isHovered && !plan.disabled ? "shadow-lg shadow-white/20" : ""}`}
-                >
-                  {plan.cta}
-                </Button>
-              </Card>
-            )
-          })}
+            <Button
+              disabled={currentPlan.disabled}
+              className={`w-full rounded-2xl py-6 text-base font-semibold transition-all duration-300 ${
+                currentPlan.disabled
+                  ? "bg-white/10 text-white/40 cursor-not-allowed"
+                  : currentPlan.logoStyle === "gradient"
+                  ? "bg-white text-black hover:bg-white/90"
+                  : currentPlan.logoStyle === "metallic"
+                  ? "bg-gradient-to-r from-purple-600 to-amber-500 text-white hover:opacity-90 shadow-lg shadow-purple-500/30"
+                  : "bg-white/20 text-white hover:bg-white/30"
+              }`}
+            >
+              {currentPlan.cta}
+            </Button>
+          </Card>
         </div>
       </div>
     </div>
-  )
+  );
 }
