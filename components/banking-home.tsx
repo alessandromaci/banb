@@ -413,7 +413,7 @@ export function BankingHome() {
                   )}
                 </div>
                 {address && isMounted && (
-                  <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-2">
+                  <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-1">
                     <button
                       onClick={copyAddress}
                       className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
@@ -422,13 +422,22 @@ export function BankingHome() {
                         {address.slice(0, 6)}...{address.slice(-4)}
                       </span>
                       {copied ? (
-                        <Check className="h-4 w-4 text-green-400" />
+                        <Check className="h-4 w-4 text-white" />
                       ) : (
                         <Copy className="h-4 w-4 opacity-60 hover:opacity-100" />
                       )}
                     </button>
                     <span className="text-white/50">-</span>
-                    <span>{usdcBalance || "0.00"} USDC</span>
+                    <span className="flex items-center gap-1 font-sans">
+                      {usdcBalance || "0.00"}{" "}
+                      {/* <Image
+                        src="/usdc-logo.png"
+                        alt="USDC"
+                        width={15}
+                        height={15}
+                      /> */}{" "}
+                      USDC
+                    </span>
                   </div>
                 )}
               </>
@@ -769,7 +778,7 @@ export function BankingHome() {
                   activeTab === "home" ? "text-white" : "text-white/50"
                 }`}
               >
-                <Home className="size-10" />
+                <Home className="size-8" />
                 <span className="text-xs">Home</span>
               </button>
               <button
@@ -781,7 +790,7 @@ export function BankingHome() {
                   activeTab === "analytics" ? "text-white" : "text-white/50"
                 }`}
               >
-                <BarChart3 className="size-10" />
+                <BarChart3 className="size-8" />
                 <span className="text-xs">Analytics</span>
               </button>
 
@@ -792,12 +801,12 @@ export function BankingHome() {
                 }}
                 className="flex flex-col items-center gap-1 py-2 transition-colors"
               >
-                <div className="size-10 bg-white rounded-full flex items-center justify-center shadow-lg">
+                <div className="size-8 bg-white rounded-full flex items-center justify-center shadow-lg">
                   <Image
                     src="/banb-white-icon.svg"
                     alt="BANB AI"
-                    width={24}
-                    height={24}
+                    width={18}
+                    height={18}
                   />
                 </div>
                 <span className="text-xs">Ask BANB</span>
@@ -812,7 +821,7 @@ export function BankingHome() {
                   activeTab === "cards" ? "text-white" : "text-white/50"
                 }`}
               >
-                <CreditCard className="size-10" />
+                <CreditCard className="size-8" />
                 <span className="text-xs">Cards</span>
               </button>
               <button
@@ -824,7 +833,7 @@ export function BankingHome() {
                   activeTab === "profile" ? "text-white" : "text-white/50"
                 }`}
               >
-                <User className="size-10" />
+                <User className="size-8" />
                 <span className="text-xs">Profile</span>
               </button>
             </div>
