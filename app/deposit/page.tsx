@@ -116,43 +116,45 @@ export default function DepositPage() {
           </Button>
         </div>
 
-        {/* Amount display - centered */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-          <div className="inline-flex items-start justify-center gap-0.5">
-            <span className="text-3xl font-normal text-white mt-2 font-sans">
-              {currencySymbol}
-            </span>
-            <span className="text-7xl font-light text-white min-w-[1ch] inline-block tracking-tight font-sans">
-              {formatDisplayValue(amount) || "0"}
-            </span>
-          </div>
+        {/* Amount display - centered with scroll */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-4">
+            <div className="inline-flex items-start justify-center gap-0.5">
+              <span className="text-3xl font-normal text-white mt-2 font-sans">
+                {currencySymbol}
+              </span>
+              <span className="text-7xl font-light text-white min-w-[1ch] inline-block tracking-tight font-sans">
+                {formatDisplayValue(amount) || "0"}
+              </span>
+            </div>
 
-          {/* USDC equivalence display */}
-          <div className="flex items-center gap-1 text-sm text-white/50 mt-6 font-sans">
-            <span className="text-sm text-white/50">≈</span>
-            <Image
-              src="/usdc-logo.png"
-              alt="USDC"
-              width={16}
-              height={16}
-              className="w-4 h-4 text-white"
-            />
-            <span>
-              {amount && parseFloat(amount) > 0
-                ? formatDisplayValue(amount)
-                : "0.00"}{" "}
-            </span>
-          </div>
+            {/* USDC equivalence display */}
+            <div className="flex items-center gap-1 text-sm text-white/50 mt-6 font-sans">
+              <span className="text-sm text-white/50">≈</span>
+              <Image
+                src="/usdc-logo.png"
+                alt="USDC"
+                width={16}
+                height={16}
+                className="w-4 h-4 text-white"
+              />
+              <span>
+                {amount && parseFloat(amount) > 0
+                  ? formatDisplayValue(amount)
+                  : "0.00"}{" "}
+              </span>
+            </div>
 
-          {/* Payment Method */}
-          <div className="mt-8 flex items-center justify-center">
-            <button
-              onClick={() => router.push("/deposit/method")}
-              className="text-white text-base font-medium font-sans break-all ml-4 rounded-full bg-white/10 px-4 py-2 hover:bg-white/15 transition-colors flex items-center gap-2"
-            >
-              <Smartphone className="w-4 h-4 text-white/70" />
-              <span>{paymentMethod.label}</span>
-            </button>
+            {/* Payment Method */}
+            <div className="mt-8 flex items-center justify-center">
+              <button
+                onClick={() => router.push("/deposit/method")}
+                className="text-white text-base font-medium font-sans break-all ml-4 rounded-full bg-white/10 px-4 py-2 hover:bg-white/15 transition-colors flex items-center gap-2"
+              >
+                <Smartphone className="w-4 h-4 text-white/70" />
+                <span>{paymentMethod.label}</span>
+              </button>
+            </div>
           </div>
         </div>
 
