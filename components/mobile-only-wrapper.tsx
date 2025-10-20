@@ -17,7 +17,7 @@ export function MobileOnlyWrapper({ children }: { children: React.ReactNode }) {
 
   if (!isMobile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1A0F3D] to-[#2D1B5E] text-white p-8">
+      <div className="min-h-screen flex items-center justify-center bg-black text-white p-8">
         <div className="text-center max-w-md">
           <div className="mb-6">
             <svg
@@ -39,10 +39,6 @@ export function MobileOnlyWrapper({ children }: { children: React.ReactNode }) {
           </h1>
           <p className="font-sans text-lg text-white/80 mb-2">
             This app is designed for mobile devices.
-          </p>
-          <p className="font-sans text-base text-white/70">
-            Please open this page on your smartphone or resize your browser
-            window to mobile dimensions (768px or less).
           </p>
         </div>
       </div>

@@ -16,8 +16,8 @@ export function NumberPad({ onNumberClick, onBackspace }: NumberPadProps) {
   ];
 
   return (
-    <div className="w-full max-w-sm mx-auto px-6 pb-6">
-      <div className="grid grid-cols-3 gap-4">
+    <div className="w-full max-w-sm mx-auto px-6 pb-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {buttons.map((row, rowIndex) =>
           row.map((btn, colIndex) => (
             <button
@@ -25,9 +25,13 @@ export function NumberPad({ onNumberClick, onBackspace }: NumberPadProps) {
               onClick={() =>
                 btn === "back" ? onBackspace() : onNumberClick(btn)
               }
-              className="h-16 flex items-center justify-center text-white text-2xl font-light hover:bg-white/5 active:bg-white/10 rounded-xl transition-colors"
+              className="h-12 sm:h-14 max-h-[50px]:h-10 flex items-center justify-center text-white text-xl sm:text-2xl font-light hover:bg-white/5 active:bg-white/10 rounded-xl transition-colors"
             >
-              {btn === "back" ? <Delete className="w-6 h-6" /> : btn}
+              {btn === "back" ? (
+                <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
+              ) : (
+                btn
+              )}
             </button>
           ))
         )}

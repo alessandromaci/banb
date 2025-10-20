@@ -117,7 +117,7 @@ export default function DepositPage() {
         </div>
 
         {/* Amount display - centered with scroll */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-hide">
           <div className="flex-1 flex flex-col items-center justify-center px-6 py-4">
             <div className="inline-flex items-start justify-center gap-0.5">
               <span className="text-3xl font-normal text-white mt-2 font-sans">
@@ -166,11 +166,11 @@ export default function DepositPage() {
           />
         </div>
 
-        <div className="px-6 pb-8 flex-shrink-0">
+        <div className="px-6 pb-6 flex-shrink-0">
           <Button
             disabled={numericAmount <= 0}
             onClick={() => console.log("To continue")}
-            className="w-full h-14 rounded-full bg-white hover:bg-white/90 disabled:opacity-30 disabled:cursor-not-allowed text-black font-medium text-base"
+            className="w-full h-12 sm:h-14 rounded-full bg-white hover:bg-white/90 disabled:opacity-30 disabled:cursor-not-allowed text-black font-medium text-base"
           >
             {paymentMethod.type === "image" && paymentMethod.icon ? (
               <div className="flex items-center justify-center">
