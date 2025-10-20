@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ReviewCard } from "@/components/payments/ReviewCard";
@@ -49,7 +49,7 @@ export default async function ReviewPage({
               variant="ghost"
               className="text-white hover:bg-white/10 rounded-full"
             >
-              <X className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6" />
             </Button>
           </Link>
         </div>

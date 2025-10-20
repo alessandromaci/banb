@@ -5,11 +5,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NumberPad } from "@/components/payments/NumberPad";
 
 export default function DepositPage() {
   const router = useRouter();
   const [amount, setAmount] = useState("");
-  const [isFocused, setIsFocused] = useState(false);
   const [balance, setBalance] = useState("0.00");
   const [currency, setCurrency] = useState("USD");
   const [paymentMethod, setPaymentMethod] = useState<{
@@ -73,92 +73,96 @@ export default function DepositPage() {
 
   const formatDisplayValue = (value: string) => {
     if (!value || value === "0") return "0";
-    const numericValue = parseFloat(value);
-    if (isNaN(numericValue)) return "0";
+    return value;
+  };
 
-    // Always show commas for numbers >= 1000
-    if (numericValue >= 1000) {
-      return numericValue.toLocaleString("en-US", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      });
+  // Handle number pad input
+  const handleNumberClick = (num: string) => {
+    if (num === "." && amount.includes(".")) return; // Prevent multiple decimals
+
+    const newValue = amount + num;
+    const formatted = formatNumber(newValue);
+    if (formatted !== amount) {
+      setAmount(formatted);
     }
+  };
 
-    // For numbers < 1000: raw value while focused, clean when not focused
-    return isFocused ? value : numericValue.toFixed(2).replace(/\.?0+$/, "");
+  // Handle backspace
+  const handleBackspace = () => {
+    setAmount(amount.slice(0, -1));
   };
 
   return (
     <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
-      <div className="max-w-md mx-auto px-6 py-8 w-full">
-        <div className="flex items-center gap-4 mb-8">
+      <div className="max-w-md mx-auto w-full flex flex-col h-screen">
+        {/* Header */}
+        <div className="px-6 py-8 flex items-center justify-between">
+          <div className="flex items-center gap-4 ml-2">
+            <div>
+              <h1 className="text-xl font-medium">Add money</h1>
+              <p className="text-sm text-white/50">
+                Balance: {currencySymbol}
+                {balance}
+              </p>
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push("/home")}
-            className="text-white hover:bg-white/10 rounded-full -ml-2"
+            className="text-white hover:bg-white/10 rounded-full"
           >
             <ArrowLeft className="w-6 h-6" />
           </Button>
-          <div>
-            <h1 className="text-xl font-medium">Add money</h1>
-            <p className="text-sm text-white/50">
-              Balance: {currencySymbol}
-              {balance}
-            </p>
-          </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center space-y-8 flex-1 min-h-[50vh]">
-          <div className="relative inline-flex items-baseline justify-center gap-1">
-            <span className="text-6xl font-light text-white">
+        {/* Amount display - centered */}
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div className="inline-flex items-start justify-center gap-0.5">
+            <span className="text-3xl font-normal text-white mt-2 font-sans">
               {currencySymbol}
             </span>
-            <div className="relative">
-              <span className="text-6xl font-light text-white min-w-[1ch] inline-block">
-                {isFocused && amount
-                  ? amount
-                  : formatDisplayValue(amount) || "0"}
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => {
-                  const inputValue = e.target.value.replace(/,/g, "");
-                  setAmount(formatNumber(inputValue));
-                }}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                placeholder="0"
-                maxLength={8}
-                className="absolute top-0 left-0 w-full h-full"
-                style={{
-                  color: "transparent",
-                  caretColor: "#FFFFFF",
-                  fontSize: "3.75rem",
-                  fontWeight: "300",
-                  textAlign: "left",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                }}
-              />
-            </div>
+            <span className="text-7xl font-light text-white min-w-[1ch] inline-block tracking-tight font-sans">
+              {formatDisplayValue(amount) || "0"}
+            </span>
           </div>
 
-          <button
-            onClick={() => router.push("/deposit/method")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
-          >
-            <Smartphone className="w-4 h-4 text-white/70" />
-            <span className="text-sm text-white/90 font-medium font-sans">
-              {paymentMethod.label}
+          {/* USDC equivalence display */}
+          <div className="flex items-center gap-1 text-sm text-white/50 mt-6 font-sans">
+            <span className="text-sm text-white/50">≈</span>
+            <Image
+              src="/usdc-logo.png"
+              alt="USDC"
+              width={16}
+              height={16}
+              className="w-4 h-4 text-white"
+            />
+            <span>
+              {amount && parseFloat(amount) > 0
+                ? formatDisplayValue(amount)
+                : "0.00"}{" "}
             </span>
-          </button>
+          </div>
+
+          {/* Payment Method */}
+          <div className="mt-8 flex items-center justify-center">
+            <button
+              onClick={() => router.push("/deposit/method")}
+              className="text-white text-base font-medium font-sans break-all ml-4 rounded-full bg-white/10 px-4 py-2 hover:bg-white/15 transition-colors flex items-center gap-2"
+            >
+              <Smartphone className="w-4 h-4 text-white/70" />
+              <span>{paymentMethod.label}</span>
+            </button>
+          </div>
         </div>
 
-        <div className="fixed bottom-8 left-0 right-0 px-6 max-w-md mx-auto space-y-4">
+        {/* Number Pad */}
+        <NumberPad
+          onNumberClick={handleNumberClick}
+          onBackspace={handleBackspace}
+        />
+
+        <div className="px-6 pb-8">
           <Button
             disabled={numericAmount <= 0}
             onClick={() => console.log("To continue")}
@@ -175,7 +179,7 @@ export default function DepositPage() {
                 />
               </div>
             ) : (
-              <span className="text-sm text-white/90">Continue</span>
+              <span>Continue</span>
             )}
           </Button>
         </div>
