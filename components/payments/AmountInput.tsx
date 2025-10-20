@@ -103,9 +103,9 @@ export function AmountInput({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* To field - positioned at top left */}
-      <div className="px-6 mb-8 flex ml-4 items-center">
+      <div className="px-6 mb-4 flex ml-4 items-center flex-shrink-0">
         <div className="text-sm text-white/50">To</div>
         <div className="text-white text-base font-medium font-sans break-all ml-4 rounded-full bg-white/10 px-4 py-2">
           {getRecipientDisplay()}
@@ -113,7 +113,7 @@ export function AmountInput({
       </div>
 
       {/* Amount display - centered */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
         <div className="inline-flex items-start justify-center gap-0.5">
           <span className="text-3xl font-normal text-white mt-2 font-sans">
             $
@@ -147,12 +147,14 @@ export function AmountInput({
       </div>
 
       {/* Number Pad */}
-      <NumberPad
-        onNumberClick={handleNumberClick}
-        onBackspace={handleBackspace}
-      />
+      <div className="flex-shrink-0">
+        <NumberPad
+          onNumberClick={handleNumberClick}
+          onBackspace={handleBackspace}
+        />
+      </div>
 
-      <div className="px-6 pb-8">
+      <div className="px-6 pb-8 flex-shrink-0">
         <Button
           onClick={handleContinue}
           disabled={

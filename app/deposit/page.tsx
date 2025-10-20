@@ -93,10 +93,10 @@ export default function DepositPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
-      <div className="max-w-md mx-auto w-full flex flex-col h-screen">
+    <div className="h-screen bg-[#0E0E0F] text-white flex flex-col overflow-hidden">
+      <div className="max-w-md mx-auto w-full flex flex-col h-full">
         {/* Header */}
-        <div className="px-6 py-8 flex items-center justify-between">
+        <div className="px-6 py-8 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-4 ml-2">
             <div>
               <h1 className="text-xl font-medium">Add money</h1>
@@ -117,7 +117,7 @@ export default function DepositPage() {
         </div>
 
         {/* Amount display - centered */}
-        <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 min-h-0">
           <div className="inline-flex items-start justify-center gap-0.5">
             <span className="text-3xl font-normal text-white mt-2 font-sans">
               {currencySymbol}
@@ -157,12 +157,14 @@ export default function DepositPage() {
         </div>
 
         {/* Number Pad */}
-        <NumberPad
-          onNumberClick={handleNumberClick}
-          onBackspace={handleBackspace}
-        />
+        <div className="flex-shrink-0">
+          <NumberPad
+            onNumberClick={handleNumberClick}
+            onBackspace={handleBackspace}
+          />
+        </div>
 
-        <div className="px-6 pb-8">
+        <div className="px-6 pb-8 flex-shrink-0">
           <Button
             disabled={numericAmount <= 0}
             onClick={() => console.log("To continue")}

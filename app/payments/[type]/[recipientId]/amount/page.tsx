@@ -52,10 +52,10 @@ export default function AmountPage() {
   }, [type, recipientId]);
 
   return (
-    <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
-      <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+    <div className="h-screen bg-[#0E0E0F] text-white flex flex-col overflow-hidden">
+      <div className="mx-auto max-w-md w-full flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-8">
+        <div className="flex items-center justify-between px-6 py-8 flex-shrink-0">
           <div className="flex items-center gap-4 ml-2">
             <div>
               <h1 className="text-xl font-medium ">Send</h1>
@@ -77,11 +77,13 @@ export default function AmountPage() {
         </div>
 
         {/* Amount Input */}
-        <AmountInput
-          recipientName={recipientName}
-          type={type}
-          recipientId={recipientId}
-        />
+        <div className="flex-1 flex flex-col min-h-0">
+          <AmountInput
+            recipientName={recipientName}
+            type={type}
+            recipientId={recipientId}
+          />
+        </div>
       </div>
     </div>
   );
