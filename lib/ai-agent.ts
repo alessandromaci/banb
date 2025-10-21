@@ -49,11 +49,11 @@ export interface AIAgentContext {
  * 
  * @interface ParsedAIOperation
  * @property {"payment" | "analysis" | "query"} type - Operation type
- * @property {any} data - Operation-specific data
+ * @property {Record<string, unknown>} data - Operation-specific data
  */
 export interface ParsedAIOperation {
   type: "payment" | "analysis" | "query";
-  data: any;
+  data: Record<string, unknown>;
 }
 
 /**
@@ -249,22 +249,24 @@ export function validateAIOperation(operation: ParsedAIOperation): {
 
   // Type-specific validation
   switch (operation.type) {
-    case "payment":
-      if (!operation.data.recipient_id && !operation.data.to) {
+    case "payment": {
+      const data = operation.data;
+      if (!data.recipient_id && !data.to) {
         errors.push("Payment requires recipient_id or recipient address");
       }
-      if (!operation.data.amount) {
+      if (!data.amount) {
         errors.push("Payment requires amount");
       } else {
-        const amount = parseFloat(operation.data.amount as string);
+        const amount = parseFloat(String(data.amount));
         if (isNaN(amount) || amount <= 0) {
           errors.push("Payment amount must be greater than zero");
         }
       }
-      if (!operation.data.chain) {
+      if (!data.chain) {
         errors.push("Payment requires blockchain network");
       }
       break;
+    }
 
     case "analysis":
       // Analysis operations don't require specific validation
@@ -313,25 +315,25 @@ export async function executeAIOperation(
   operation: ParsedAIOperation,
   userConfirmed: boolean,
   profileId: string
-): Promise<{ success: boolean; result: any }> {
+): Promise<{ success: boolean; result: Record<string, unknown> | PortfolioInsights }> {
   // Validate operation
   const validation = validateAIOperation(operation);
   if (!validation.valid) {
     const errorMessage = `Operation validation failed: ${validation.errors.join(", ")}`;
     console.error("[executeAIOperation] Validation failed:", validation.errors);
-    
+
     // Log failed validation
     await logAIOperation({
       profile_id: profileId,
       operation_type: operation.type,
-      operation_data: operation.data,
+      operation_data: operation.data as Record<string, unknown>,
       user_message: "",
       ai_response: "",
       user_confirmed: false,
       executed: false,
-      execution_result: { error: errorMessage, validation_errors: validation.errors },
+      execution_result: { error: errorMessage, validation_errors: validation.errors } as Record<string, unknown>,
     });
-    
+
     throw new Error(errorMessage);
   }
 
@@ -339,24 +341,24 @@ export async function executeAIOperation(
   if (operation.type === "payment" && !userConfirmed) {
     const errorMessage = "Payment operations require user confirmation";
     console.error("[executeAIOperation]", errorMessage);
-    
+
     // Log rejected operation
     await logAIOperation({
       profile_id: profileId,
       operation_type: operation.type,
-      operation_data: operation.data,
+      operation_data: operation.data as Record<string, unknown>,
       user_message: "",
       ai_response: "",
       user_confirmed: false,
       executed: false,
-      execution_result: { error: errorMessage },
+      execution_result: { error: errorMessage } as Record<string, unknown>,
     });
-    
+
     throw new Error(errorMessage);
   }
 
   try {
-    let result: any;
+    let result: Record<string, unknown> | PortfolioInsights;
 
     switch (operation.type) {
       case "payment":
@@ -400,12 +402,12 @@ export async function executeAIOperation(
     await logAIOperation({
       profile_id: profileId,
       operation_type: operation.type,
-      operation_data: operation.data,
+      operation_data: operation.data as Record<string, unknown>,
       user_message: "",
       ai_response: "",
       user_confirmed: userConfirmed,
       executed: true,
-      execution_result: result,
+      execution_result: result as Record<string, unknown>,
     });
 
     console.log(`[executeAIOperation] ✓ ${operation.type} operation executed successfully`);
@@ -418,12 +420,12 @@ export async function executeAIOperation(
     await logAIOperation({
       profile_id: profileId,
       operation_type: operation.type,
-      operation_data: operation.data,
+      operation_data: operation.data as Record<string, unknown>,
       user_message: "",
       ai_response: "",
       user_confirmed: userConfirmed,
       executed: false,
-      execution_result: { error: errorMessage },
+      execution_result: { error: errorMessage } as Record<string, unknown>,
     });
 
     throw new Error(errorMessage);

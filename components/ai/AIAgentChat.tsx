@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Loader2, Send, Sparkles, TrendingUp, DollarSign, Users, History } from "lucide-react";
 import { AIOperationConfirmation } from "./AIOperationConfirmation";
-import { PortfolioInsightsCard } from "./PortfolioInsightsCard";
 import { useRouter } from "next/navigation";
 
 /**
