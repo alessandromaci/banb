@@ -7,9 +7,10 @@ import { useAIAgent, type AIAgentMessage, type ParsedAIOperation } from "@/lib/a
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Loader2, Send, Sparkles, TrendingUp, DollarSign, Users } from "lucide-react";
+import { Loader2, Send, Sparkles, TrendingUp, DollarSign, Users, History } from "lucide-react";
 import { AIOperationConfirmation } from "./AIOperationConfirmation";
 import { PortfolioInsightsCard } from "./PortfolioInsightsCard";
+import { useRouter } from "next/navigation";
 
 /**
  * AI Agent Chat Interface Component
@@ -26,6 +27,7 @@ import { PortfolioInsightsCard } from "./PortfolioInsightsCard";
 export function AIAgentChat() {
   const { profile } = useUser();
   const { address } = useAccount();
+  const router = useRouter();
   const [inputValue, setInputValue] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -101,16 +103,27 @@ export function AIAgentChat() {
           <Sparkles className="h-5 w-5 text-primary" />
           <h2 className="font-semibold">AI Banking Assistant</h2>
         </div>
-        {messages.length > 0 && (
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={clearHistory}
-            disabled={isProcessing}
+            onClick={() => router.push("/ai-assistant/history")}
+            className="gap-2"
           >
-            Clear
+            <History className="h-4 w-4" />
+            History
           </Button>
-        )}
+          {messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearHistory}
+              disabled={isProcessing}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Messages Area */}

@@ -7,10 +7,14 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { supabase, type AIOperation, type Transaction, type Recipient } from "./supabase";
+import { supabase, type Transaction, type Recipient } from "./supabase";
+import type { AIOperation } from "./supabase";
 import { getRecentTransactions, getSentTransactions } from "./transactions";
 import { getRecipientsByProfile } from "./recipients";
 import { useUSDCBalance } from "./payments";
+
+// Re-export AIOperation for convenience
+export type { AIOperation };
 
 /**
  * AI chat message structure.
@@ -225,6 +229,56 @@ export function useAIAgent(profileId: string, userAddress?: `0x${string}`) {
 }
 
 /**
+ * Validates an AI operation before execution.
+ * Checks operation type, required fields, and data integrity.
+ * 
+ * @param {ParsedAIOperation} operation - Operation to validate
+ * @returns {{valid: boolean; errors: string[]}} Validation result
+ */
+export function validateAIOperation(operation: ParsedAIOperation): {
+  valid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  // Validate operation type
+  if (!["payment", "analysis", "query"].includes(operation.type)) {
+    errors.push(`Invalid operation type: ${operation.type}`);
+    return { valid: false, errors };
+  }
+
+  // Type-specific validation
+  switch (operation.type) {
+    case "payment":
+      if (!operation.data.recipient_id && !operation.data.to) {
+        errors.push("Payment requires recipient_id or recipient address");
+      }
+      if (!operation.data.amount) {
+        errors.push("Payment requires amount");
+      } else {
+        const amount = parseFloat(operation.data.amount as string);
+        if (isNaN(amount) || amount <= 0) {
+          errors.push("Payment amount must be greater than zero");
+        }
+      }
+      if (!operation.data.chain) {
+        errors.push("Payment requires blockchain network");
+      }
+      break;
+
+    case "analysis":
+      // Analysis operations don't require specific validation
+      break;
+
+    case "query":
+      // Query operations don't require specific validation
+      break;
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * Executes an AI-suggested operation after user confirmation.
  * Validates operation type and data, executes using appropriate service functions,
  * and logs to audit trail.
@@ -260,14 +314,45 @@ export async function executeAIOperation(
   userConfirmed: boolean,
   profileId: string
 ): Promise<{ success: boolean; result: any }> {
-  // Validate operation type
-  if (!["payment", "analysis", "query"].includes(operation.type)) {
-    throw new Error(`Invalid operation type: ${operation.type}`);
+  // Validate operation
+  const validation = validateAIOperation(operation);
+  if (!validation.valid) {
+    const errorMessage = `Operation validation failed: ${validation.errors.join(", ")}`;
+    console.error("[executeAIOperation] Validation failed:", validation.errors);
+    
+    // Log failed validation
+    await logAIOperation({
+      profile_id: profileId,
+      operation_type: operation.type,
+      operation_data: operation.data,
+      user_message: "",
+      ai_response: "",
+      user_confirmed: false,
+      executed: false,
+      execution_result: { error: errorMessage, validation_errors: validation.errors },
+    });
+    
+    throw new Error(errorMessage);
   }
 
   // Payment operations require user confirmation
   if (operation.type === "payment" && !userConfirmed) {
-    throw new Error("Payment operations require user confirmation");
+    const errorMessage = "Payment operations require user confirmation";
+    console.error("[executeAIOperation]", errorMessage);
+    
+    // Log rejected operation
+    await logAIOperation({
+      profile_id: profileId,
+      operation_type: operation.type,
+      operation_data: operation.data,
+      user_message: "",
+      ai_response: "",
+      user_confirmed: false,
+      executed: false,
+      execution_result: { error: errorMessage },
+    });
+    
+    throw new Error(errorMessage);
   }
 
   try {
@@ -275,11 +360,6 @@ export async function executeAIOperation(
 
     switch (operation.type) {
       case "payment":
-        // Validate payment data
-        if (!operation.data.recipient_id || !operation.data.amount) {
-          throw new Error("Invalid payment data: missing recipient_id or amount");
-        }
-
         // Execute payment via API
         const paymentResponse = await fetch("/api/ai/execute", {
           method: "POST",
@@ -316,22 +396,23 @@ export async function executeAIOperation(
         throw new Error(`Unsupported operation type: ${operation.type}`);
     }
 
-    // Log operation to audit trail
+    // Log successful operation to audit trail
     await logAIOperation({
       profile_id: profileId,
       operation_type: operation.type,
       operation_data: operation.data,
-      user_message: "", // Will be filled by API
-      ai_response: "", // Will be filled by API
+      user_message: "",
+      ai_response: "",
       user_confirmed: userConfirmed,
       executed: true,
       execution_result: result,
     });
 
+    console.log(`[executeAIOperation] ✓ ${operation.type} operation executed successfully`);
     return { success: true, result };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Operation execution failed";
-    console.error("[executeAIOperation] Error:", err);
+    console.error("[executeAIOperation] ❌ Error:", err);
 
     // Log failed operation
     await logAIOperation({
