@@ -175,7 +175,12 @@ export function AIConsentDialog({ open, onConsent, onDecline }: AIConsentDialogP
  * }
  * ```
  */
-export function useAIConsent(): object {
+export function useAIConsent(): {
+  hasConsent: boolean | null;
+  grantConsent: () => void;
+  revokeConsent: () => void;
+  checkConsent: () => void;
+} {
   const [hasConsent, setHasConsent] = useState<boolean | null>(null);
 
   useEffect(() => {
