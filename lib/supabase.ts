@@ -12,7 +12,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 /**
  * Supabase client instance for database operations.
  * Uses anonymous key for client-side operations with Row Level Security (RLS).
- * 
+ *
  * @example
  * ```typescript
  * import { supabase } from '@/lib/supabase';
@@ -24,7 +24,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 /**
  * User profile stored in the profiles table.
  * Represents a registered user with wallet connection and unique handle.
- * 
+ *
  * @interface Profile
  * @property {string} id - Unique identifier (UUID)
  * @property {string} name - User's display name
@@ -47,7 +47,7 @@ export interface Profile {
 /**
  * Payment recipient stored in the recipients table.
  * Can represent either an internal app user (friend) or external wallet/bank account.
- * 
+ *
  * @interface Recipient
  * @property {string} id - Unique identifier (UUID)
  * @property {string} profile_id - Owner's profile ID (who added this recipient)
@@ -76,7 +76,7 @@ export interface Recipient {
 /**
  * Bank account details for bank recipients.
  * Supports international (IBAN) and US (routing/account number) formats.
- * 
+ *
  * @interface BankDetails
  * @property {string} iban - International Bank Account Number
  * @property {string} country - ISO country code (e.g., "US", "GB", "DE")
@@ -97,7 +97,7 @@ export interface BankDetails {
 /**
  * Transaction record stored in the transactions table.
  * Tracks crypto payments between users with blockchain transaction details.
- * 
+ *
  * @interface Transaction
  * @property {string} id - Unique identifier (UUID)
  * @property {string} sender_profile_id - Profile ID of the sender
@@ -157,4 +157,73 @@ export interface InvestmentMovement {
   metadata?: Record<string, unknown>; // JSONB field for additional data
   created_at: string;
   updated_at?: string;
+}
+
+/**
+ * Account represents a connected wallet account for a user profile.
+ * Users can have multiple accounts (spending, investment, savings).
+ * Each account stores its own balance and transaction history.
+ *
+ * @interface Account
+ * @property {string} id - Unique identifier (UUID)
+ * @property {string} profile_id - References profiles table
+ * @property {string} name - Display name (e.g., "Main Account", "Spending Account")
+ * @property {"spending" | "investment" | "savings"} type - Account type
+ * @property {string} address - Wallet address (lowercase)
+ * @property {string} network - Blockchain network (e.g., "base", "ethereum", "polygon")
+ * @property {string} balance - Current balance as string (numeric(20,8) in DB)
+ * @property {boolean} is_primary - Whether this is the primary account
+ * @property {"active" | "inactive"} status - Account status
+ * @property {string} created_at - ISO timestamp of creation
+ * @property {string} updated_at - ISO timestamp of last update
+ */
+export interface Account {
+  id: string;
+  profile_id: string;
+  name: string;
+  type: "spending" | "investment" | "savings";
+  address: string;
+  network: string;
+  balance: string;
+  is_primary: boolean;
+  status: "active" | "inactive";
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * AccountTransaction represents a transaction for a specific account.
+ * Tracks both incoming and outgoing transactions with counterparty details.
+ *
+ * @interface AccountTransaction
+ * @property {string} id - Unique identifier (UUID)
+ * @property {string} account_id - References accounts table
+ * @property {string} amount - Transaction amount as string (numeric(20,8) in DB)
+ * @property {"in" | "out"} direction - Transaction direction (incoming or outgoing)
+ * @property {string | null} counterparty - Counterparty wallet address or username
+ * @property {string | null} counterparty_name - Display name of counterparty
+ * @property {string | null} tx_hash - Blockchain transaction hash
+ * @property {string} token_symbol - Token symbol (e.g., "USDC", "ETH")
+ * @property {string} network - Blockchain network
+ * @property {"pending" | "confirmed" | "failed"} status - Transaction status
+ * @property {string | null} description - Optional description
+ * @property {Record<string, unknown> | null} metadata - Additional transaction data (JSONB)
+ * @property {string} created_at - ISO timestamp of creation
+ * @property {string} updated_at - ISO timestamp of last update
+ */
+export interface AccountTransaction {
+  id: string;
+  account_id: string;
+  amount: string;
+  direction: "in" | "out";
+  counterparty: string | null;
+  counterparty_name: string | null;
+  tx_hash: string | null;
+  token_symbol: string;
+  network: string;
+  status: "pending" | "confirmed" | "failed";
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
 }
