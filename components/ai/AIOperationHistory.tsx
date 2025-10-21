@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useUser } from "@/lib/user-context";
 import { getAIOperationHistory, type AIOperation } from "@/lib/ai-agent";
 import { Card } from "@/components/ui/card";
@@ -36,13 +36,7 @@ export function AIOperationHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (profile?.id) {
-      loadHistory();
-    }
-  }, [profile?.id]);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     if (!profile?.id) return;
 
     setIsLoading(true);
@@ -58,7 +52,13 @@ export function AIOperationHistory() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      loadHistory();
+    }
+  }, [profile?.id, loadHistory]);
 
   if (!profile) {
     return (
