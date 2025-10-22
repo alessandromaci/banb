@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { MCP_TOOLS, executeToolHandler, type ToolExecutionContext } from "@/lib/mcp-server";
 
 // Rate limiting: Store request counts in memory (in production, use Redis)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -147,62 +148,296 @@ function parseAIResponse(response: string): {
 }
 
 /**
- * Call AI backend (OpenAI, Anthropic, or local model)
+ * Convert MCP tools to OpenAI function definitions
+ */
+function convertMCPToolsToOpenAIFunctions() {
+  return MCP_TOOLS.map((tool) => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    },
+  }));
+}
+
+/**
+ * Execute MCP tool and return formatted result
+ */
+async function executeMCPTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  profileId: string
+): Promise<string> {
+  try {
+    console.log(`Executing MCP tool: ${toolName} for profile: ${profileId}`);
+    
+    const context: ToolExecutionContext = { profileId };
+    const result = await executeToolHandler(toolName, args, context);
+    
+    // Extract the text content from MCP result
+    if (result.content && result.content[0]?.text) {
+      const parsedResult = JSON.parse(result.content[0].text);
+      if (parsedResult.success) {
+        // Format the data for better AI consumption
+        const formattedData = JSON.stringify(parsedResult.data, null, 2);
+        console.log(`Tool ${toolName} returned data:`, formattedData.substring(0, 200) + "...");
+        return formattedData;
+      } else {
+        console.error(`Tool ${toolName} returned error:`, parsedResult.error);
+        return `Error: ${parsedResult.error}`;
+      }
+    }
+    
+    console.warn(`Tool ${toolName} returned no content`);
+    return "No data returned from tool";
+  } catch (error) {
+    console.error(`Error executing MCP tool ${toolName}:`, error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return `Error executing ${toolName}: ${errorMessage}`;
+  }
+}
+
+/**
+ * Validates AI configuration for MCP functionality
+ */
+function validateAIConfiguration(): { valid: boolean; error?: string } {
+  const aiProvider = process.env.AI_PROVIDER;
+  const apiKey = process.env.AI_API_KEY;
+
+  // Check if AI_PROVIDER is set to openai for MCP functionality
+  if (aiProvider !== "openai") {
+    return {
+      valid: false,
+      error: `MCP functionality requires AI_PROVIDER="openai", but got "${aiProvider}". Please update your .env.local file.`
+    };
+  }
+
+  // Check if API key is configured
+  if (!apiKey || apiKey === "your_ai_api_key" || apiKey.startsWith("your_")) {
+    return {
+      valid: false,
+      error: "AI_API_KEY is not configured. Please add a valid OpenAI API key to your .env.local file."
+    };
+  }
+
+  // Basic API key format validation (OpenAI keys start with sk-)
+  if (!apiKey.startsWith("sk-")) {
+    return {
+      valid: false,
+      error: "Invalid AI_API_KEY format. OpenAI API keys should start with 'sk-'."
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Call AI backend with MCP tool integration (OpenAI, Anthropic, or local model)
  */
 async function callAIBackend(
   message: string,
-  context: Record<string, unknown>
+  context: Record<string, unknown>,
+  profileId?: string
 ): Promise<string> {
   const aiProvider = process.env.AI_PROVIDER || "openai";
   const apiKey = process.env.AI_API_KEY;
 
-  // If no API key or placeholder key, return a mock response
-  if (!apiKey || apiKey === "your_ai_api_key" || apiKey.startsWith("your_")) {
-    console.warn("No valid AI_API_KEY configured, using mock response");
-    return generateMockResponse(message, context);
+  // Validate AI configuration
+  const configValidation = validateAIConfiguration();
+  if (!configValidation.valid) {
+    console.warn("AI configuration invalid:", configValidation.error);
+    return generateMockResponse(message, context, configValidation.error);
   }
 
   try {
     if (aiProvider === "openai") {
+      // Prepare system message with MCP tool context
+      const systemMessage = `You are a helpful banking assistant for Banb, a blockchain-based neo-bank. You can help users analyze their spending, send payments, and answer questions about their account.
+
+You have access to the following tools to query user data:
+- get_investment_options: Get available investment products with APR, risk level, and details
+- get_user_balance: Get current USDC balance for the authenticated user
+- get_recent_transactions: Get recent transaction history with recipient details
+- get_recipients: Get saved payment recipients (friends list)
+- get_transaction_summary: Get spending analysis and patterns with insights
+
+Use these tools when users ask about their data. Always provide helpful, accurate information based on the tool results.
+When users ask about investments, balance, transactions, recipients, or spending patterns, use the appropriate tools to get current data.
+
+When suggesting a payment, use the format: "I can send $X to [recipient name] for you. Would you like me to proceed?"`;
+
+      // Prepare OpenAI request with function calling
+      const requestBody: {
+        model: string;
+        messages: Array<{role: string; content: string | null; tool_calls?: unknown[]}>;
+        max_tokens: number;
+        temperature: number;
+        tools?: unknown[];
+        tool_choice?: string;
+      } = {
+        model: "gpt-4o-mini", // Use the available model
+        messages: [
+          {
+            role: "system",
+            content: systemMessage,
+          },
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      };
+
+      // Add function calling if profile ID is available (user is authenticated)
+      if (profileId) {
+        requestBody.tools = convertMCPToolsToOpenAIFunctions();
+        requestBody.tool_choice = "auto";
+      }
+
+      console.log("Making OpenAI request with tools:", profileId ? "enabled" : "disabled");
+
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          model: "gpt-4",
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("OpenAI API error:", response.status, errorText);
+        
+        // Handle specific API key errors
+        if (response.status === 401) {
+          console.error("OpenAI API key is invalid or expired");
+          return generateMockResponse(message, context, "Invalid or expired OpenAI API key. Please check your AI_API_KEY in .env.local.");
+        }
+        
+        if (response.status === 429) {
+          console.error("OpenAI API rate limit exceeded");
+          return generateMockResponse(message, context, "OpenAI API rate limit exceeded. Please try again later.");
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const choice = data.choices[0];
+      
+      if (!choice) {
+        console.error("No choices returned from OpenAI");
+        return "I'm sorry, I couldn't process that request.";
+      }
+
+      // Check if OpenAI wants to call tools
+      if (choice.message.tool_calls && choice.message.tool_calls.length > 0 && profileId) {
+        console.log(`OpenAI requested ${choice.message.tool_calls.length} tool calls`);
+        
+        const toolMessages: Array<{
+          role: string;
+          tool_call_id: string;
+          content: string;
+        }> = [];
+        
+        // Execute each tool call
+        for (const toolCall of choice.message.tool_calls) {
+          const toolName = toolCall.function.name;
+          const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+          
+          console.log(`Executing MCP tool: ${toolName} with args:`, toolArgs);
+          
+          try {
+            const toolResult = await executeMCPTool(toolName, toolArgs, profileId);
+            toolMessages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: toolResult,
+            });
+            console.log(`Tool ${toolName} executed successfully`);
+          } catch (toolError) {
+            console.error(`Error executing tool ${toolName}:`, toolError);
+            toolMessages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: `Error: ${toolError instanceof Error ? toolError.message : "Tool execution failed"}`,
+            });
+          }
+        }
+        
+        // Make a second call to OpenAI with tool results
+        const followUpRequestBody = {
+          model: "gpt-4o-mini", // Use the available model
           messages: [
             {
               role: "system",
-              content: `You are a helpful banking assistant. You can help users analyze their spending, send payments, and answer questions about their account. 
-              
-Context: ${JSON.stringify(context)}
-
-When suggesting a payment, use the format: "I can send $X to [recipient name] for you. Would you like me to proceed?"`,
+              content: systemMessage,
             },
             {
               role: "user",
               content: message,
             },
+            {
+              role: "assistant",
+              content: null,
+              tool_calls: choice.message.tool_calls,
+            },
+            ...toolMessages,
           ],
           max_tokens: 500,
           temperature: 0.7,
-        }),
-      });
+        };
 
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
+        console.log("Making follow-up OpenAI request with tool results");
+
+        const followUpResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(followUpRequestBody),
+        });
+
+        if (!followUpResponse.ok) {
+          const errorText = await followUpResponse.text();
+          console.error("OpenAI follow-up API error:", followUpResponse.status, errorText);
+          throw new Error(`OpenAI follow-up API error: ${followUpResponse.status} ${followUpResponse.statusText}`);
+        }
+
+        const followUpData = await followUpResponse.json();
+        const finalResponse = followUpData.choices[0]?.message?.content;
+        
+        if (!finalResponse) {
+          console.error("No content in follow-up response");
+          return "I processed your request but couldn't generate a response.";
+        }
+
+        console.log("Successfully completed MCP tool integration flow");
+        return finalResponse;
       }
 
-      const data = await response.json();
-      return data.choices[0]?.message?.content || "I'm sorry, I couldn't process that request.";
+      // Return direct response if no tool calls
+      const directResponse = choice.message?.content;
+      if (!directResponse) {
+        console.error("No content in direct response");
+        return "I'm sorry, I couldn't process that request.";
+      }
+
+      console.log("Returning direct response (no tool calls)");
+      return directResponse;
     } else if (aiProvider === "anthropic") {
+      // Note: Anthropic integration doesn't support MCP tools in this implementation
+      console.log("Using Anthropic (no MCP tool support)");
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
+          "x-api-key": apiKey || "",
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
@@ -224,7 +459,8 @@ When suggesting a payment, use the format: "I can send $X to [recipient name] fo
       const data = await response.json();
       return data.content[0]?.text || "I'm sorry, I couldn't process that request.";
     } else {
-      // Local model via Ollama
+      // Local model via Ollama (no MCP tool support)
+      console.log("Using local model (no MCP tool support)");
       const response = await fetch("http://localhost:11434/api/generate", {
         method: "POST",
         headers: {
@@ -253,23 +489,39 @@ When suggesting a payment, use the format: "I can send $X to [recipient name] fo
 /**
  * Generate mock response when AI backend is unavailable
  */
-function generateMockResponse(message: string, context: Record<string, unknown>): string {
+function generateMockResponse(message: string, context: Record<string, unknown>, configError?: string): string {
+  // If there's a configuration error, include it in the response
+  const configMessage = configError 
+    ? `⚠️ Configuration Issue: ${configError}\n\n` 
+    : "⚠️ AI_API_KEY not configured. Please add a valid OpenAI API key to your .env.local file for full functionality.\n\n";
   const lowerMessage = message.toLowerCase();
 
-  if (lowerMessage.includes("spending") || lowerMessage.includes("analyze")) {
+  if (lowerMessage.includes("investment") || lowerMessage.includes("invest")) {
+    return configMessage + "I can help you explore investment options. You have access to several investment products with different risk levels and APR rates.";
+  }
+
+  if (lowerMessage.includes("spending") || lowerMessage.includes("analyze") || lowerMessage.includes("summary")) {
     const txCount = Array.isArray(context.transactions) ? context.transactions.length : 0;
-    return `Based on your recent activity, you have ${txCount} transactions. Your spending patterns look healthy!`;
+    return configMessage + `Based on your recent activity, you have ${txCount} transactions. I can provide detailed spending analysis and insights.`;
+  }
+
+  if (lowerMessage.includes("transaction") || lowerMessage.includes("history")) {
+    return configMessage + "I can show you your recent transaction history including amounts, recipients, and dates.";
+  }
+
+  if (lowerMessage.includes("recipient") || lowerMessage.includes("friend")) {
+    return configMessage + "I can help you view your saved payment recipients and analyze your payment patterns.";
   }
 
   if (lowerMessage.includes("send") || lowerMessage.includes("pay")) {
-    return "I can help you send a payment. Please specify the amount and recipient, and I'll prepare the transaction for your review.";
+    return configMessage + "I can help you send a payment. Please specify the amount and recipient, and I'll prepare the transaction for your review.";
   }
 
   if (lowerMessage.includes("balance")) {
-    return "Your current balance information is available on your dashboard. Would you like me to analyze your spending patterns?";
+    return configMessage + "I can check your current USDC balance and provide balance-related insights.";
   }
 
-  return "I'm here to help with your banking needs. You can ask me to analyze your spending, send payments, or answer questions about your account.";
+  return configMessage + "I'm here to help with your banking needs. You can ask me about investments, balance, transactions, recipients, or spending analysis.";
 }
 
 /**
@@ -316,8 +568,8 @@ export async function POST(request: NextRequest) {
       includeRecipients: requestContext?.includeRecipients,
     });
 
-    // Call AI backend
-    const aiResponse = await callAIBackend(sanitizedMessage, userContext);
+    // Call AI backend with MCP integration
+    const aiResponse = await callAIBackend(sanitizedMessage, userContext, profileId);
 
     // Parse for operations
     const { operation } = parseAIResponse(aiResponse);

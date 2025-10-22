@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { usePrivySafe as usePrivy } from "@/lib/use-privy-safe";
 import { useAccount } from "wagmi";
@@ -52,7 +52,7 @@ export default function CheckProfilePage() {
     checkProfile();
   }, [privyReady, authenticated, address]);
 
-  async function checkProfile() {
+  const checkProfile = useCallback(async () => {
     if (!address) return;
 
     setStatus("checking");
@@ -76,7 +76,7 @@ export default function CheckProfilePage() {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Failed to check profile");
     }
-  }
+  }, [address, setProfile, router]);
 
   const handleRetry = () => {
     if (address) {

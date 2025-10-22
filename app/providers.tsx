@@ -61,10 +61,21 @@ export function Providers({ children }: { children: ReactNode }) {
   // Check if we're on the server side
   const isServer = typeof window === "undefined";
 
-  // Always provide PrivyProvider, use a dummy ID if not configured
-  const appId = privyAppId && privyAppId !== "your_privy_app_id" 
-    ? privyAppId 
-    : "clpispdty00ycl80fpueukbhl"; // Dummy app ID for development
+  // Development mode: Skip Privy if no valid app ID is configured
+  const isDevelopmentMode = !privyAppId || privyAppId === "your_privy_app_id" || privyAppId.startsWith("#");
+  
+  // Development mode without Privy
+  if (isDevelopmentMode) {
+    console.log("🚧 Running in development mode without Privy authentication");
+    return (
+      <QueryClientProvider client={queryClient}>
+        <UserProvider>{children}</UserProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  // Production mode with Privy
+  const appId = privyAppId;
 
   // If on server, provide minimal setup without WagmiProvider
   if (isServer) {
