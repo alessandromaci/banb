@@ -19,6 +19,9 @@ import {
   Home,
   User,
   Wallet,
+  Search,
+  Input,
+  AudioLines,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
