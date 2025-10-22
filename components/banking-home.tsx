@@ -48,6 +48,14 @@ import {
   getInvestmentSummaryByVault,
   getInvestmentHistory,
 } from "@/lib/investment-movements";
+import { AIAgentChat } from "@/components/ai/AIAgentChat";
+import { AIConsentDialog, useAIConsent } from "@/components/ai/AIConsentDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * Main banking home component with account switching and investment management.
@@ -75,7 +83,9 @@ export function BankingHome() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
-  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [showAIConsent, setShowAIConsent] = useState(false);
+  const { hasConsent, grantConsent } = useAIConsent();
 
   // Touch/Swipe State
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -836,8 +846,26 @@ export function BankingHome() {
             </div>
           </div>
 
-          {/* Carousel */}
-          <InsightsCarousel />
+          {/* AI Assistant Search Bar */}
+          <div className="relative mb-10">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 pointer-events-none" />
+            <Input
+              placeholder="Ask AI anything about your banking..."
+              onClick={() => {
+                // Check consent before opening AI chat
+                if (hasConsent === false || hasConsent === null) {
+                  setShowAIConsent(true);
+                } else {
+                  setShowAIChat(true);
+                }
+              }}
+              readOnly
+              className="pl-12 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-14 rounded-2xl backdrop-blur-sm cursor-pointer hover:bg-white/15 transition-colors"
+            />
+            <AudioLines className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 pointer-events-none" />
+          </div>
+
+          {/* Transactions/Investments Card */}
 
           {/* Rewards Summary */}
           {activeAccount === "investment" && currentAccount && (
@@ -1117,6 +1145,29 @@ export function BankingHome() {
           </div>
         </div>
       )}
+
+      {/* AI Consent Dialog */}
+      <AIConsentDialog
+        open={showAIConsent}
+        onConsent={() => {
+          grantConsent();
+          setShowAIConsent(false);
+          setShowAIChat(true);
+        }}
+        onDecline={() => {
+          setShowAIConsent(false);
+        }}
+      />
+
+      {/* AI Chat Dialog */}
+      <Dialog open={showAIChat} onOpenChange={setShowAIChat}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0 gap-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>AI Banking Assistant</DialogTitle>
+          </DialogHeader>
+          <AIAgentChat />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

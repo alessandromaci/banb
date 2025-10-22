@@ -159,7 +159,6 @@ export interface InvestmentMovement {
   updated_at?: string;
 }
 
-/**
  * Account represents a connected wallet account for a user profile.
  * Users can have multiple accounts (spending, investment, savings).
  * Each account stores its own balance and transaction history.
@@ -226,4 +225,34 @@ export interface AccountTransaction {
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+
+ * AI operation record stored in the ai_operations table.
+ * Tracks AI agent interactions and operations for audit trail.
+ *
+ * @interface AIOperation
+ * @property {string} id - Unique identifier (UUID)
+ * @property {string} profile_id - Profile ID of the user
+ * @property {"payment" | "analysis" | "query"} operation_type - Type of operation
+ * @property {Record<string, unknown>} operation_data - Operation-specific data (JSONB)
+ * @property {string} user_message - Original user message to AI
+ * @property {string} ai_response - AI's response message
+ * @property {boolean} user_confirmed - Whether user confirmed the operation
+ * @property {boolean} executed - Whether operation was executed
+ * @property {Record<string, unknown> | null} execution_result - Result of execution (JSONB)
+ * @property {string} created_at - ISO timestamp of creation
+ * @property {string | null} executed_at - ISO timestamp of execution
+ */
+export interface AIOperation {
+  id: string;
+  profile_id: string;
+  operation_type: "payment" | "analysis" | "query";
+  operation_data: Record<string, unknown>;
+  user_message: string;
+  ai_response: string;
+  user_confirmed: boolean;
+  executed: boolean;
+  execution_result: Record<string, unknown> | null;
+  created_at: string;
+  executed_at: string | null;
+
 }
