@@ -5,12 +5,14 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Wallet, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createProfile, getProfileByWallet } from "@/lib/profile";
+import { createProfile, getProfileByAnyWallet } from "@/lib/profile";
+import { createAccount } from "@/lib/accounts";
 import { useUser } from "@/lib/user-context";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useSetActiveWallet } from "@privy-io/wagmi";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -19,23 +21,50 @@ export function SignUpForm() {
     name: "",
   });
   const [error, setError] = useState<string | null>(null);
-  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
-  const [connectingConnectorId, setConnectingConnectorId] = useState<
-    string | null
-  >(null);
-  const [connectedWalletType, setConnectedWalletType] = useState<string | null>(
-    null
-  );
   const [existingWallet, setExistingWallet] = useState(false);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   const [isCheckingWallet, setIsCheckingWallet] = useState(false);
-  const [profileCreated, setProfileCreated] = useState(false);
+  const [shouldCreateProfile, setShouldCreateProfile] = useState(false);
 
-  const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending: isConnecting } = useConnect();
-  const { disconnect } = useDisconnect();
   const { setProfile } = useUser();
+  const { login: privyLogin, ready: privyReady } = usePrivy();
+  const { wallets: privyWallets } = useWallets();
+  const { setActiveWallet } = useSetActiveWallet();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Sync Privy wallet with wagmi when wallet connects
+  // Prefer external wallets (MetaMask, Phantom) over embedded wallets
+  useEffect(() => {
+    const syncWallet = async () => {
+      if (privyWallets.length > 0 && setActiveWallet) {
+        console.log(
+          "👛 All wallets in signup:",
+          privyWallets.map((w) => ({
+            address: w.address,
+            type: w.walletClientType,
+            connectorType: w.connectorType,
+          }))
+        );
+
+        // Find first external wallet (not embedded)
+        const externalWallet = privyWallets.find(
+          (w) => w.walletClientType !== "privy"
+        );
+
+        // Use external wallet if found, otherwise use first wallet
+        const walletToUse = externalWallet || privyWallets[0];
+
+        console.log("🎯 Using wallet for signup:", {
+          address: walletToUse.address,
+          type: walletToUse.walletClientType,
+        });
+
+        await setActiveWallet(walletToUse);
+      }
+    };
+    syncWallet();
+  }, [privyWallets, setActiveWallet]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -45,50 +74,55 @@ export function SignUpForm() {
     }
 
     if (step === "details") {
-      if (isConnected && !connectedWalletType) {
-        disconnect();
+      // If wallet is already connected, move to wallet step
+      if (privyWallets.length > 0) {
+        console.log("✅ Wallet already connected, moving to wallet step");
+        setExistingWallet(false);
+        setStep("wallet");
+        setShouldCreateProfile(true);
+      } else {
+        // No wallet, open Privy modal
+        console.log("🔌 No wallet, opening Privy modal");
+
+        if (!privyReady) {
+          setError("Authentication system not ready. Please wait a moment.");
+          return;
+        }
+
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          await privyLogin();
+          console.log("✅ Wallet connected");
+          setStep("wallet");
+          setShouldCreateProfile(true);
+        } catch (loginError: any) {
+          console.error("❌ Wallet connection error:", loginError);
+          if (
+            !loginError?.message?.includes("abort") &&
+            !loginError?.message?.includes("cancel") &&
+            loginError?.name !== "AbortError"
+          ) {
+            setError("Failed to connect wallet. Please try again.");
+          }
+        }
       }
-      setExistingWallet(false);
-      setStep("wallet");
     }
   };
 
-  const connectWallet = (connectorId: string) => {
-    const connector = connectors.find((c) => c.id === connectorId);
-
-    if (connector) {
-      setConnectingConnectorId(connectorId);
-      connect({ connector });
-    } else {
-      console.error(
-        `Connector "${connectorId}" not found. Available IDs:`,
-        connectors.map((c) => c.id)
-      );
-    }
-  };
-
-  const handleDisconnect = () => {
-    disconnect();
-    setExistingWallet(false);
-    setError(null);
-    setConnectedWalletType(null);
-  };
-
-  useEffect(() => {
-    if (isConnected && connectingConnectorId) {
-      setConnectedWalletType(connectingConnectorId);
-      setConnectingConnectorId(null);
-    }
-  }, [isConnected, connectingConnectorId]);
-
+  // Check for existing wallet on details page
   useEffect(() => {
     const checkExistingWallet = async () => {
-      if (step === "details" && isConnected && address) {
-        try {
-          const existingProfile = await getProfileByWallet(address);
-          setExistingWallet(!!existingProfile);
-        } catch (err) {
-          console.error("Error checking wallet:", err);
+      if (step === "details" && privyWallets.length > 0) {
+        const primaryWallet = privyWallets[0];
+        if (primaryWallet?.address) {
+          try {
+            const existingProfile = await getProfileByAnyWallet(
+              primaryWallet.address
+            );
+            setExistingWallet(!!existingProfile);
+          } catch (err) {
+            console.error("Error checking wallet:", err);
+          }
         }
       } else if (step === "details") {
         setExistingWallet(false);
@@ -96,62 +130,96 @@ export function SignUpForm() {
     };
 
     checkExistingWallet();
-  }, [step, isConnected, address]);
+  }, [step, privyWallets]);
 
+  // Create profile ONLY when explicitly requested
   useEffect(() => {
-    const checkWalletAndCreateProfile = async () => {
-      if (
-        step === "wallet" &&
-        isConnected &&
-        address &&
-        formData.name.trim() &&
-        connectedWalletType &&
-        !profileCreated
-      ) {
-        setIsCheckingWallet(true);
-        try {
-          const existingProfile = await getProfileByWallet(address);
-          if (existingProfile) {
-            setExistingWallet(true);
-          } else {
-            setExistingWallet(false);
-            setError(null);
-            setIsCreatingProfile(true);
+    const createProfileWithWallet = async () => {
+      // Only run if we explicitly set shouldCreateProfile flag
+      if (!shouldCreateProfile || isCreatingProfile) {
+        return;
+      }
 
-            try {
-              const profile = await createProfile({
-                name: formData.name,
-                wallet_address: address,
-              });
+      if (step !== "wallet" || !privyWallets.length || !formData.name.trim()) {
+        return;
+      }
 
-              setProfileCreated(true);
-              setProfile(profile);
-              router.push("/home");
-            } catch (err) {
-              console.error("Failed to create profile:", err);
-              setError(
-                err instanceof Error ? err.message : "Failed to create profile"
-              );
-            } finally {
-              setIsCreatingProfile(false);
-            }
-          }
-        } catch (err) {
-          console.error("Error checking wallet:", err);
-        } finally {
+      // Prefer external wallet over embedded wallet
+      const externalWallet = privyWallets.find(
+        (w) => w.walletClientType !== "privy"
+      );
+      const primaryWallet = externalWallet || privyWallets[0];
+
+      if (!primaryWallet?.address) {
+        return;
+      }
+
+      console.log("👛 Wallet detected, creating profile with:", {
+        address: primaryWallet.address,
+        type: primaryWallet.walletClientType,
+        connectorType: primaryWallet.connectorType,
+        totalWallets: privyWallets.length,
+        preferredExternal: !!externalWallet,
+      });
+      setIsCheckingWallet(true);
+      setIsCreatingProfile(true);
+
+      try {
+        // Check if wallet already has a profile
+        const existingProfile = await getProfileByAnyWallet(
+          primaryWallet.address
+        );
+
+        if (existingProfile) {
+          console.log("⚠️ Profile already exists for this wallet");
+          setExistingWallet(true);
+          setIsCreatingProfile(false);
           setIsCheckingWallet(false);
+          setShouldCreateProfile(false);
+          return;
         }
+
+        // Create new profile
+        console.log("📝 Creating new profile...");
+        const profile = await createProfile({
+          name: formData.name,
+          wallet_address: primaryWallet.address,
+        });
+
+        console.log("✅ Profile created successfully");
+
+        // Create initial spending account
+        console.log("💳 Creating initial spending account...");
+        await createAccount({
+          profile_id: profile.id,
+          name: "Spending Account 1",
+          type: "spending",
+          address: primaryWallet.address,
+          network: "base",
+          is_primary: true,
+        });
+
+        console.log("✅ Initial spending account created");
+        setProfile(profile);
+        router.push("/home");
+      } catch (err) {
+        console.error("❌ Failed to create profile:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to create profile"
+        );
+        setIsCreatingProfile(false);
+        setIsCheckingWallet(false);
+        setShouldCreateProfile(false);
       }
     };
 
-    checkWalletAndCreateProfile();
+    createProfileWithWallet();
   }, [
+    shouldCreateProfile,
     step,
-    isConnected,
-    address,
+    privyWallets,
     formData.name,
-    connectedWalletType,
-    profileCreated,
+    isCreatingProfile,
     router,
     setProfile,
   ]);
@@ -163,7 +231,14 @@ export function SignUpForm() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setStep("details")}
+            onClick={() => {
+              setStep("details");
+              setShouldCreateProfile(false);
+              setIsCreatingProfile(false);
+              setIsCheckingWallet(false);
+              setExistingWallet(false);
+              setError(null);
+            }}
             className="text-white hover:bg-white/10"
           >
             <ArrowLeft className="h-6 w-6" />
@@ -177,6 +252,7 @@ export function SignUpForm() {
       {/* Content */}
       <div className="flex-1 flex items-center justify-center px-6 overflow-y-auto">
         {step === "details" ? (
+          // Step 1: Name input
           <div className="mx-auto max-w-md space-y-6 w-full">
             <div className="flex items-center justify-center">
               <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center p-2">
@@ -209,7 +285,7 @@ export function SignUpForm() {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 className={`h-14 rounded-xl bg-white/15 text-white placeholder:text-white/40 transition-colors font-sans font-medium ${
-                  existingWallet || error
+                  error
                     ? "border-red-500/50 focus-visible:ring-red-500/50"
                     : "border-white/10"
                 }`}
@@ -225,24 +301,9 @@ export function SignUpForm() {
                 Continue
               </Button>
             </form>
-
-            <p className="text-center text-sm text-white/60 font-sans">
-              {existingWallet ? (
-                <>
-                  You already have an account.{" "}
-                  <Link
-                    href="/login"
-                    className="text-white underline underline-offset-4"
-                  >
-                    Log in
-                  </Link>
-                </>
-              ) : (
-                <>We&apos;ll create an account if you don&apos;t have one.</>
-              )}
-            </p>
           </div>
         ) : (
+          // Step 2: Wallet step (checking or creating)
           <div className="mx-auto max-w-md space-y-6 w-full">
             <div className="flex items-center justify-center">
               <div className="h-16 w-16 bg-white/10 rounded-full flex items-center justify-center p-2">
@@ -260,175 +321,37 @@ export function SignUpForm() {
             </div>
 
             <div className="space-y-4">
-              {!isConnected ? (
-                <>
-                  <Button
-                    onClick={() => connectWallet("xyz.ithaca.porto")}
-                    disabled={isConnecting}
-                    className="w-full min-h-[5rem] h-auto py-4 rounded-xl bg-[#3B7FD9]/40 border border-[#3B7FD9]/50 hover:bg-[#3B7FD9]/80 text-white justify-start px-6 transition-all duration-300 group relative overflow-hidden"
-                  >
-                    <div className="absolute right-0 top-0 bottom-0 w-40 overflow-hidden opacity-0 group-hover:opacity-30 pointer-events-none transition-opacity duration-300">
-                      <div className="absolute right-2 top-4 scale-[0.5] group-hover:scale-[3] transition-all duration-700 ease-out origin-top-right">
-                        <Image
-                          src="/porto-logo.svg"
-                          alt=""
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4 relative z-10 w-full">
-                      <div className="flex h-12 w-12 items-center justify-center transition-all duration-300 relative flex-shrink-0">
-                        {isConnecting &&
-                        connectingConnectorId === "xyz.ithaca.porto" ? (
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        ) : (
-                          <Image
-                            src="/porto-logo.png"
-                            alt="Porto"
-                            width={40}
-                            height={40}
-                            className="object-contain"
-                          />
-                        )}
-                      </div>
-                      <div className="text-left flex-1 min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="font-semibold text-sm sm:text-base whitespace-normal">
-                            Porto — best for new users
-                          </span>
-                        </div>
-                        <p className="text-xs text-white/60 whitespace-normal break-words leading-relaxed">
-                          Create a new wallet securely with your email.
-                        </p>
-                      </div>
-                    </div>
-                  </Button>
-
-                  <Button
-                    onClick={() => connectWallet("farcaster")}
-                    disabled={isConnecting}
-                    className="w-full min-h-[5rem] h-auto py-4 rounded-xl bg-[#7C65C1]/40 border border-[#7C65C1]/50 hover:bg-[#7C65C1]/80 text-white justify-start px-6 transition-all duration-300 group relative overflow-hidden"
-                  >
-                    <div className="absolute right-0 top-0 bottom-0 w-40 overflow-hidden opacity-0 group-hover:opacity-30 pointer-events-none transition-opacity duration-300">
-                      <div className="absolute right-2 top-4 scale-[0.5] group-hover:scale-[3] transition-all duration-700 ease-out origin-top-right">
-                        <Image
-                          src="/farcaster-logo.svg"
-                          alt=""
-                          width={40}
-                          height={40}
-                          className="object-contain"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-4 relative z-10 w-full">
-                      <div className="flex h-12 w-12 items-center justify-center transition-all duration-300 relative flex-shrink-0">
-                        {isConnecting &&
-                        connectingConnectorId === "farcaster" ? (
-                          <Loader2 className="h-6 w-6 animate-spin text-white" />
-                        ) : (
-                          <Image
-                            src="/farcaster-logo.png"
-                            alt="Farcaster"
-                            width={40}
-                            height={40}
-                            className="object-contain"
-                          />
-                        )}
-                      </div>
-                      <div className="text-left flex-1 min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="font-semibold text-sm sm:text-base whitespace-normal">
-                            Farcaster Wallet
-                          </span>
-                        </div>
-                        <p className="text-xs text-white/60 whitespace-normal break-words leading-relaxed">
-                          Connect instantly with your Farcaster profile.
-                        </p>
-                      </div>
-                    </div>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {isCheckingWallet ? (
-                    <div
-                      className={`p-6 rounded-xl border ${
-                        connectedWalletType === "farcaster"
-                          ? "bg-[#7C65C1]/40 border-[#7C65C1]/50"
-                          : "bg-[#3B7FD9]/40 border-[#3B7FD9]/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="h-10 w-10 animate-spin text-white" />
-                        <p className="text-semibold text-white font-sans text-lg">
-                          Creating your account...
-                        </p>
-                      </div>
-                    </div>
-                  ) : existingWallet ? (
-                    <div className="text-center space-y-4">
-                      <p className="text-sm text-white/60 font-sans">
-                        You already have an account.{" "}
-                        <Link
-                          href="/login"
-                          className="text-white underline underline-offset-4"
-                        >
-                          Log in
-                        </Link>
+              {isCheckingWallet || isCreatingProfile ? (
+                <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-10 w-10 animate-spin text-white" />
+                    <div>
+                      <p className="text-semibold text-white font-sans text-lg">
+                        {formData.name}
+                      </p>
+                      <p className="text-xs text-white/60 font-sans">
+                        {"Creating your profile..."}
                       </p>
                     </div>
-                  ) : (
-                    <>
-                      {isCreatingProfile ? (
-                        <div
-                          className={`p-6 rounded-xl border relative overflow-hidden ${
-                            connectedWalletType === "farcaster"
-                              ? "bg-[#7C65C1]/40 border-[#7C65C1]/50"
-                              : "bg-[#3B7FD9]/40 border-[#3B7FD9]/50"
-                          }`}
-                        >
-                          <div className="flex flex-col items-center gap-4">
-                            <Loader2 className="h-12 w-12 animate-spin text-white" />
-                            <div className="text-center">
-                              <p className="font-semibold text-white text-lg font-sans">
-                                Creating your account...
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ) : error ? (
-                        <>
-                          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-                            <p className="text-sm text-red-400 mb-3 font-sans">
-                              {error}
-                            </p>
-                            <p className="text-xs text-white/60 font-sans">
-                              Something went wrong creating your account. Please
-                              try again or contact support if the issue
-                              persists.
-                            </p>
-                          </div>
-                          <Button
-                            onClick={() => {
-                              handleDisconnect();
-                              setError(null);
-                              setStep("details");
-                            }}
-                            size="lg"
-                            className="w-full rounded-full bg-white text-black hover:bg-white/90 h-14 text-base font-semibold"
-                          >
-                            Start Again
-                          </Button>
-                        </>
-                      ) : null}
-                    </>
-                  )}
-                </>
-              )}
+                  </div>
+                </div>
+              ) : existingWallet ? (
+                <div className="text-center space-y-4">
+                  <p className="text-sm text-white/60 font-sans">
+                    You already have an account.{" "}
+                    <Link
+                      href="/login"
+                      className="text-white underline underline-offset-4"
+                    >
+                      Log in
+                    </Link>
+                  </p>
+                </div>
+              ) : error ? (
+                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
+                  <p className="text-sm text-white/80 font-sans">{error}</p>
+                </div>
+              ) : null}
             </div>
           </div>
         )}

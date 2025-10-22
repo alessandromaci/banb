@@ -7,7 +7,7 @@ import { supabase, type Profile } from "./supabase";
 
 /**
  * Data required to create a new profile.
- * 
+ *
  * @interface CreateProfileData
  * @property {string} name - User's display name
  * @property {string} wallet_address - Ethereum wallet address
@@ -20,11 +20,11 @@ export interface CreateProfileData {
 /**
  * Generates a random alphanumeric string with pattern: number, letter, number.
  * Used internally for creating unique handle suffixes.
- * 
+ *
  * @private
  * @param {number} length - Length of string to generate (should be multiple of 3)
  * @returns {string} Random string following n-l-n pattern
- * 
+ *
  * @example
  * ```typescript
  * generateRandomString(3) // => "7x2" (number, letter, number)
@@ -56,13 +56,13 @@ function generateRandomString(length: number): string {
  * Generates a unique handle from a user's name.
  * Format: {first3letters}{3randomchars}banb
  * Attempts up to 10 times to find a unique handle.
- * 
+ *
  * @private
  * @async
  * @param {string} name - User's name to generate handle from
  * @returns {Promise<string>} Unique handle in format "abc7x2banb"
  * @throws {Error} If unique handle cannot be generated after 10 attempts
- * 
+ *
  * @example
  * ```typescript
  * await generateHandle("John Doe")     // => "joh7x2banb"
@@ -111,14 +111,14 @@ async function generateHandle(name: string): Promise<string> {
 /**
  * Creates a new user profile with auto-generated unique handle.
  * Wallet address is stored in lowercase for consistency.
- * 
+ *
  * @async
  * @param {CreateProfileData} data - Profile creation data
  * @returns {Promise<Profile>} Created profile object
  * @throws {Error} If wallet is already registered
  * @throws {Error} If name is already taken (handle collision)
  * @throws {Error} If database operation fails
- * 
+ *
  * @example
  * ```typescript
  * const profile = await createProfile({
@@ -161,14 +161,14 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
 /**
  * Updates a profile's display name.
  * Note: Handle is not regenerated when name changes.
- * 
+ *
  * @async
  * @param {string} profileId - UUID of the profile to update
  * @param {string} name - New display name
  * @returns {Promise<Profile>} Updated profile object
  * @throws {Error} If profile not found
  * @throws {Error} If database operation fails
- * 
+ *
  * @example
  * ```typescript
  * const updated = await updateProfileName(
@@ -181,7 +181,6 @@ export async function updateProfileName(
   profileId: string,
   name: string
 ): Promise<Profile> {
-
   // Update the name
   const { data: updatedProfile, error: updateError } = await supabase
     .from("profiles")
@@ -205,12 +204,12 @@ export async function updateProfileName(
  * Soft deletes a profile by setting status to inactive.
  * This preserves data integrity and transaction history.
  * Profile will be excluded from queries that filter by active status.
- * 
+ *
  * @async
  * @param {string} profileId - UUID of the profile to deactivate
  * @returns {Promise<void>}
  * @throws {Error} If database operation fails
- * 
+ *
  * @example
  * ```typescript
  * await deleteProfile("550e8400-e29b-41d4-a716-446655440000");
@@ -229,15 +228,15 @@ export async function deleteProfile(profileId: string): Promise<void> {
 }
 
 /**
- * Retrieves a profile by wallet address.
+ * Retrieves a profile by wallet address (primary wallet only).
  * Wallet address is converted to lowercase for case-insensitive matching.
  * Only returns active profiles (excludes inactive).
- * 
+ *
  * @async
  * @param {string} wallet_address - Ethereum wallet address
  * @returns {Promise<Profile | null>} Profile if found, null otherwise
  * @throws {Error} If database operation fails
- * 
+ *
  * @example
  * ```typescript
  * const profile = await getProfileByWallet("0x1234...");
@@ -269,14 +268,82 @@ export async function getProfileByWallet(
 }
 
 /**
+ * Retrieves a profile by ANY wallet address (primary or linked account).
+ * First checks the primary wallet in profiles table, then checks all linked accounts.
+ * This enables multi-wallet authentication where users can log in with any of their wallets.
+ *
+ * @async
+ * @param {string} wallet_address - Ethereum wallet address
+ * @returns {Promise<Profile | null>} Profile if found, null otherwise
+ * @throws {Error} If database operation fails
+ *
+ * @example
+ * ```typescript
+ * // User has profile with 0x1 as primary, and 0x2 as a linked account
+ * const profile1 = await getProfileByAnyWallet("0x1"); // ✅ Found via primary wallet
+ * const profile2 = await getProfileByAnyWallet("0x2"); // ✅ Found via linked account
+ * // Both return the same profile
+ * ```
+ */
+export async function getProfileByAnyWallet(
+  wallet_address: string
+): Promise<Profile | null> {
+  const normalizedAddress = wallet_address.toLowerCase();
+
+  // 1. First, check if it's a primary wallet
+  const primaryProfile = await getProfileByWallet(normalizedAddress);
+  if (primaryProfile) {
+    console.log("🔑 Found profile via primary wallet");
+    return primaryProfile;
+  }
+
+  // 2. If not found, check if it's a linked account wallet
+  console.log("🔍 Not primary wallet, checking linked accounts...");
+  const { data: account, error } = await supabase
+    .from("accounts")
+    .select("profile_id")
+    .eq("address", normalizedAddress)
+    .eq("status", "active")
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      console.log("❌ No account found for this wallet");
+      return null; // Not found
+    }
+    throw new Error(`Failed to check accounts: ${error.message}`);
+  }
+
+  // 3. If account found, get the profile
+  if (account?.profile_id) {
+    console.log("🔗 Found account, fetching profile...");
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", account.profile_id)
+      .neq("status", "inactive")
+      .single();
+
+    if (profileError) {
+      throw new Error(`Failed to get profile: ${profileError.message}`);
+    }
+
+    console.log("✅ Found profile via linked account");
+    return profile;
+  }
+
+  return null;
+}
+
+/**
  * Retrieves a profile by its UUID.
  * Only returns active profiles (excludes inactive).
- * 
+ *
  * @async
  * @param {string} id - Profile UUID
  * @returns {Promise<Profile | null>} Profile if found, null otherwise
  * @throws {Error} If database operation fails
- * 
+ *
  * @example
  * ```typescript
  * const profile = await getProfile("550e8400-e29b-41d4-a716-446655440000");

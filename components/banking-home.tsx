@@ -3,7 +3,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MoreMenu } from "@/components/more-menu";
 import {
   BarChart3,
   CreditCard,
@@ -19,15 +18,19 @@ import {
   Activity,
   Home,
   User,
+  Wallet,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { sdk } from "@farcaster/miniapp-sdk";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
+import { useSetActiveWallet } from "@privy-io/wagmi";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
+import { createAccount, useAccounts } from "@/lib/accounts";
+import { useToast } from "@/hooks/use-toast";
 import {
   type Currency,
   useExchangeRate,
@@ -72,10 +75,11 @@ export function BankingHome() {
   const [activeTab, setActiveTab] = useState("home");
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState<Currency>("USD");
-  const [activeAccount, setActiveAccount] = useState<"main" | "investment">(
-    "main"
+  const [activeAccount, setActiveAccount] = useState<"spending" | "investment">(
+    "spending"
   );
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [currentSpendingAccountIndex, setCurrentSpendingAccountIndex] =
+    useState(0);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
@@ -125,11 +129,57 @@ export function BankingHome() {
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   const router = useRouter();
-  const { address } = useAccount();
-  const { formattedBalance: usdcBalance, isLoading: balanceLoading } =
-    useUSDCBalance(address);
   const { profile, isLoading: profileLoading } = useUser();
   const { rate: eurRate, isLoading: rateLoading } = useExchangeRate();
+  const { toast } = useToast();
+
+  // Wallet management following Privy + wagmi best practices:
+  // - Use Privy for: connecting wallets, multi-wallet management
+  // - Use wagmi for: reading active wallet state (address, balance, transactions)
+  const { ready: privyReady, connectWallet: privyConnectWallet } = usePrivy();
+  const { wallets: privyWallets } = useWallets(); // For multi-wallet scenarios
+  const { setActiveWallet } = useSetActiveWallet();
+
+  // Use wagmi for active wallet address and balance
+  const { address } = useAccount();
+
+  // Accounts State - fetch all accounts from database
+  const { accounts, refreshAccounts } = useAccounts(profile?.id);
+
+  // Filter accounts by type
+  const spendingAccounts = accounts.filter((acc) => acc.type === "spending");
+  const currentSpendingAccount = spendingAccounts[currentSpendingAccountIndex];
+
+  // Use wagmi to get balance for the currently displayed spending account
+  const displayAddress = (currentSpendingAccount?.address || address) as
+    | `0x${string}`
+    | undefined;
+  const { formattedBalance: usdcBalance, isLoading: balanceLoading } =
+    useUSDCBalance(displayAddress);
+
+  // Sync Privy wallet with wagmi when wallet connects
+  useEffect(() => {
+    const syncWallet = async () => {
+      if (privyWallets.length > 0 && setActiveWallet) {
+        await setActiveWallet(privyWallets[0]);
+      }
+    };
+    syncWallet();
+  }, [privyWallets, setActiveWallet]);
+
+  // Ensure spending account index is valid when accounts change
+  useEffect(() => {
+    if (
+      spendingAccounts.length > 0 &&
+      currentSpendingAccountIndex >= spendingAccounts.length
+    ) {
+      setCurrentSpendingAccountIndex(0);
+    }
+  }, [spendingAccounts.length, currentSpendingAccountIndex]);
+
+  // State for wallet connection flow
+  const [showConnectWallet, setShowConnectWallet] = useState(false);
+  const [isConnectingWallet, setIsConnectingWallet] = useState(false);
   const {
     investments,
     isLoading: investmentsLoading,
@@ -265,7 +315,7 @@ export function BankingHome() {
   useEffect(() => {
     if (activeAccount === "investment") {
       fetchMovements();
-    } else if (activeAccount === "main") {
+    } else if (activeAccount === "spending") {
       setInvestmentMovements([]);
       setMonthlyRewards(0);
     }
@@ -282,9 +332,10 @@ export function BankingHome() {
   };
 
   const copyAddress = async () => {
-    if (address) {
+    const addressToCopy = currentSpendingAccount?.address || address;
+    if (addressToCopy) {
       try {
-        await navigator.clipboard.writeText(address);
+        await navigator.clipboard.writeText(addressToCopy);
         setCopied(true);
         setTimeout(() => setCopied(false), 1000);
       } catch (err) {
@@ -336,11 +387,125 @@ export function BankingHome() {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isLeftSwipe && activeAccount === "main") {
-      setActiveAccount("investment");
+    // Swipe logic: Navigate through spending accounts, then to investment accounts
+    if (isLeftSwipe) {
+      if (activeAccount === "spending") {
+        // If not on last spending account, go to next spending account
+        if (currentSpendingAccountIndex < spendingAccounts.length - 1) {
+          setCurrentSpendingAccountIndex((prev) => prev + 1);
+        } else if (investmentAccounts.length > 0) {
+          // If on last spending account and investments exist, switch to investment
+          setActiveAccount("investment");
+          setCurrentInvestmentAccount(0);
+        }
+      } else if (activeAccount === "investment") {
+        // Navigate through investment accounts
+        if (currentInvestmentAccount < investmentAccounts.length - 1) {
+          setCurrentInvestmentAccount((prev) => prev + 1);
+        }
+      }
     }
-    if (isRightSwipe && activeAccount === "investment") {
-      setActiveAccount("main");
+
+    if (isRightSwipe) {
+      if (activeAccount === "investment") {
+        // If on first investment account, go back to last spending account
+        if (currentInvestmentAccount === 0) {
+          setActiveAccount("spending");
+          setCurrentSpendingAccountIndex(spendingAccounts.length - 1);
+        } else {
+          // Navigate back through investment accounts
+          setCurrentInvestmentAccount((prev) => prev - 1);
+        }
+      } else if (activeAccount === "spending") {
+        // Navigate back through spending accounts
+        if (currentSpendingAccountIndex > 0) {
+          setCurrentSpendingAccountIndex((prev) => prev - 1);
+        }
+      }
+    }
+  };
+
+  // Handle wallet connection for spending account
+  const handleConnectWalletForSpending = async () => {
+    if (!privyReady) {
+      toast({
+        title: "Not Ready",
+        description: "Wallet connection is not ready yet. Please wait.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!profile?.id) {
+      toast({
+        title: "Error",
+        description: "User profile not found. Please log in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsConnectingWallet(true);
+
+      // Open Privy wallet connection modal
+      await privyConnectWallet();
+
+      // Wait a moment for wallet to be added to array
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Get the newly connected wallet
+      const newWallet = privyWallets[privyWallets.length - 1];
+
+      if (!newWallet || !newWallet.address) {
+        throw new Error("No wallet address received");
+      }
+
+      // Create spending account in database
+      await createAccount({
+        profile_id: profile.id,
+        name: `Spending Account ${accounts.length + 1}`,
+        type: "spending",
+        address: newWallet.address,
+        network: "base",
+        is_primary: false,
+      });
+
+      // Refresh accounts list to show the new account
+      await refreshAccounts();
+
+      toast({
+        title: "Success!",
+        description: "Spending account created successfully.",
+      });
+
+      // Close modals
+      setShowConnectWallet(false);
+      setShowAddAccountModal(false);
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+
+      if (
+        error instanceof Error &&
+        error.message.includes("already connected")
+      ) {
+        toast({
+          title: "Wallet Already Added",
+          description: "This wallet is already connected to your account.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to connect wallet. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsConnectingWallet(false);
     }
   };
 
@@ -384,10 +549,12 @@ export function BankingHome() {
             onTouchEnd={handleTouchEnd}
           >
             <div className="text-sm text-white/70 mb-3">
-              {activeAccount === "main" ? "Main" : "Investment Account"} -{" "}
-              {currency}
+              {activeAccount === "spending"
+                ? currentSpendingAccount?.name || "Spending Account"
+                : "Investment Account"}{" "}
+              - {currency}
             </div>
-            {activeAccount === "main" ? (
+            {activeAccount === "spending" ? (
               <>
                 <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
                   {!isMounted || balanceLoading || rateLoading ? (
@@ -422,14 +589,15 @@ export function BankingHome() {
                     </>
                   )}
                 </div>
-                {address && isMounted && (
+                {displayAddress && isMounted && (
                   <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-1">
                     <button
                       onClick={copyAddress}
                       className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
                     >
                       <span>
-                        {address.slice(0, 6)}...{address.slice(-4)}
+                        {displayAddress.slice(0, 6)}...
+                        {displayAddress.slice(-4)}
                       </span>
                       {copied ? (
                         <Check className="h-4 w-4 text-white" />
@@ -524,17 +692,27 @@ export function BankingHome() {
 
           {/* Pagination Dots */}
           <div className="flex justify-center gap-2 mb-10">
-            <button
-              onClick={() => setActiveAccount("main")}
-              className={`h-2 w-2 rounded-full ${
-                activeAccount === "main"
-                  ? "bg-white shadow-lg shadow-white/50"
-                  : "bg-white/30"
-              }`}
-            />
+            {/* Spending account dots */}
+            {spendingAccounts.map((_, index) => (
+              <button
+                key={`spending-${index}`}
+                onClick={() => {
+                  setActiveAccount("spending");
+                  setCurrentSpendingAccountIndex(index);
+                }}
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  activeAccount === "spending" &&
+                  currentSpendingAccountIndex === index
+                    ? "bg-white shadow-lg shadow-white/50"
+                    : "bg-white/30"
+                }`}
+              />
+            ))}
+
+            {/* Investment account dots */}
             {investmentAccounts.map((_, index) => (
               <button
-                key={index}
+                key={`investment-${index}`}
                 onClick={() => {
                   setActiveAccount("investment");
                   setCurrentInvestmentAccount(index);
@@ -542,11 +720,13 @@ export function BankingHome() {
                 className={`h-2 w-2 rounded-full transition-colors ${
                   activeAccount === "investment" &&
                   currentInvestmentAccount === index
-                    ? "bg-white"
+                    ? "bg-white shadow-lg shadow-white/50"
                     : "bg-white/30"
                 }`}
               />
             ))}
+
+            {/* Placeholder dot for "add investment" if no investments yet */}
             {investmentAccounts.length === 0 && (
               <button
                 onClick={() => setActiveAccount("investment")}
@@ -565,15 +745,16 @@ export function BankingHome() {
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
-                  if (activeAccount === "main") {
+                  if (activeAccount === "spending") {
                     // Store deposit data in sessionStorage
                     sessionStorage.setItem(
                       "depositData",
                       JSON.stringify({
                         balance: displayedBalance.toString(),
                         currency: currency,
-                        account: "main",
-                        walletAddress: address || "",
+                        account: "spending",
+                        walletAddress:
+                          currentSpendingAccount?.address || address || "",
                       })
                     );
                     router.push("/deposit");
@@ -604,7 +785,7 @@ export function BankingHome() {
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
-                  if (activeAccount === "main") {
+                  if (activeAccount === "spending") {
                     router.push("/invest/select");
                   } else {
                     // Investment account - withdraw from vault (disabled for now)
@@ -624,7 +805,7 @@ export function BankingHome() {
             <div className="flex flex-col items-center gap-2">
               <Button
                 onClick={() => {
-                  if (activeAccount === "main") {
+                  if (activeAccount === "spending") {
                     setActiveTab("payments");
                     router.push("/payments");
                   } else {
@@ -639,14 +820,14 @@ export function BankingHome() {
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                {activeAccount === "main" ? (
+                {activeAccount === "spending" ? (
                   <Send className="size-6" />
                 ) : (
                   <Info className="size-6" />
                 )}
               </Button>
               <span className="text-xs text-white/90 font-medium whitespace-nowrap">
-                {activeAccount === "main" ? "Send" : "Info"}
+                {activeAccount === "spending" ? "Send" : "Info"}
               </span>
             </div>
 
@@ -701,7 +882,7 @@ export function BankingHome() {
 
           <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-10 shadow-xl">
             <div className="space-y-4">
-              {activeAccount === "main" ? (
+              {activeAccount === "spending" ? (
                 // Show transactions for main account
                 <>
                   {loadingTransactions ? (
@@ -872,61 +1053,95 @@ export function BankingHome() {
         <div className="h-20" />
       </div>
 
-      {/* More Menu */}
-      <MoreMenu
-        isOpen={moreMenuOpen}
-        onClose={() => setMoreMenuOpen(false)}
-        onCurrencyToggle={toggleCurrency}
-        onExploreBaseScan={openBaseScan}
-        onThemeToggle={() => {
-          setTheme(theme === "dark" ? "light" : "dark");
-        }}
-        onAddInvestmentAccount={() => setShowAddAccountModal(true)}
-        currency={currency}
-        theme={theme}
-      />
-
       {/* Add New Account Modal */}
       {showAddAccountModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[#2A1F4D] rounded-3xl p-6 w-full max-w-sm">
-            <h2 className="text-xl font-semibold text-white mb-6 text-center">
-              Add new account
-            </h2>
+            {!showConnectWallet ? (
+              <>
+                <h2 className="text-xl font-semibold text-white mb-6 text-center">
+                  Add new account
+                </h2>
 
-            <div className="space-y-4">
-              <button
-                disabled
-                className="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white/40 cursor-not-allowed"
-              >
-                <div className="text-left">
-                  <div className="font-medium">Spending Account</div>
-                  <div className="text-sm text-white/40">Coming soon</div>
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setShowConnectWallet(true)}
+                    className="w-full p-4 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition-colors"
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">Spending Account</div>
+                      <div className="text-sm text-white/60">
+                        Connect a wallet for daily spending
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowAddAccountModal(false);
+                      setShowConnectWallet(false);
+                      router.push("/invest/select");
+                    }}
+                    className="w-full p-4 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition-colors"
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">Saving Account</div>
+                      <div className="text-sm text-white/60">
+                        Invest and earn rewards
+                      </div>
+                    </div>
+                  </button>
                 </div>
-              </button>
 
-              <button
-                onClick={() => {
-                  setShowAddAccountModal(false);
-                  router.push("/invest/select");
-                }}
-                className="w-full p-4 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition-colors"
-              >
-                <div className="text-left">
-                  <div className="font-medium">Saving Account</div>
-                  <div className="text-sm text-white/60">
-                    Invest and earn rewards
-                  </div>
+                <button
+                  onClick={() => {
+                    setShowAddAccountModal(false);
+                    setShowConnectWallet(false);
+                  }}
+                  className="w-full mt-6 py-3 text-white/60 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold text-white mb-6 text-center">
+                  Connect Wallet
+                </h2>
+
+                <div className="space-y-6">
+                  <p className="text-white/70 text-sm text-center">
+                    Connect your wallet to create a spending account
+                  </p>
+
+                  <Button
+                    onClick={handleConnectWalletForSpending}
+                    disabled={!privyReady || isConnectingWallet}
+                    className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-full py-6 font-semibold shadow-lg transition-all hover:scale-105"
+                  >
+                    {isConnectingWallet ? (
+                      <>
+                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="h-5 w-5 mr-2" />
+                        Connect Wallet
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </button>
-            </div>
 
-            <button
-              onClick={() => setShowAddAccountModal(false)}
-              className="w-full mt-6 py-3 text-white/60 hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
+                <button
+                  onClick={() => setShowConnectWallet(false)}
+                  disabled={isConnectingWallet}
+                  className="w-full mt-6 py-3 text-white/60 hover:text-white transition-colors disabled:opacity-50"
+                >
+                  Back
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
