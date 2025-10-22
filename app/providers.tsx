@@ -7,38 +7,41 @@
 "use client";
 
 import { ReactNode } from "react";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider } from "@privy-io/wagmi";
+import { PrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { config } from "./config";
+import { config } from "./wagmiConfig";
+import { privyConfig } from "./privyConfig";
 import { UserProvider } from "@/lib/user-context";
 
 /**
- * React Query client instance for server state management.
- * Shared across the application for caching and synchronization.
- * 
- * @constant
+ * Get or create QueryClient singleton instance.
+ * Prevents multiple QueryClient instances during hot reloads.
+ *
+ * @returns {QueryClient} React Query client instance
  */
 const queryClient = new QueryClient();
 
 /**
  * Main providers component that wraps the application.
- * Provides blockchain connectivity (Wagmi), server state management (React Query),
- * and user authentication context.
- * 
- * Provider hierarchy:
- * 1. WagmiProvider - Blockchain wallet connections
- * 2. QueryClientProvider - Server state caching
- * 3. UserProvider - User profile state
- * 
+ * Provides authentication, blockchain connectivity, server state management,
+ * and user context.
+ *
+ * Provider hierarchy (correct order for Privy + wagmi):
+ * 1. PrivyProvider - Authentication and multi-wallet management
+ * 2. QueryClientProvider - Server state caching (required by @privy-io/wagmi)
+ * 3. WagmiProvider - Blockchain wallet connections (from @privy-io/wagmi)
+ * 4. UserProvider - User profile state
+ *
  * @component
  * @param {Object} props
  * @param {ReactNode} props.children - Child components to wrap
- * 
+ *
  * @example
  * ```tsx
  * // In layout.tsx
  * import { Providers } from './providers';
- * 
+ *
  * export default function RootLayout({ children }) {
  *   return (
  *     <html>
@@ -54,10 +57,15 @@ const queryClient = new QueryClient();
  */
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <WagmiProvider config={config}>
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || ""}
+      config={privyConfig}
+    >
       <QueryClientProvider client={queryClient}>
-        <UserProvider>{children}</UserProvider>
+        <WagmiProvider config={config}>
+          <UserProvider>{children}</UserProvider>
+        </WagmiProvider>
       </QueryClientProvider>
-    </WagmiProvider>
+    </PrivyProvider>
   );
 }
