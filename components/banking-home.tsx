@@ -3,6 +3,7 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { MoreMenu } from "@/components/more-menu";
 import {
   BarChart3,
@@ -19,6 +20,8 @@ import {
   Activity,
   Home,
   User,
+  Search,
+  AudioLines,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -81,6 +84,7 @@ export function BankingHome() {
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIConsent, setShowAIConsent] = useState(false);
+  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
   const { hasConsent, grantConsent } = useAIConsent();
 
   // Touch/Swipe State

@@ -262,7 +262,7 @@ function validateOperation(operation: ParsedAIOperation, balance?: string): stri
         if (isNaN(amount) || amount <= 0) {
           errors.push("Payment amount must be greater than zero");
         }
-        
+
         // Check balance
         if (balance) {
           const balanceNum = parseFloat(balance);
@@ -310,10 +310,10 @@ function validateOperation(operation: ParsedAIOperation, balance?: string): stri
  * Operation Details Component
  * Displays operation-specific details based on type.
  */
-function OperationDetails({ 
-  operation, 
-  balance 
-}: { 
+function OperationDetails({
+  operation,
+  balance
+}: {
   operation: ParsedAIOperation;
   balance?: string;
 }) {
@@ -325,11 +325,11 @@ function OperationDetails({
             <span className="text-sm text-muted-foreground">Type</span>
             <span className="text-sm font-medium">Payment</span>
           </div>
-          {operation.data.amount && (
+          {operation.data.amount != null && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Amount</span>
               <span className="text-sm font-medium">
-                {operation.data.amount} {operation.data.token || "USDC"}
+                {String(operation.data.amount)} {String(operation.data.token) || "USDC"}
               </span>
             </div>
           )}
@@ -339,18 +339,18 @@ function OperationDetails({
               <span className="text-sm font-medium">{balance} USDC</span>
             </div>
           )}
-          {operation.data.to && (
+          {operation.data.to != null && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">To</span>
               <span className="text-sm font-mono">
-                {operation.data.to.slice(0, 6)}...{operation.data.to.slice(-4)}
+                {String(operation.data.to).slice(0, 6)}...{String(operation.data.to).slice(-4)}
               </span>
             </div>
           )}
-          {operation.data.chain && (
+          {operation.data.chain != null && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Network</span>
-              <span className="text-sm font-medium capitalize">{operation.data.chain}</span>
+              <span className="text-sm font-medium capitalize">{String(operation.data.chain)}</span>
             </div>
           )}
         </div>
