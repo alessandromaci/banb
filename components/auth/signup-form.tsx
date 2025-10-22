@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { Wallet, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createProfile, getProfileByWallet } from "@/lib/profile";
+import { createProfile, getProfileByAnyWallet } from "@/lib/profile";
+import { createAccount } from "@/lib/accounts";
 import { useUser } from "@/lib/user-context";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useSetActiveWallet } from "@privy-io/wagmi";
@@ -115,7 +116,7 @@ export function SignUpForm() {
         const primaryWallet = privyWallets[0];
         if (primaryWallet?.address) {
           try {
-            const existingProfile = await getProfileByWallet(
+            const existingProfile = await getProfileByAnyWallet(
               primaryWallet.address
             );
             setExistingWallet(!!existingProfile);
@@ -165,7 +166,9 @@ export function SignUpForm() {
 
       try {
         // Check if wallet already has a profile
-        const existingProfile = await getProfileByWallet(primaryWallet.address);
+        const existingProfile = await getProfileByAnyWallet(
+          primaryWallet.address
+        );
 
         if (existingProfile) {
           console.log("⚠️ Profile already exists for this wallet");
@@ -184,6 +187,19 @@ export function SignUpForm() {
         });
 
         console.log("✅ Profile created successfully");
+
+        // Create initial spending account
+        console.log("💳 Creating initial spending account...");
+        await createAccount({
+          profile_id: profile.id,
+          name: "Spending Account 1",
+          type: "spending",
+          address: primaryWallet.address,
+          network: "base",
+          is_primary: true,
+        });
+
+        console.log("✅ Initial spending account created");
         setProfile(profile);
         router.push("/home");
       } catch (err) {

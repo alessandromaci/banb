@@ -6,7 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getProfileByWallet } from "@/lib/profile";
+import { getProfileByAnyWallet } from "@/lib/profile";
 import { useUser } from "@/lib/user-context";
 
 /**
@@ -60,7 +60,8 @@ export default function CheckProfilePage() {
     console.log("🔍 Checking profile for:", address);
 
     try {
-      const profile = await getProfileByWallet(address);
+      // Check if wallet is primary OR linked to any account
+      const profile = await getProfileByAnyWallet(address);
 
       if (profile) {
         console.log("✅ Profile found:", profile);
