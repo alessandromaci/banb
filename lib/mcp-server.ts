@@ -4,11 +4,42 @@
  * Exposes investment options, balances, transactions, recipients, and portfolio insights.
  */
 
-import { getInvestmentOptions } from "./investments";
+// Import removed - we'll define investment options directly to avoid client/server issues
 import { getRecentTransactions, getSentTransactions } from "./transactions";
 import { getRecipientsByProfile } from "./recipients";
 import { getPortfolioInsights, type PortfolioInsights } from "./ai-agent";
 import { supabase } from "./supabase";
+
+/**
+ * Server-side investment options data.
+ * Duplicated from lib/investments.ts to avoid client/server boundary issues.
+ */
+const SERVER_INVESTMENT_OPTIONS = [
+  {
+    id: "morpho-vault-1",
+    name: "Spark USDC Vault",
+    description: "Spark blue-chip USDC vault. Lending against the lowest risk crypto and real-world assets (RWAs). Curated by SparkDAO which allocates billions in assets across all of DeFi.",
+    apr: 6.55,
+    type: "morpho_vault",
+    vault_address: "0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A",
+  },
+  {
+    id: "morpho-vault-2", 
+    name: "Steakhouse USDC Vault",
+    description: "The Steakhouse USDC vault aims to optimize yields by lending USDC against blue chip crypto and real world asset (RWA) collateral markets, depending on market conditions.",
+    apr: 5.59,
+    type: "morpho_vault",
+    vault_address: "0xbeeF010f9cb27031ad51e3333f9aF9C6B1228183",
+  },
+  {
+    id: "morpho-vault-3",
+    name: "Seamless USDC Vault", 
+    description: "The Seamless USDC Vault curated by Gauntlet is intended to optimize risk-adjusted yield across high-demand collateral markets on Base.",
+    apr: 6.99,
+    type: "morpho_vault",
+    vault_address: "0x616a4E1db48e22028f6bbf20444Cd3b8e3273738",
+  },
+] as const;
 
 /**
  * MCP tool definition interface following the MCP specification.
@@ -246,13 +277,11 @@ async function getInvestmentOptionsHandler(): Promise<Array<{
   type: string;
   vault_address: string | null;
 }>> {
-  const options = getInvestmentOptions();
-
-  return options.map((option) => ({
+  return SERVER_INVESTMENT_OPTIONS.map((option) => ({
     id: option.id,
     name: option.name,
     description: option.description,
-    apr: typeof option.apr === 'number' ? `${option.apr}%` : option.apr,
+    apr: `${option.apr}%`,
     type: option.type,
     vault_address: option.vault_address || null,
   }));

@@ -276,7 +276,7 @@ When suggesting a payment, use the format: "I can send $X to [recipient name] fo
         tools?: unknown[];
         tool_choice?: string;
       } = {
-        model: "gpt-4",
+        model: "gpt-4o-mini", // Use the available model
         messages: [
           {
             role: "system",
@@ -371,7 +371,7 @@ When suggesting a payment, use the format: "I can send $X to [recipient name] fo
         
         // Make a second call to OpenAI with tool results
         const followUpRequestBody = {
-          model: "gpt-4",
+          model: "gpt-4o-mini", // Use the available model
           messages: [
             {
               role: "system",
