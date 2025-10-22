@@ -12,7 +12,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 /**
  * Supabase client instance for database operations.
  * Uses anonymous key for client-side operations with Row Level Security (RLS).
- * 
+ *
  * @example
  * ```typescript
  * import { supabase } from '@/lib/supabase';
@@ -24,7 +24,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 /**
  * User profile stored in the profiles table.
  * Represents a registered user with wallet connection and unique handle.
- * 
+ *
  * @interface Profile
  * @property {string} id - Unique identifier (UUID)
  * @property {string} name - User's display name
@@ -47,7 +47,7 @@ export interface Profile {
 /**
  * Payment recipient stored in the recipients table.
  * Can represent either an internal app user (friend) or external wallet/bank account.
- * 
+ *
  * @interface Recipient
  * @property {string} id - Unique identifier (UUID)
  * @property {string} profile_id - Owner's profile ID (who added this recipient)
@@ -76,7 +76,7 @@ export interface Recipient {
 /**
  * Bank account details for bank recipients.
  * Supports international (IBAN) and US (routing/account number) formats.
- * 
+ *
  * @interface BankDetails
  * @property {string} iban - International Bank Account Number
  * @property {string} country - ISO country code (e.g., "US", "GB", "DE")
@@ -97,7 +97,7 @@ export interface BankDetails {
 /**
  * Transaction record stored in the transactions table.
  * Tracks crypto payments between users with blockchain transaction details.
- * 
+ *
  * @interface Transaction
  * @property {string} id - Unique identifier (UUID)
  * @property {string} sender_profile_id - Profile ID of the sender
@@ -157,4 +157,35 @@ export interface InvestmentMovement {
   metadata?: Record<string, unknown>; // JSONB field for additional data
   created_at: string;
   updated_at?: string;
+}
+
+/**
+ * AI operation record stored in the ai_operations table.
+ * Tracks AI agent interactions and operations for audit trail.
+ *
+ * @interface AIOperation
+ * @property {string} id - Unique identifier (UUID)
+ * @property {string} profile_id - Profile ID of the user
+ * @property {"payment" | "analysis" | "query"} operation_type - Type of operation
+ * @property {Record<string, unknown>} operation_data - Operation-specific data (JSONB)
+ * @property {string} user_message - Original user message to AI
+ * @property {string} ai_response - AI's response message
+ * @property {boolean} user_confirmed - Whether user confirmed the operation
+ * @property {boolean} executed - Whether operation was executed
+ * @property {Record<string, unknown> | null} execution_result - Result of execution (JSONB)
+ * @property {string} created_at - ISO timestamp of creation
+ * @property {string | null} executed_at - ISO timestamp of execution
+ */
+export interface AIOperation {
+  id: string;
+  profile_id: string;
+  operation_type: "payment" | "analysis" | "query";
+  operation_data: Record<string, unknown>;
+  user_message: string;
+  ai_response: string;
+  user_confirmed: boolean;
+  executed: boolean;
+  execution_result: Record<string, unknown> | null;
+  created_at: string;
+  executed_at: string | null;
 }

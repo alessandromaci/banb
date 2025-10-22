@@ -1,7 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { X, DollarSign, Compass, Palette, TrendingUp } from "lucide-react";
+import { X, DollarSign, Compass, Palette, TrendingUp, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface MoreMenuProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export function MoreMenu({
   currency = "USD",
   theme = "dark",
 }: MoreMenuProps) {
+  const router = useRouter();
+  
   if (!isOpen) return null;
 
   return (
@@ -55,6 +58,26 @@ export function MoreMenu({
 
           {/* Menu Items */}
           <div className="space-y-2">
+            <button
+              onClick={() => {
+                router.push("/ai-assistant");
+                onClose();
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white/10 transition-colors text-left"
+            >
+              <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-blue-400" />
+              </div>
+              <div>
+                <div className="text-white font-medium">
+                  AI Banking Assistant
+                </div>
+                <div className="text-white/60 text-sm">
+                  Chat with your AI banking companion
+                </div>
+              </div>
+            </button>
+
             <button
               onClick={() => {
                 onCurrencyToggle();
