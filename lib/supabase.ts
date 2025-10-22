@@ -159,6 +159,7 @@ export interface InvestmentMovement {
   updated_at?: string;
 }
 
+/**
  * Account represents a connected wallet account for a user profile.
  * Users can have multiple accounts (spending, investment, savings).
  * Each account stores its own balance and transaction history.
