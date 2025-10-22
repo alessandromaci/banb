@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Wallet, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WalletAddressCard } from "@/components/deposit-withdraw/wallet-address-card";
+import Image from "next/image";
 
 const paymentMethods: Array<{
   id: string;
@@ -111,9 +112,11 @@ export default function DepositMethodPage() {
               <div className="flex items-center gap-3">
                 {method.type === "image" && method.icon ? (
                   <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden">
-                    <img
+                    <Image
                       src={method.icon || "/placeholder.svg"}
                       alt={method.label}
+                      width={20}
+                      height={20}
                       className="w-5 h-5 object-contain"
                     />
                   </div>

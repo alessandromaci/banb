@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,11 +37,11 @@ export function StatusIndicator() {
     }
   };
 
-  const steps = [
+  const steps = useMemo(() => [
     { label: "Pending", status: "pending" },
     { label: "Sent", status: "sent" },
     { label: "Confirmed", status: "success" },
-  ];
+  ], []);
 
   // Update current step based on transaction status
   useEffect(() => {

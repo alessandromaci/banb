@@ -6,6 +6,7 @@ import { ArrowLeft, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getInvestmentOptions, type InvestmentOption } from "@/lib/investments";
+import Image from "next/image";
 
 export default function InvestmentSelectPage() {
   const router = useRouter();
@@ -47,9 +48,11 @@ export default function InvestmentSelectPage() {
                     <div className="flex items-center gap-3 mb-3">
                       <div className="h-12 w-12 rounded-full bg-purple-500/20 flex items-center justify-center overflow-hidden">
                         {option.logo ? (
-                          <img
+                          <Image
                             src={option.logo}
                             alt={option.name}
+                            width={32}
+                            height={32}
                             className="h-8 w-8 object-contain"
                           />
                         ) : (

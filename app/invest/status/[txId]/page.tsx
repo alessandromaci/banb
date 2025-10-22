@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Check, AlertCircle, Copy, ExternalLink } from "lucide-react";
@@ -41,11 +41,11 @@ export default function InvestmentStatusPage() {
     }
   };
 
-  const steps = [
+  const steps = useMemo(() => [
     { label: "Pending", status: "pending" },
     { label: "Processing", status: "active" },
     { label: "Invested", status: "confirmed" },
-  ];
+  ], []);
 
   // Update current step based on investment status
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function InvestmentStatusPage() {
       // If status is "success", all steps should be complete
       setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 0);
     }
-  }, [movement]);
+  }, [movement, steps]);
 
   if (isLoading) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,13 +36,13 @@ export function AIBar({
   // Use external state if provided, otherwise use internal state
   const isExpanded =
     externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
-  const setIsExpanded = (value: boolean) => {
+  const setIsExpanded = useCallback((value: boolean) => {
     if (onToggle) {
       onToggle(value);
     } else {
       setInternalIsExpanded(value);
     }
-  };
+  }, [onToggle]);
 
   useEffect(() => {
     if (!isExpanded) {
@@ -68,7 +68,7 @@ export function AIBar({
       }, 30000);
       return () => clearTimeout(timeout);
     }
-  }, [isExpanded, inputValue, showConfirmation]);
+  }, [isExpanded, inputValue, showConfirmation, setIsExpanded]);
 
   const handleSubmit = () => {
     if (!inputValue.trim()) return;
