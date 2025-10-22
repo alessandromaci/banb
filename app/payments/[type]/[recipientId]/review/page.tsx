@@ -16,15 +16,21 @@ export default async function ReviewPage({
   let recipientDetails = "";
 
   if (resolvedParams.type === "crypto") {
-    // Fetch actual recipient data from database
-    const recipient = await getRecipient(resolvedParams.recipientId);
-    if (recipient) {
-      recipientName = recipient.name;
-      // Get the external wallet address or linked profile
-      recipientDetails = recipient.external_address || "0x1234...5678";
+    // Check if it's an unknown address
+    if (resolvedParams.recipientId === "unknown") {
+      recipientName = "Unknown Address";
+      recipientDetails = "Address from input";
     } else {
-      recipientName = "Crypto Wallet";
-      recipientDetails = "0x1234...5678";
+      // Fetch actual recipient data from database
+      const recipient = await getRecipient(resolvedParams.recipientId);
+      if (recipient) {
+        recipientName = recipient.name;
+        // Get the external wallet address or linked profile
+        recipientDetails = recipient.external_address || "0x1234...5678";
+      } else {
+        recipientName = "Crypto Wallet";
+        recipientDetails = "0x1234...5678";
+      }
     }
   } else if (resolvedParams.type === "bank") {
     recipientName = "Bank Account";
@@ -32,22 +38,20 @@ export default async function ReviewPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#1E1B3D] text-white flex flex-col">
+    <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
       <div className="mx-auto max-w-md w-full flex flex-col h-screen">
         {/* Header */}
-        <div className="flex items-center px-6 py-4">
-          <Link
-            href={`/payments/${resolvedParams.type}/${resolvedParams.recipientId}/amount`}
-          >
+        <div className="flex items-center justify-between px-6 py-8">
+          <h1 className="text-xl font-medium">Send</h1>
+          <Link href="/payments">
             <Button
               size="icon"
               variant="ghost"
-              className="h-10 w-10 text-white hover:bg-white/10"
+              className="text-white hover:bg-white/10 rounded-full"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="w-6 h-6" />
             </Button>
           </Link>
-          <h1 className="text-xl font-semibold text-white ml-4">Review</h1>
         </div>
 
         {/* Review Card */}

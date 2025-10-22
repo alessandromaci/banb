@@ -25,9 +25,13 @@ interface AvailableProfile extends Profile {
 
 interface FriendListProps {
   searchTerm?: string;
+  resolvedAddress?: string | null;
 }
 
-export function FriendList({ searchTerm = "" }: FriendListProps) {
+export function FriendList({
+  searchTerm = "",
+  resolvedAddress = null,
+}: FriendListProps) {
   const router = useRouter();
   const { profile } = useUser();
   const [recipients, setRecipients] = useState<RecipientWithProfile[]>([]);
@@ -78,11 +82,14 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
       if (!profile?.id) return;
 
       try {
-        if (searchTerm.trim()) {
+        // Use resolved address if available, otherwise use search term
+        const searchQuery = resolvedAddress || searchTerm;
+
+        if (searchQuery.trim()) {
           // Search both recipients and available profiles
           const [searchResults, availableResults] = await Promise.all([
-            searchRecipients(profile.id, searchTerm),
-            searchAvailableProfiles(profile.id, searchTerm),
+            searchRecipients(profile.id, searchQuery),
+            searchAvailableProfiles(profile.id, searchQuery),
           ]);
 
           // Fetch linked profiles for search results
@@ -135,7 +142,7 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
 
     const timeoutId = setTimeout(performSearch, 300); // Debounce search
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, profile?.id]);
+  }, [searchTerm, resolvedAddress, profile?.id]);
 
   const getDisplayName = (recipient: RecipientWithProfile) => {
     if (recipient.linkedProfile) {
@@ -225,11 +232,8 @@ export function FriendList({ searchTerm = "" }: FriendListProps) {
   return (
     <div className="space-y-4">
       {!hasResults ? (
-        <div className="text-center py-8 text-white/60">
-          <p>No recipients found</p>
-          {searchTerm && (
-            <p className="text-sm mt-2">Try a different search term</p>
-          )}
+        <div className="text-center py-8 text-white/60 font-sans">
+          <p>No known recipients found</p>
         </div>
       ) : (
         <>

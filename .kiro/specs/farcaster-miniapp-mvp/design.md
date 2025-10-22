@@ -1330,6 +1330,8 @@ const retryWithBackoff = async (fn, maxRetries = 3) => {
 
 The MVP uses a lightweight, dependency-free testing approach aligned with the project's guidelines. Tests focus on core business logic and data transformations without requiring heavy frameworks like Jest or Vitest.
 
+**Testing Philosophy**: Tests are written to validate requirements and enforce code quality standards. Tests should NOT be modified to pass - instead, the implementation must be corrected to meet the test specifications. This ensures robust, production-ready code that meets all acceptance criteria.
+
 ### Testing Infrastructure
 
 #### Test Runner (scripts/run-tests.mjs)
@@ -1614,20 +1616,52 @@ export async function test() {
 - [ ] Database unavailable
 - [ ] Expired session
 
-### Continuous Testing
+### Test-Driven Development Approach
+
+**Core Principles**:
+1. **Tests Define Requirements**: Each test validates specific acceptance criteria from requirements
+2. **Tests Are Immutable**: When tests fail, fix the implementation, not the test
+3. **Tests Enforce Quality**: Tests validate edge cases, error handling, and data integrity
+4. **Tests Prevent Regressions**: All tests must pass before merging code
 
 **Development Workflow**:
-1. Write test for new utility function
-2. Implement function
-3. Run `node scripts/run-tests.mjs`
-4. Fix failures
-5. Commit when all tests pass
+1. Review requirement acceptance criteria
+2. Write comprehensive tests that validate all criteria
+3. Implement feature to satisfy tests
+4. Run `node scripts/run-tests.mjs`
+5. Fix implementation until all tests pass
+6. Never modify tests to make them pass
+7. Commit only when all tests pass
+
+**When Tests Fail**:
+- ❌ **Don't**: Modify test expectations to match incorrect implementation
+- ✅ **Do**: Fix the implementation to meet test requirements
+- ✅ **Do**: Add more tests if edge cases are discovered
+- ✅ **Do**: Refactor implementation while keeping tests green
 
 **Pre-Deployment**:
-1. Run full test suite
+1. Run full test suite - all tests must pass
 2. Manual testing of critical paths
 3. Verify on testnet (Base Sepolia)
-4. Deploy to production
+4. Deploy to production only with 100% test pass rate
+
+### Test Quality Standards
+
+**All Tests Must**:
+- Validate specific acceptance criteria from requirements
+- Test both happy path and error scenarios
+- Include edge cases (zero, negative, boundary values)
+- Be deterministic (same input = same output)
+- Run quickly (< 1 second per test file)
+- Have clear, descriptive assertions
+- Fail with helpful error messages
+
+**Test Coverage Requirements**:
+- All utility functions: 100% coverage
+- All validation logic: 100% coverage
+- All data transformations: 100% coverage
+- All state transitions: 100% coverage
+- All error handling paths: 100% coverage
 
 
 ## Configuration and Environment

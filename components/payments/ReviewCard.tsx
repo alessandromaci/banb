@@ -2,12 +2,18 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Loader2, Lock, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCryptoPayment } from "@/lib/payments";
-import { getRecipient } from "@/lib/recipients";
+import { getRecipient, createRecipient } from "@/lib/recipients";
 import { useUser } from "@/lib/user-context";
 import type { Recipient } from "@/lib/supabase";
+import { useGasPrice } from "wagmi";
+import { formatUnits } from "viem";
+import { base } from "wagmi/chains";
 
 interface ReviewCardProps {
   recipientName: string;
@@ -25,16 +31,46 @@ export function ReviewCard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const amount = searchParams.get("amount") || "0";
-  const note = searchParams.get("note") || "";
 
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shouldSaveRecipient, setShouldSaveRecipient] = useState(false);
+  const [newRecipientName, setNewRecipientName] = useState("");
   const { executePayment, isLoading, error: paymentError } = useCryptoPayment();
   const { profile } = useUser();
 
+  // Check if this is an unknown address
+  const isUnknownAddress = recipientId === "unknown";
+  const unknownAddress = isUnknownAddress
+    ? sessionStorage.getItem("unknownRecipientAddress")
+    : null;
+
+  // Get gas price for fee estimation
+  const { data: gasPrice, isLoading: isGasPriceLoading } = useGasPrice({
+    chainId: base.id,
+  });
+
+  // Estimate gas fee for USDC transfer
+  const estimatedGasLimit = BigInt(65000);
+  const gasFeeInUSD = gasPrice
+    ? parseFloat(formatUnits(gasPrice * estimatedGasLimit, 18)) * 3000 // ETH price ~$3000
+    : null;
+
+  // Debug log for gas fee calculation
+  useEffect(() => {
+    if (gasPrice) {
+      console.log("Gas price (wei):", gasPrice.toString());
+      console.log(
+        "Gas fee in ETH:",
+        formatUnits(gasPrice * estimatedGasLimit, 18)
+      );
+      console.log("Gas fee in USD:", gasFeeInUSD);
+    }
+  }, [gasPrice, gasFeeInUSD, estimatedGasLimit]);
+
   // Fetch recipient data for crypto payments
   useEffect(() => {
-    if (type === "crypto" && recipientId) {
+    if (type === "crypto" && recipientId && recipientId !== "unknown") {
       getRecipient(recipientId)
         .then(setRecipient)
         .catch((err) => setError(err.message));
@@ -47,36 +83,96 @@ export function ReviewCard({
       return;
     }
 
-    if (type === "crypto" && recipient && recipientId) {
-      try {
-        // Get external wallet address
-        const walletAddress = recipient.external_address;
+    try {
+      let finalRecipientId = recipientId;
+
+      // If unknown address and user wants to save, create recipient first
+      if (
+        isUnknownAddress &&
+        unknownAddress &&
+        shouldSaveRecipient &&
+        newRecipientName.trim()
+      ) {
+        const newRecipient = await createRecipient({
+          profile_id: profile.id,
+          name: newRecipientName.trim(),
+          external_address: unknownAddress,
+          status: "active",
+        });
+        finalRecipientId = newRecipient.id;
+      }
+
+      if (type === "crypto") {
+        // Get wallet address
+        let walletAddress: string | null = null;
+
+        if (isUnknownAddress && unknownAddress) {
+          walletAddress = unknownAddress;
+        } else if (recipient) {
+          walletAddress = recipient.external_address;
+        } else if (finalRecipientId && finalRecipientId !== "unknown") {
+          // Fetch recipient if we just created it
+          const fetchedRecipient = await getRecipient(finalRecipientId);
+          walletAddress = fetchedRecipient?.external_address || null;
+        }
+
         if (!walletAddress) {
           setError("Recipient wallet address not found");
           return;
         }
 
+        // Use the finalRecipientId or create a temporary one for unknown addresses
+        const recipientForTx =
+          finalRecipientId && finalRecipientId !== "unknown"
+            ? finalRecipientId
+            : crypto.randomUUID();
+
         const result = await executePayment({
-          recipientId,
+          recipientId: recipientForTx,
           amount,
-          token: "USDC", // Using USDC for stablecoin transfers
-          chain: "base", // App only supports Base network
+          token: "USDC",
+          chain: "base",
           to: walletAddress,
-          sender_profile_id: profile.id, // Pass current user's profile ID
+          sender_profile_id: profile.id,
         });
 
         router.push(`/payments/status/${result.txId}`);
-      } catch (err) {
-        console.error("[ReviewCard] Payment failed", err);
-        setError(err instanceof Error ? err.message : "Payment failed");
+      } else {
+        // For non-crypto payments
+        router.push(
+          `/payments/success?type=${type}&amount=${amount}&recipient=${recipientName}`
+        );
       }
-    } else {
-      // For non-crypto payments (bank), redirect to a success page
-      // since these don't create database transactions yet
-      router.push(
-        `/payments/success?type=${type}&amount=${amount}&recipient=${recipientName}`
-      );
+    } catch (err) {
+      console.error("[ReviewCard] Payment failed", err);
+      setError(err instanceof Error ? err.message : "Payment failed");
     }
+  };
+
+  // Get display address (always truncate if it's an address format)
+  const displayAddress = (() => {
+    const address =
+      isUnknownAddress && unknownAddress ? unknownAddress : recipientDetails;
+    // Check if it's an address format (0x...)
+    if (address && address.startsWith("0x") && address.length > 20) {
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
+    return address;
+  })();
+
+  // Determine the recipient display name for "Confirm transaction to"
+  const getConfirmationRecipient = () => {
+    if (isUnknownAddress && unknownAddress) {
+      return `${unknownAddress.slice(0, 6)}...${unknownAddress.slice(-4)}`;
+    }
+    return recipientName;
+  };
+
+  // Format amount to always show .00 for integers
+  const formatAmount = (amt: string) => {
+    const num = parseFloat(amt);
+    if (isNaN(num)) return "0.00";
+    return num.toFixed(2);
   };
 
   return (
@@ -86,62 +182,144 @@ export function ReviewCard({
           {error || paymentError}
         </div>
       )}
-      <div className="flex-1 flex flex-col justify-center">
-        <Card className="bg-[#2A2640] border-0 rounded-3xl p-6 space-y-6">
-          <div>
-            <div className="text-white/60 text-sm mb-1">To</div>
-            <div className="text-white text-lg font-medium">
-              {recipientName}
-            </div>
-            <div className="text-white/50 text-sm font-mono">
-              {recipientDetails}
-            </div>
+
+      <div className="flex-1 flex flex-col justify-center items-center space-y-8">
+        {/* Transfer icon with check badge */}
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+            <ArrowLeftRight className="w-8 h-8 text-white" />
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-purple-500 flex items-center justify-center border-2 border-[#0E0E0F]">
+            <Lock className="w-4 h-4 text-white" />
+          </div>
+        </div>
+
+        {/* Confirmation text */}
+        <div className="text-center">
+          <h2 className="text-lg font-medium text-white/50 mb-2">
+            Confirm transaction to
+          </h2>
+          <p className="text-white fomt-sans font-medium font-bold text-2xl">
+            {getConfirmationRecipient()}
+          </p>
+        </div>
+
+        {/* Transaction details */}
+        <div className="w-full space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-white/60">Total Value</span>
+            <span className="text-white font-medium">
+              ${formatAmount(amount)}
+            </span>
           </div>
 
-          <div className="h-px bg-white/10" />
-
-          <div>
-            <div className="text-white/60 text-sm mb-1">Amount</div>
-            <div className="text-white text-3xl font-light">
-              ${amount}{" "}
-              {type === "crypto" && (
-                <span className="text-lg text-white/70">USDC</span>
-              )}
-            </div>
-            <div className="text-white/50 text-sm mt-1">No fees</div>
-          </div>
-
-          {note && (
-            <>
-              <div className="h-px bg-white/10" />
-              <div>
-                <div className="text-white/60 text-sm mb-1">Note</div>
-                <div className="text-white">{note}</div>
+          {type === "crypto" && (
+            <div className="flex justify-between items-center">
+              <span className="text-white/60">
+                Total {type === "crypto" ? "USDC Value" : "USD"}
+              </span>
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/usdc-logo.png"
+                  alt="USDC"
+                  width={16}
+                  height={16}
+                  className="w-4 h-4"
+                />
+                <span className="text-white">{formatAmount(amount)}</span>
               </div>
-            </>
+            </div>
           )}
 
-          <div className="h-px bg-white/10" />
-
-          <div>
-            <div className="text-white/60 text-sm mb-1">From</div>
-            <div className="text-white flex items-center gap-2">
-              <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs flex-shrink-0">
-                W
+          <div className="flex justify-between items-center">
+            <span className="text-white/60">From</span>
+            <div className="flex items-center gap-2">
+              <span className="text-white">
+                {profile?.name || "Main Account"}
               </span>
-              <span>Main Wallet</span>
             </div>
           </div>
-        </Card>
+
+          <div className="flex justify-between items-center">
+            <span className="text-white/60">To</span>
+            <span className="text-white font-mono text-sm">
+              {displayAddress}
+            </span>
+          </div>
+
+          {/* Network indicator */}
+          {type === "crypto" && (
+            <div className="flex justify-between items-center ">
+              <span className="text-white/60">Network</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-blue-500" />
+                <span className="text-white">Base</span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center">
+            <span className="text-white/60">Fee Estimate</span>
+            <span className="text-white">
+              {isGasPriceLoading
+                ? "Calculating..."
+                : gasFeeInUSD
+                ? `$${gasFeeInUSD.toFixed(4)}`
+                : "~$0.01"}
+            </span>
+          </div>
+        </div>
+
+        {/* Add recipient option for unknown addresses */}
+        {isUnknownAddress && unknownAddress && (
+          <div className="w-full space-y-3 pt-4 border-t border-white/10">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="save-recipient"
+                checked={shouldSaveRecipient}
+                onCheckedChange={(checked) =>
+                  setShouldSaveRecipient(checked as boolean)
+                }
+              />
+              <label
+                htmlFor="save-recipient"
+                className="text-sm text-white/90 cursor-pointer"
+              >
+                Save as contact
+              </label>
+            </div>
+            {shouldSaveRecipient && (
+              <Input
+                placeholder="Enter contact name"
+                value={newRecipientName}
+                onChange={(e) => setNewRecipientName(e.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/50 h-12 rounded-xl"
+              />
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="pb-6 pt-4">
+      <div className="pb-8 pt-4">
+        <p className="text-xs text-white/50 text-center mb-4">
+          Review the above before confirming.
+          <br />
+          Once made, your transaction is irreversible.
+        </p>
         <Button
           onClick={handleSend}
-          disabled={isLoading || !profile || (type === "crypto" && !recipient)}
-          className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50"
+          disabled={
+            isLoading ||
+            !profile ||
+            (type === "crypto" && !recipient && !isUnknownAddress) ||
+            (shouldSaveRecipient && !newRecipientName.trim())
+          }
+          className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-30"
         >
-          {isLoading ? "Sending..." : !profile ? "Please log in" : "SEND"}
+          <span className="flex items-center gap-2 font-medium font-bold text-lg">
+            {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+            {isLoading ? "Sending..." : "Confirm"}
+          </span>
         </Button>
       </div>
     </div>

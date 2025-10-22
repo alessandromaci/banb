@@ -24,6 +24,17 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 8. IF authentication fails THEN the system SHALL display an error message and allow retry
 9. WHEN the user session expires THEN the system SHALL prompt re-authentication
 
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify JWT token validation with valid and invalid tokens
+2. WHEN tests are executed THEN the system SHALL verify profile creation with correct handle format (user_<fid>)
+3. WHEN tests are executed THEN the system SHALL verify profile lookup returns existing profiles correctly
+4. WHEN tests are executed THEN the system SHALL verify UserContext is updated after successful authentication
+5. WHEN tests are executed THEN the system SHALL verify error handling for authentication failures
+6. WHEN tests are executed THEN the system SHALL verify session expiration triggers re-authentication
+7. WHEN tests are executed THEN the system SHALL verify wallet address is correctly extracted from JWT
+8. WHEN tests are executed THEN the system SHALL verify profile creation fails gracefully with invalid data
+
 ### Requirement 2: Banking Dashboard Display
 
 **User Story:** As an authenticated user, I want to view my USDC balance and recent transactions on a dashboard, so that I can monitor my account status at a glance.
@@ -37,6 +48,17 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 5. WHEN no transactions exist THEN the system SHALL display an empty state message
 6. WHEN the user pulls to refresh THEN the system SHALL reload balance and transaction data
 7. WHEN displaying amounts THEN the system SHALL format currency values with proper decimals and symbols
+
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify balance fetching returns correct USDC amount
+2. WHEN tests are executed THEN the system SHALL verify loading states are displayed during data fetch
+3. WHEN tests are executed THEN the system SHALL verify error states are displayed when fetch fails
+4. WHEN tests are executed THEN the system SHALL verify transaction list displays correct number of items (max 10)
+5. WHEN tests are executed THEN the system SHALL verify empty state is shown when no transactions exist
+6. WHEN tests are executed THEN the system SHALL verify currency formatting with various amounts (0, decimals, large numbers)
+7. WHEN tests are executed THEN the system SHALL verify transaction grouping by date works correctly
+8. WHEN tests are executed THEN the system SHALL verify retry functionality reloads data successfully
 
 ### Requirement 3: Recipient Management
 
@@ -52,6 +74,19 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 6. WHEN recipients are saved THEN the system SHALL display them in a searchable list
 7. WHEN the user searches recipients THEN the system SHALL filter results by name in real-time
 8. WHEN a recipient is selected THEN the system SHALL proceed to the amount input screen
+
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify wallet address validation with valid Ethereum addresses (0x...)
+2. WHEN tests are executed THEN the system SHALL verify wallet address validation rejects invalid formats
+3. WHEN tests are executed THEN the system SHALL verify wallet address validation rejects empty addresses
+4. WHEN tests are executed THEN the system SHALL verify wallet address validation rejects addresses with incorrect length
+5. WHEN tests are executed THEN the system SHALL verify recipient name validation requires minimum 2 characters
+6. WHEN tests are executed THEN the system SHALL verify recipient name validation rejects empty names
+7. WHEN tests are executed THEN the system SHALL verify recipient search filters by name case-insensitively
+8. WHEN tests are executed THEN the system SHALL verify recipient search returns empty array when no matches found
+9. WHEN tests are executed THEN the system SHALL verify recipient creation saves to database with correct profile_id
+10. WHEN tests are executed THEN the system SHALL verify recipient list retrieval returns only user's recipients
 
 ### Requirement 4: Crypto Payment Execution
 
@@ -70,6 +105,21 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 9. IF the transaction fails THEN the system SHALL update the status to "failed" and display error details
 10. WHEN the payment completes THEN the system SHALL redirect to a success screen with transaction details
 
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify amount validation rejects zero amounts
+2. WHEN tests are executed THEN the system SHALL verify amount validation rejects negative amounts
+3. WHEN tests are executed THEN the system SHALL verify amount validation rejects amounts exceeding balance
+4. WHEN tests are executed THEN the system SHALL verify amount validation accepts valid amounts with up to 6 decimals
+5. WHEN tests are executed THEN the system SHALL verify USDC amount conversion to wei uses 6 decimals correctly
+6. WHEN tests are executed THEN the system SHALL verify transaction record creation with status "pending"
+7. WHEN tests are executed THEN the system SHALL verify transaction status transitions (pending → sent → success)
+8. WHEN tests are executed THEN the system SHALL verify transaction status transitions (pending → sent → failed)
+9. WHEN tests are executed THEN the system SHALL verify transaction hash is stored when status changes to "sent"
+10. WHEN tests are executed THEN the system SHALL verify ERC20 transfer function is called with correct parameters
+11. WHEN tests are executed THEN the system SHALL verify payment execution fails gracefully with insufficient balance
+12. WHEN tests are executed THEN the system SHALL verify payment execution fails gracefully with invalid recipient address
+
 ### Requirement 5: Transaction Status Tracking
 
 **User Story:** As a user, I want to track the status of my payments in real-time, so that I know when my transactions are confirmed on the blockchain.
@@ -84,6 +134,16 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 6. IF the transaction fails on-chain THEN the system SHALL update the status to "failed" and display the revert reason
 7. WHEN viewing transaction history THEN the system SHALL display color-coded status badges (pending: yellow, sent: blue, success: green, failed: red)
 
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify status badge colors match correct statuses
+2. WHEN tests are executed THEN the system SHALL verify block explorer URL generation for Base chain
+3. WHEN tests are executed THEN the system SHALL verify transaction hash format validation (0x followed by 64 hex chars)
+4. WHEN tests are executed THEN the system SHALL verify status polling stops after success or failed status
+5. WHEN tests are executed THEN the system SHALL verify transaction status retrieval by ID returns correct transaction
+6. WHEN tests are executed THEN the system SHALL verify transaction status update persists to database
+7. WHEN tests are executed THEN the system SHALL verify invalid status transitions are rejected (e.g., success → pending)
+
 ### Requirement 6: Local Testing Infrastructure
 
 **User Story:** As a developer, I want a lightweight testing setup without heavy dependencies, so that I can quickly validate core functionality during development.
@@ -97,6 +157,16 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 5. WHEN all tests complete THEN the system SHALL exit with code 0 if all passed or code 1 if any failed
 6. WHEN testing payment logic THEN the system SHALL validate amount formatting, address validation, and transaction state transitions
 7. WHEN testing recipient logic THEN the system SHALL validate name and wallet address requirements
+
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify test runner discovers all test files recursively
+2. WHEN tests are executed THEN the system SHALL verify test runner executes tests in isolation
+3. WHEN tests are executed THEN the system SHALL verify test runner reports pass/fail counts correctly
+4. WHEN tests are executed THEN the system SHALL verify test runner exits with correct exit codes
+5. WHEN tests are executed THEN the system SHALL verify test assertions work for equality, truthiness, and errors
+6. WHEN tests are executed THEN the system SHALL verify test runner displays stack traces for failures
+7. WHEN tests are executed THEN the system SHALL verify test runner handles async tests correctly
 
 ### Requirement 7: MiniApp Configuration and Deployment
 
@@ -126,6 +196,17 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 6. WHEN an unexpected error occurs THEN the system SHALL log details to console and show a generic error message
 7. WHEN operations succeed THEN the system SHALL display success toasts with relevant details
 
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify error messages are user-friendly and actionable
+2. WHEN tests are executed THEN the system SHALL verify retry logic implements exponential backoff correctly
+3. WHEN tests are executed THEN the system SHALL verify retry logic stops after maximum attempts (3)
+4. WHEN tests are executed THEN the system SHALL verify error logging includes timestamp, error type, and context
+5. WHEN tests are executed THEN the system SHALL verify network errors trigger retry option display
+6. WHEN tests are executed THEN the system SHALL verify insufficient balance errors prevent transaction submission
+7. WHEN tests are executed THEN the system SHALL verify user rejection returns to correct screen without side effects
+8. WHEN tests are executed THEN the system SHALL verify success messages include relevant transaction details
+
 ### Requirement 9: Mobile-First Responsive Design
 
 **User Story:** As a mobile user, I want the interface optimized for small screens, so that I can easily navigate and complete transactions on my phone.
@@ -154,6 +235,17 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 6. WHEN offline THEN the system SHALL display cached data with an offline indicator
 7. WHEN connection is restored THEN the system SHALL sync pending changes automatically
 
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify recipient creation persists to database immediately
+2. WHEN tests are executed THEN the system SHALL verify transaction creation includes all required fields
+3. WHEN tests are executed THEN the system SHALL verify transaction status updates are atomic
+4. WHEN tests are executed THEN the system SHALL verify database retry logic with exponential backoff
+5. WHEN tests are executed THEN the system SHALL verify retry logic stops after 3 attempts
+6. WHEN tests are executed THEN the system SHALL verify data loading retrieves latest records from database
+7. WHEN tests are executed THEN the system SHALL verify offline state displays cached data correctly
+8. WHEN tests are executed THEN the system SHALL verify sync logic handles conflicts appropriately
+
 ### Requirement 11: Multi-Currency Balance Display
 
 **User Story:** As a user, I want to view my balance in USD or EURO instead of just USDC, so that I can understand my account value in familiar fiat currencies.
@@ -172,6 +264,19 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 10. WHEN the user's currency preference is set THEN the system SHALL persist it locally and use it on subsequent visits
 11. WHEN displaying transaction amounts THEN the system SHALL also show the converted fiat value based on the selected currency
 
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify USDC to USD conversion with various amounts
+2. WHEN tests are executed THEN the system SHALL verify USDC to EURO conversion with various amounts
+3. WHEN tests are executed THEN the system SHALL verify currency formatting includes correct symbols ($ for USD, € for EURO)
+4. WHEN tests are executed THEN the system SHALL verify currency formatting uses 2 decimal places
+5. WHEN tests are executed THEN the system SHALL verify conversion rate caching with 5-minute TTL
+6. WHEN tests are executed THEN the system SHALL verify fallback to USDC display when rates unavailable
+7. WHEN tests are executed THEN the system SHALL verify currency preference persistence in localStorage
+8. WHEN tests are executed THEN the system SHALL verify currency toggle updates display immediately
+9. WHEN tests are executed THEN the system SHALL verify transaction amounts show fiat conversion
+10. WHEN tests are executed THEN the system SHALL verify rate API error handling returns graceful fallback
+
 ### Requirement 12: AI Agent Integration for Portfolio Management
 
 **User Story:** As a user, I want AI agents to help manage my banking portfolio by automatically crafting operations and retrieving necessary data, so that I can benefit from intelligent automation and enhanced decision-making.
@@ -189,3 +294,18 @@ This spec targets rapid prototyping with emphasis on feature completeness over b
 9. WHEN the user enables AI features THEN the system SHALL request explicit consent and explain what data the AI will access
 10. WHEN the AI agent provides recommendations THEN the system SHALL display them with clear reasoning and allow the user to accept or reject
 11. WHEN AI operations are executed THEN the system SHALL follow the same security and validation rules as manual operations
+
+#### Test Requirements
+
+1. WHEN tests are executed THEN the system SHALL verify AI operation validation rejects invalid operation types
+2. WHEN tests are executed THEN the system SHALL verify AI operation validation rejects malformed payment data
+3. WHEN tests are executed THEN the system SHALL verify AI operation confirmation is required before execution
+4. WHEN tests are executed THEN the system SHALL verify AI operations are logged to audit trail with correct data
+5. WHEN tests are executed THEN the system SHALL verify portfolio insights calculation with various transaction histories
+6. WHEN tests are executed THEN the system SHALL verify spending pattern analysis identifies top recipients correctly
+7. WHEN tests are executed THEN the system SHALL verify AI context retrieval includes balance, transactions, and recipients
+8. WHEN tests are executed THEN the system SHALL verify prompt injection prevention sanitizes user input
+9. WHEN tests are executed THEN the system SHALL verify AI-suggested payments follow same validation as manual payments
+10. WHEN tests are executed THEN the system SHALL verify AI operation execution fails gracefully with invalid data
+11. WHEN tests are executed THEN the system SHALL verify AI response parsing extracts operations correctly
+12. WHEN tests are executed THEN the system SHALL verify rate limiting prevents excessive AI requests

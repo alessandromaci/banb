@@ -1,55 +1,89 @@
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
+"use client";
+
+import { ArrowLeft, X } from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
+import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { AmountInput } from "@/components/payments/AmountInput";
 import { getRecipientById } from "@/lib/recipients";
+import { useUSDCBalance } from "@/lib/payments";
+import { useEffect, useState } from "react";
 
-export default async function AmountPage({
-  params,
-}: {
-  params: Promise<{ type: string; recipientId: string }>;
-}) {
-  const resolvedParams = await params;
+export default function AmountPage() {
+  const router = useRouter();
+  const params = useParams();
+  const { address: userAddress } = useAccount();
+  const { formattedBalance } = useUSDCBalance(userAddress);
+  const [recipientName, setRecipientName] = useState("Recipient");
 
-  // Get recipient name based on type
-  let recipientName = "Recipient";
+  const type = params.type as string;
+  const recipientId = params.recipientId as string;
 
-  if (resolvedParams.type === "crypto") {
-    try {
-      // Try to get recipient from database first
-      const recipient = await getRecipientById(resolvedParams.recipientId);
-      if (recipient) {
-        recipientName = recipient.name;
+  useEffect(() => {
+    async function fetchRecipient() {
+      if (type === "crypto") {
+        // Skip fetching if it's an unknown address
+        if (recipientId === "unknown") {
+          const unknownAddress = sessionStorage.getItem(
+            "unknownRecipientAddress"
+          );
+          setRecipientName(
+            unknownAddress
+              ? `${unknownAddress.slice(0, 6)}...${unknownAddress.slice(-4)}`
+              : "Unknown Address"
+          );
+        } else {
+          try {
+            // Try to get recipient from database first
+            const recipient = await getRecipientById(recipientId);
+            if (recipient) {
+              setRecipientName(recipient.name);
+            }
+          } catch (error) {
+            console.error("Error fetching recipient:", error);
+          }
+        }
+      } else {
+        setRecipientName("New recipient");
       }
-    } catch (error) {
-      console.error("Error fetching recipient:", error);
     }
-  } else {
-    recipientName = "New recipient";
-  }
+
+    fetchRecipient();
+  }, [type, recipientId]);
 
   return (
-    <div className="min-h-screen bg-[#1E1B3D] text-white flex flex-col">
-      <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+    <div className="h-screen bg-[#0E0E0F] text-white flex flex-col overflow-hidden">
+      <div className="mx-auto max-w-md w-full flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center px-6 py-4">
-          <Link href="/payments">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-10 w-10 text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-          </Link>
+        <div className="flex items-center justify-between px-6 py-8 flex-shrink-0">
+          <div className="flex items-center gap-4 ml-2">
+            <div>
+              <h1 className="text-xl font-medium ">Send</h1>
+              {type === "crypto" && (
+                <p className="text-sm text-white/50">
+                  Balance: ${formattedBalance || "0.00"} USDC
+                </p>
+              )}
+            </div>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => router.push("/payments")}
+            className="text-white hover:bg-white/10 rounded-full"
+          >
+            <X className="w-6 h-6" />
+          </Button>
         </div>
 
         {/* Amount Input */}
-        <AmountInput
-          recipientName={recipientName}
-          type={resolvedParams.type}
-          recipientId={resolvedParams.recipientId}
-        />
+        <div className="flex-1 flex flex-col min-h-0">
+          <AmountInput
+            recipientName={recipientName}
+            type={type}
+            recipientId={recipientId}
+          />
+        </div>
       </div>
     </div>
   );
