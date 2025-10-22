@@ -86,6 +86,7 @@ export function BankingHome() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIConsent, setShowAIConsent] = useState(false);
   const { hasConsent, grantConsent } = useAIConsent();
