@@ -122,7 +122,7 @@ export default function CardsPage() {
               </p>
               <p className="text-base text-white/70 leading-relaxed">
                 Start with your virtual card immediately. Physical card ships
-                while you're already spending.
+                while you&apos;re already spending.
               </p>
             </div>
           </div>
