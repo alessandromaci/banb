@@ -56,11 +56,29 @@ const queryClient = new QueryClient();
  * ```
  */
 export function Providers({ children }: { children: ReactNode }) {
+  const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+
+  // Check if we're on the server side
+  const isServer = typeof window === "undefined";
+
+  // Always provide PrivyProvider, use a dummy ID if not configured
+  const appId = privyAppId && privyAppId !== "your_privy_app_id" 
+    ? privyAppId 
+    : "clpispdty00ycl80fpueukbhl"; // Dummy app ID for development
+
+  // If on server, provide minimal setup without WagmiProvider
+  if (isServer) {
+    return (
+      <PrivyProvider appId={appId} config={privyConfig}>
+        <QueryClientProvider client={queryClient}>
+          <UserProvider>{children}</UserProvider>
+        </QueryClientProvider>
+      </PrivyProvider>
+    );
+  }
+
   return (
-    <PrivyProvider
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || ""}
-      config={privyConfig}
-    >
+    <PrivyProvider appId={appId} config={privyConfig}>
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={config}>
           <UserProvider>{children}</UserProvider>

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MoreMenu } from "@/components/more-menu";
+
 import {
   BarChart3,
   CreditCard,
@@ -28,9 +28,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
 import { useAccount } from "wagmi";
-import { useSetActiveWallet } from "@privy-io/wagmi";
+import { useSetActiveWalletSafe as useSetActiveWallet } from "@/lib/use-privy-safe";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
 import { createAccount, useAccounts } from "@/lib/accounts";
@@ -95,6 +95,7 @@ export function BankingHome() {
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIConsent, setShowAIConsent] = useState(false);
+  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
   const { hasConsent, grantConsent } = useAIConsent();
 
   // Touch/Swipe State

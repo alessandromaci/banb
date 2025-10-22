@@ -1,5 +1,8 @@
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
 import { Button } from "@/components/ui/button"
 import { RecipientForm } from "@/components/payments/RecipientForm"
 

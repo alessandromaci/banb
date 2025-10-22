@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { minikitConfig } from "../minikit.config";
+
+// Force dynamic rendering for the entire app to avoid SSR issues with Privy/Wagmi
+export const dynamic = 'force-dynamic';
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";

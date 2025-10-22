@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivySafe as usePrivy } from "@/lib/use-privy-safe";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

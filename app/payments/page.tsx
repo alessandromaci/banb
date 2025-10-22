@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
 import { AlertTriangle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
