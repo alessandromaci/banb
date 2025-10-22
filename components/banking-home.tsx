@@ -157,55 +157,12 @@ export function BankingHome() {
     syncWallet();
   }, [privyWallets, setActiveWallet]);
 
-  // Create initial account if user has no accounts (for existing users)
-  useEffect(() => {
-    const createInitialAccount = async () => {
-      if (profile?.id && address && accounts.length === 0 && !profileLoading) {
-        console.log(
-          "⚠️ No accounts found, creating initial spending account..."
-        );
-        try {
-          await createAccount({
-            profile_id: profile.id,
-            name: "Spending Account 1",
-            type: "spending",
-            address: address,
-            network: "base",
-            is_primary: true,
-          });
-          console.log("✅ Initial spending account created");
-          await refreshAccounts();
-        } catch (error) {
-          console.error("❌ Failed to create initial account:", error);
-        }
-      }
-    };
-    createInitialAccount();
-  }, [profile?.id, address, accounts.length, profileLoading, refreshAccounts]);
-
-  // Debug: Log accounts when they change
-  useEffect(() => {
-    console.log("💳 Accounts loaded:", accounts);
-    console.log("💰 Spending accounts:", spendingAccounts);
-    console.log(
-      "📊 Current spending account index:",
-      currentSpendingAccountIndex
-    );
-    console.log("🎯 Current spending account:", currentSpendingAccount);
-  }, [
-    accounts,
-    spendingAccounts,
-    currentSpendingAccountIndex,
-    currentSpendingAccount,
-  ]);
-
-  // Ensure spending account index is valid
+  // Ensure spending account index is valid when accounts change
   useEffect(() => {
     if (
       spendingAccounts.length > 0 &&
       currentSpendingAccountIndex >= spendingAccounts.length
     ) {
-      console.log("⚠️ Spending account index out of bounds, resetting to 0");
       setCurrentSpendingAccountIndex(0);
     }
   }, [spendingAccounts.length, currentSpendingAccountIndex]);
