@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { RecipientForm } from "@/components/payments/RecipientForm";
 
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
+
 export default function WalletPaymentPage() {
   return (
     <div className="min-h-screen bg-[#1E1B3D] text-white">

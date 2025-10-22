@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { createProfile, getProfileByAnyWallet } from "@/lib/profile";
 import { createAccount } from "@/lib/accounts";
 import { useUser } from "@/lib/user-context";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useSetActiveWallet } from "@privy-io/wagmi";
+import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
+import { useSetActiveWalletSafe as useSetActiveWallet } from "@/lib/use-privy-safe";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -95,12 +95,13 @@ export function SignUpForm() {
           console.log("✅ Wallet connected");
           setStep("wallet");
           setShouldCreateProfile(true);
-        } catch (loginError: any) {
+        } catch (loginError: unknown) {
           console.error("❌ Wallet connection error:", loginError);
+          const error = loginError as Error;
           if (
-            !loginError?.message?.includes("abort") &&
-            !loginError?.message?.includes("cancel") &&
-            loginError?.name !== "AbortError"
+            !error?.message?.includes("abort") &&
+            !error?.message?.includes("cancel") &&
+            error?.name !== "AbortError"
           ) {
             setError("Failed to connect wallet. Please try again.");
           }

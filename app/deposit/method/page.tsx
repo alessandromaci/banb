@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Wallet, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";

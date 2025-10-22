@@ -226,7 +226,9 @@ export interface AccountTransaction {
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+}
 
+/**
  * AI operation record stored in the ai_operations table.
  * Tracks AI agent interactions and operations for audit trail.
  *
@@ -255,5 +257,4 @@ export interface AIOperation {
   execution_result: Record<string, unknown> | null;
   created_at: string;
   executed_at: string | null;
-
 }

@@ -1,6 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+
+// Disable static generation for this page
+export const dynamic = 'force-dynamic';
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";

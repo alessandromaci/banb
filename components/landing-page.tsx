@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
+import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
+import { useLoginToMiniAppSafe as useLoginToMiniApp } from "@/lib/use-privy-safe";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
@@ -184,20 +184,21 @@ export function LandingPage() {
         await privyLogin();
         console.log("✅ Wallet connected, will auto-redirect");
         // Auto-redirect happens via useEffect
-      } catch (loginError: any) {
+      } catch (loginError: unknown) {
+        const error = loginError as Error;
         console.error("❌ Wallet connection error:", {
-          message: loginError?.message,
-          name: loginError?.name,
-          cause: loginError?.cause,
-          stack: loginError?.stack,
+          message: error?.message,
+          name: error?.name,
+          cause: error?.cause,
+          stack: error?.stack,
           full: loginError,
         });
 
         // Check if it's just a cancellation
         if (
-          loginError?.message?.includes("abort") ||
-          loginError?.message?.includes("cancel") ||
-          loginError?.name === "AbortError"
+          error?.message?.includes("abort") ||
+          error?.message?.includes("cancel") ||
+          error?.name === "AbortError"
         ) {
           console.log("ℹ️ User cancelled or modal closed");
         } else {
@@ -206,24 +207,24 @@ export function LandingPage() {
 
           // Provide specific error hints
           if (
-            loginError?.message?.includes("domain") ||
-            loginError?.message?.includes("Domain")
+            error?.message?.includes("domain") ||
+            error?.message?.includes("Domain")
           ) {
             console.error(
               "💡 HINT: Add 'http://localhost:3000' to your Privy Dashboard → Settings → Domains"
             );
           }
           if (
-            loginError?.message?.includes("chain") ||
-            loginError?.message?.includes("Chain")
+            error?.message?.includes("chain") ||
+            error?.message?.includes("Chain")
           ) {
             console.error(
               "💡 HINT: Make sure your wallet is on Base network (Chain ID: 8453)"
             );
           }
           if (
-            loginError?.message?.includes("400") ||
-            loginError?.message?.includes("Bad Request")
+            error?.message?.includes("400") ||
+            error?.message?.includes("Bad Request")
           ) {
             console.error(
               "💡 HINT: Clear your browser cache and restart the dev server"

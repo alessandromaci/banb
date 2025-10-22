@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MoreMenu } from "@/components/more-menu";
+
 import {
   BarChart3,
   CreditCard,
@@ -31,9 +31,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
 import { useAccount } from "wagmi";
-import { useSetActiveWallet } from "@privy-io/wagmi";
+import { useSetActiveWalletSafe as useSetActiveWallet } from "@/lib/use-privy-safe";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
 import { createAccount, useAccounts } from "@/lib/accounts";
@@ -64,6 +64,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+enum AccountType {
+  Main = "main",
+  Investment = "investment",
+  Spending = "spending"
+}
+
 /**
  * Main banking home component with account switching and investment management.
  * Supports both main account (USDC balance) and investment accounts with swipe navigation.
@@ -82,8 +88,8 @@ export function BankingHome() {
   const [activeTab, setActiveTab] = useState("home");
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState<Currency>("USD");
-  const [activeAccount, setActiveAccount] = useState<"spending" | "investment">(
-    "spending"
+  const [activeAccount, setActiveAccount] = useState<AccountType>(
+    AccountType.Main
   );
   const [currentSpendingAccountIndex, setCurrentSpendingAccountIndex] =
     useState(0);
@@ -241,7 +247,7 @@ export function BankingHome() {
 
   // Memoize fetchMovements to prevent unnecessary re-renders
   const fetchMovements = useCallback(async () => {
-    if (!profile?.id || activeAccount !== "investment") return;
+    if (!profile?.id || activeAccount !== AccountType.Investment) return;
 
     setMovementsLoading(true);
     try {
@@ -276,9 +282,9 @@ export function BankingHome() {
 
   // Fetch investment movements for current account
   useEffect(() => {
-    if (activeAccount === "investment") {
+    if (activeAccount === AccountType.Investment) {
       fetchMovements();
-    } else if (activeAccount === "main") {
+    } else if (activeAccount === AccountType.Main) {
       setInvestmentMovements([]);
       setMonthlyRewards(0);
     }
@@ -349,11 +355,11 @@ export function BankingHome() {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isLeftSwipe && activeAccount === "main") {
-      setActiveAccount("investment");
+    if (isLeftSwipe && activeAccount === AccountType.Main) {
+      setActiveAccount(AccountType.Investment);
     }
-    if (isRightSwipe && activeAccount === "investment") {
-      setActiveAccount("main");
+    if (isRightSwipe && activeAccount === AccountType.Investment) {
+      setActiveAccount(AccountType.Main);
     }
   };
 
@@ -397,10 +403,10 @@ export function BankingHome() {
             onTouchEnd={handleTouchEnd}
           >
             <div className="text-sm text-white/70 mb-3">
-              {activeAccount === "main" ? "Main" : "Investment Account"} -{" "}
+              {activeAccount === AccountType.Main ? "Main" : "Investment Account"} -{" "}
               {currency}
             </div>
-            {activeAccount === "main" ? (
+            {activeAccount === AccountType.Main ? (
               <>
                 <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
                   {!isMounted || balanceLoading || rateLoading ? (
@@ -538,34 +544,31 @@ export function BankingHome() {
           {/* Pagination Dots */}
           <div className="flex justify-center gap-2 mb-10">
             <button
-              onClick={() => setActiveAccount("main")}
-              className={`h-2 w-2 rounded-full ${
-                activeAccount === "main"
+              onClick={() => setActiveAccount(AccountType.Main)}
+              className={`h-2 w-2 rounded-full ${activeAccount === AccountType.Main
                   ? "bg-white shadow-lg shadow-white/50"
                   : "bg-white/30"
-              }`}
+                }`}
             />
             {investmentAccounts.map((_, index) => (
               <button
                 key={index}
                 onClick={() => {
-                  setActiveAccount("investment");
+                  setActiveAccount(AccountType.Investment);
                   setCurrentInvestmentAccount(index);
                 }}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  activeAccount === "investment" &&
-                  currentInvestmentAccount === index
+                className={`h-2 w-2 rounded-full transition-colors ${activeAccount === AccountType.Investment &&
+                    currentInvestmentAccount === index
                     ? "bg-white"
                     : "bg-white/30"
-                }`}
+                  }`}
               />
             ))}
             {investmentAccounts.length === 0 && (
               <button
-                onClick={() => setActiveAccount("investment")}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  activeAccount === "investment" ? "bg-white" : "bg-white/30"
-                }`}
+                onClick={() => setActiveAccount(AccountType.Investment)}
+                className={`h-2 w-2 rounded-full transition-colors ${activeAccount === AccountType.Investment ? "bg-white" : "bg-white/30"
+                  }`}
               />
             )}
           </div>
@@ -578,14 +581,14 @@ export function BankingHome() {
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
-                  if (activeAccount === "main") {
+                  if (activeAccount === AccountType.Main) {
                     // Store deposit data in sessionStorage
                     sessionStorage.setItem(
                       "depositData",
                       JSON.stringify({
                         balance: displayedBalance.toString(),
                         currency: currency,
-                        account: "main",
+                        account: AccountType.Main,
                         walletAddress: address || "",
                       })
                     );
@@ -594,8 +597,7 @@ export function BankingHome() {
                     // Investment account - add more to same vault
                     if (currentAccount?.vault_address) {
                       router.push(
-                        `/invest/amount?vault=${
-                          currentAccount.vault_address
+                        `/invest/amount?vault=${currentAccount.vault_address
                         }&name=${encodeURIComponent(
                           currentAccount.investment_name || ""
                         )}`
@@ -617,14 +619,14 @@ export function BankingHome() {
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
                 onClick={() => {
-                  if (activeAccount === "main") {
+                  if (activeAccount === AccountType.Main) {
                     router.push("/invest/select");
                   } else {
                     // Investment account - withdraw from vault (disabled for now)
                     // TODO: Implement withdrawal functionality
                   }
                 }}
-                disabled={activeAccount === "investment"}
+                disabled={activeAccount === AccountType.Investment}
               >
                 <TrendingUp className="size-6" />
               </Button>
@@ -637,7 +639,7 @@ export function BankingHome() {
             <div className="flex flex-col items-center gap-2">
               <Button
                 onClick={() => {
-                  if (activeAccount === "main") {
+                  if (activeAccount === AccountType.Main) {
                     setActiveTab("payments");
                     router.push("/payments");
                   } else {
@@ -652,14 +654,14 @@ export function BankingHome() {
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
               >
-                {activeAccount === "main" ? (
+                {activeAccount === AccountType.Main ? (
                   <Send className="size-6" />
                 ) : (
                   <Info className="size-6" />
                 )}
               </Button>
               <span className="text-xs text-white/90 font-medium whitespace-nowrap">
-                {activeAccount === "main" ? "Send" : "Info"}
+                {activeAccount === AccountType.Main ? "Send" : "Info"}
               </span>
             </div>
 
@@ -700,7 +702,7 @@ export function BankingHome() {
           {/* Transactions/Investments Card */}
 
           {/* Rewards Summary */}
-          {activeAccount === "investment" && currentAccount && (
+          {activeAccount === AccountType.Investment && currentAccount && (
             <RewardsSummaryCard
               totalRewards={
                 typeof currentAccount?.total_rewards === "number"
@@ -714,7 +716,7 @@ export function BankingHome() {
 
           <Card className="bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-3xl p-5 mb-10 shadow-xl">
             <div className="space-y-4">
-              {activeAccount === "main" ? (
+              {activeAccount === AccountType.Main ? (
                 // Show transactions for main account
                 <>
                   {loadingTransactions ? (
@@ -747,14 +749,14 @@ export function BankingHome() {
 
                       {transactions.filter((tx) => tx.status === "success")
                         .length > 3 && (
-                        <Button
-                          variant="ghost"
-                          onClick={() => router.push("/transactions")}
-                          className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                        >
-                          See all
-                        </Button>
-                      )}
+                          <Button
+                            variant="ghost"
+                            onClick={() => router.push("/transactions")}
+                            className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                          >
+                            See all
+                          </Button>
+                        )}
                     </>
                   )}
                 </>
@@ -815,9 +817,8 @@ export function BankingHome() {
             <div className="grid grid-cols-5 gap-2">
               <button
                 onClick={() => setActiveTab("home")}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
-                  activeTab === "home" ? "text-white" : "text-white/50"
-                }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "home" ? "text-white" : "text-white/50"
+                  }`}
               >
                 <Home className="size-8" />
                 <span className="text-xs">Home</span>
@@ -827,9 +828,8 @@ export function BankingHome() {
                   setActiveTab("analytics");
                   router.push("/analytics");
                 }}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
-                  activeTab === "analytics" ? "text-white" : "text-white/50"
-                }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "analytics" ? "text-white" : "text-white/50"
+                  }`}
               >
                 <BarChart3 className="size-8" />
                 <span className="text-xs">Analytics</span>
@@ -858,9 +858,8 @@ export function BankingHome() {
                   setActiveTab("cards");
                   router.push("/cards");
                 }}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
-                  activeTab === "cards" ? "text-white" : "text-white/50"
-                }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "cards" ? "text-white" : "text-white/50"
+                  }`}
               >
                 <CreditCard className="size-8" />
                 <span className="text-xs">Cards</span>
@@ -870,9 +869,8 @@ export function BankingHome() {
                   setActiveTab("profile");
                   router.push("/profile");
                 }}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
-                  activeTab === "profile" ? "text-white" : "text-white/50"
-                }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "profile" ? "text-white" : "text-white/50"
+                  }`}
               >
                 <User className="size-8" />
                 <span className="text-xs">Profile</span>
@@ -885,8 +883,8 @@ export function BankingHome() {
         <div className="h-20" />
       </div>
 
-      {/* More Menu */}
-      <MoreMenu
+      {/* More Menu - Commented out due to missing state variable */}
+      {/* <MoreMenu
         isOpen={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
         onCurrencyToggle={toggleCurrency}
@@ -897,7 +895,7 @@ export function BankingHome() {
         onAddInvestmentAccount={() => setShowAddAccountModal(true)}
         currency={currency}
         theme={theme}
-      />
+      /> */}
 
       {/* Add New Account Modal */}
       {showAddAccountModal && (

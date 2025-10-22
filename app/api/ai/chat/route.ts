@@ -127,7 +127,7 @@ function parseAIResponse(response: string): {
 } {
   // Simple pattern matching for operations
   // In production, use structured output from AI model
-  
+
   const paymentPattern = /send\s+\$?(\d+(?:\.\d{2})?)\s+to\s+(\w+)/i;
   const match = response.match(paymentPattern);
 
@@ -156,9 +156,9 @@ async function callAIBackend(
   const aiProvider = process.env.AI_PROVIDER || "openai";
   const apiKey = process.env.AI_API_KEY;
 
-  // If no API key, return a mock response
-  if (!apiKey) {
-    console.warn("No AI_API_KEY configured, using mock response");
+  // If no API key or placeholder key, return a mock response
+  if (!apiKey || apiKey === "your_ai_api_key" || apiKey.startsWith("your_")) {
+    console.warn("No valid AI_API_KEY configured, using mock response");
     return generateMockResponse(message, context);
   }
 

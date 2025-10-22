@@ -253,7 +253,7 @@ export async function getRecentAccountTransactions(
     throw new Error(`Failed to fetch recent transactions: ${error.message}`);
   }
 
-  return (data as any) || [];
+  return (data as Array<AccountTransaction & { account: { name: string; type: string } }>) || [];
 }
 
 /**
