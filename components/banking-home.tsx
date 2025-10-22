@@ -23,9 +23,6 @@ import {
   Search,
   AudioLines,
   Wallet,
-  Search,
-  Input,
-  AudioLines,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -96,7 +93,6 @@ export function BankingHome() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
-  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIConsent, setShowAIConsent] = useState(false);
   const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
