@@ -4,28 +4,29 @@
  * Uses localStorage for wallet connection persistence.
  */
 
-import { http, createConfig, createStorage } from "wagmi";
-import { base } from "wagmi/chains";
-import { porto } from "wagmi/connectors";
+import { http, createStorage } from "wagmi";
+import { createConfig } from "@privy-io/wagmi";
+import { base } from "viem/chains";
+import { porto, walletConnect } from "wagmi/connectors";
 import { farcasterMiniApp as miniAppConnector } from "@farcaster/miniapp-wagmi-connector";
 
 /**
  * Wagmi configuration for the application.
  * Supports Base chain with HTTP transport and multiple wallet connectors.
- * 
+ *
  * Configuration includes:
  * - Chain: Base mainnet
  * - Connectors: Farcaster MiniApp, Porto
  * - Storage: Browser localStorage for connection persistence
- * 
+ *
  * @constant
  * @type {Config}
- * 
+ *
  * @example
  * ```tsx
  * import { config } from './config';
  * import { WagmiProvider } from 'wagmi';
- * 
+ *
  * function App() {
  *   return (
  *     <WagmiProvider config={config}>
@@ -40,7 +41,7 @@ export const config = createConfig({
   transports: {
     [base.id]: http(),
   },
-  connectors: [miniAppConnector(), porto()],
+  connectors: [miniAppConnector()],
   storage: createStorage({
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
   }),

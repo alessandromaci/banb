@@ -41,6 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 certificates
+scripts
 .vscode/settings.json
 .idea/banb.iml
 .idea/misc.xml

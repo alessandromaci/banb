@@ -22,15 +22,19 @@ import {
   User,
   Search,
   AudioLines,
+  Wallet,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { sdk } from "@farcaster/miniapp-sdk";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
+import { useSetActiveWallet } from "@privy-io/wagmi";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
+import { createAccount, useAccounts } from "@/lib/accounts";
+import { useToast } from "@/hooks/use-toast";
 import {
   type Currency,
   useExchangeRate,
@@ -75,10 +79,11 @@ export function BankingHome() {
   const [activeTab, setActiveTab] = useState("home");
   const [isMounted, setIsMounted] = useState(false);
   const [currency, setCurrency] = useState<Currency>("USD");
-  const [activeAccount, setActiveAccount] = useState<"main" | "investment">(
-    "main"
+  const [activeAccount, setActiveAccount] = useState<"spending" | "investment">(
+    "spending"
   );
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [currentSpendingAccountIndex, setCurrentSpendingAccountIndex] =
+    useState(0);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
