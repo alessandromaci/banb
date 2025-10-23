@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +29,19 @@ import {
 import { useAccount } from "wagmi";
 import { useUser } from "@/lib/user-context";
 import { updateProfileName, deleteProfile } from "@/lib/profile";
+import { getAccountsByProfile, updateAccount } from "@/lib/accounts";
+import { type Account } from "@/lib/supabase";
+import { useSetActiveWalletSafe } from "@/lib/use-account-safe";
+import { useWallets, usePrivy } from "@privy-io/react-auth";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { profile, setProfile } = useUser();
-  const { connector } = useAccount();
+  const { connector, address } = useAccount();
+  const { wallets: privyWallets } = useWallets();
+  const { setActiveWallet } = useSetActiveWalletSafe();
+  const { connectWallet } = usePrivy();
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [isEditing, setIsEditing] = useState(false);
@@ -44,6 +52,30 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [showWallets, setShowWallets] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [linkedAccounts, setLinkedAccounts] = useState<Account[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+  const [editedAccountName, setEditedAccountName] = useState("");
+  const [isSwitchingWallet, setIsSwitchingWallet] = useState(false);
+
+  // Fetch all linked accounts from DB
+  useEffect(() => {
+    const fetchLinkedAccounts = async () => {
+      if (!profile?.id) return;
+
+      setIsLoadingAccounts(true);
+      try {
+        const accounts = await getAccountsByProfile(profile.id);
+        setLinkedAccounts(accounts);
+      } catch (err) {
+        console.error("Failed to fetch linked accounts:", err);
+      } finally {
+        setIsLoadingAccounts(false);
+      }
+    };
+
+    fetchLinkedAccounts();
+  }, [profile?.id]);
 
   const handleSaveName = async () => {
     if (!profile || !editedName.trim()) return;
@@ -94,16 +126,101 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCopyAddress = async () => {
-    if (profile?.wallet_address) {
-      await navigator.clipboard.writeText(profile.wallet_address);
-      setCopiedAddress(true);
-      setTimeout(() => setCopiedAddress(false), 2000);
-    }
+  const handleCopyAddress = async (address: string) => {
+    await navigator.clipboard.writeText(address);
+    setCopiedAddress(true);
+    setTimeout(() => setCopiedAddress(false), 2000);
   };
 
   const handleEmailSupport = () => {
     window.location.href = "mailto:support@banb.app";
+  };
+
+  const handleConnectWallet = async () => {
+    try {
+      await connectWallet();
+      toast.success("Wallet connected! You can now use it.");
+      // Reload accounts to refresh connection status
+      if (profile?.id) {
+        const accounts = await getAccountsByProfile(profile.id);
+        setLinkedAccounts(accounts);
+      }
+    } catch (err) {
+      console.error("Failed to connect wallet:", err);
+      // Don't show error if user cancelled
+      const errorMessage = err instanceof Error ? err.message : "";
+      if (!errorMessage.includes("abort") && !errorMessage.includes("cancel")) {
+        toast.error("Failed to connect wallet");
+      }
+    }
+  };
+
+  const handleSwitchWallet = async (account: Account) => {
+    if (!address || account.address.toLowerCase() === address.toLowerCase()) {
+      return; // Already active
+    }
+
+    setIsSwitchingWallet(true);
+    try {
+      // Find the wallet in Privy's wallets
+      const targetWallet = privyWallets.find(
+        (w) => w.address.toLowerCase() === account.address.toLowerCase()
+      );
+
+      if (!targetWallet) {
+        toast.error(
+          "This wallet is not connected. Please connect it first to use it."
+        );
+        setIsSwitchingWallet(false);
+        return;
+      }
+
+      console.log("Switching to wallet:", account.address);
+
+      // Switch active wallet in wagmi
+      await setActiveWallet(
+        targetWallet as unknown as Parameters<typeof setActiveWallet>[0]
+      );
+
+      console.log("Wallet switched successfully");
+
+      toast.success(`Switched to ${account.name}`);
+
+      // Force a small delay to ensure wagmi updates
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (err) {
+      console.error("Failed to switch wallet:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to switch wallet"
+      );
+    } finally {
+      setIsSwitchingWallet(false);
+    }
+  };
+
+  const handleSaveAccountName = async (accountId: string) => {
+    if (!editedAccountName.trim()) {
+      toast.error("Account name cannot be empty");
+      return;
+    }
+
+    try {
+      await updateAccount(accountId, { name: editedAccountName });
+
+      // Update local state
+      setLinkedAccounts((prev) =>
+        prev.map((acc) =>
+          acc.id === accountId ? { ...acc, name: editedAccountName } : acc
+        )
+      );
+
+      setEditingAccountId(null);
+      setEditedAccountName("");
+      toast.success("Account name updated");
+    } catch (err) {
+      console.error("Failed to update account name:", err);
+      toast.error("Failed to update account name");
+    }
   };
 
   // Get connection method from wallet connector
@@ -347,29 +464,148 @@ export default function ProfilePage() {
                     }`}
                   />
                 </button>
-                {showWallets && profile.wallet_address && (
-                  <div className="px-4 pb-2">
-                    <div className="p-3">
-                      <p className="text-xs text-white/50 mb-1">
-                        Spending Account
-                      </p>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm text-white font-mono">
-                          {profile.wallet_address.slice(0, 6)}...
-                          {profile.wallet_address.slice(-4)}
-                        </p>
-                        <button
-                          onClick={handleCopyAddress}
-                          className="p-1.5 hover:bg-white/10 rounded transition-colors"
-                        >
-                          {copiedAddress ? (
-                            <Check className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <Copy className="h-4 w-4 text-white/60" />
-                          )}
-                        </button>
+                {showWallets && (
+                  <div className="px-4 pb-2 space-y-2">
+                    {isLoadingAccounts ? (
+                      <div className="flex items-center justify-center p-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-white/60" />
                       </div>
-                    </div>
+                    ) : linkedAccounts.length > 0 ? (
+                      linkedAccounts.map((account) => {
+                        const isActive =
+                          address &&
+                          account.address.toLowerCase() ===
+                            address.toLowerCase();
+                        const isEditing = editingAccountId === account.id;
+                        const isConnected = privyWallets.some(
+                          (w) =>
+                            w.address.toLowerCase() ===
+                            account.address.toLowerCase()
+                        );
+
+                        return (
+                          <div
+                            key={account.id}
+                            className="p-3 bg-white/5 rounded-lg space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {isActive && (
+                                  <div className="relative">
+                                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
+                                    <div className="absolute inset-0 h-2 w-2 bg-green-500 rounded-full opacity-75 animate-ping"></div>
+                                  </div>
+                                )}
+                                {isEditing ? (
+                                  <Input
+                                    value={editedAccountName}
+                                    onChange={(e) =>
+                                      setEditedAccountName(e.target.value)
+                                    }
+                                    className="h-8 bg-white/5 border-white/10 text-white text-xs"
+                                    placeholder="Account name"
+                                  />
+                                ) : (
+                                  <p className="text-xs text-white/50">
+                                    {account.name}
+                                  </p>
+                                )}
+                              </div>
+                              {!isEditing && (
+                                <button
+                                  onClick={() => {
+                                    setEditingAccountId(account.id);
+                                    setEditedAccountName(account.name);
+                                  }}
+                                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                                >
+                                  <Edit className="h-3 w-3 text-white/60" />
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm text-white font-mono">
+                                {account.address.slice(0, 6)}...
+                                {account.address.slice(-4)}
+                              </p>
+                              <button
+                                onClick={() =>
+                                  handleCopyAddress(account.address)
+                                }
+                                className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                              >
+                                {copiedAddress ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Copy className="h-4 w-4 text-white/60" />
+                                )}
+                              </button>
+                            </div>
+
+                            {isEditing ? (
+                              <div className="flex gap-2 pt-1">
+                                <Button
+                                  onClick={() =>
+                                    handleSaveAccountName(account.id)
+                                  }
+                                  size="sm"
+                                  className="flex-1 h-7 bg-white text-black hover:bg-white/90 text-xs"
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setEditingAccountId(null);
+                                    setEditedAccountName("");
+                                  }}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="flex-1 h-7 text-white hover:bg-white/10 text-xs"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : !isActive ? (
+                              <div className="space-y-1">
+                                {isConnected ? (
+                                  <Button
+                                    onClick={() => handleSwitchWallet(account)}
+                                    disabled={isSwitchingWallet}
+                                    size="sm"
+                                    className="w-full h-7 bg-white/10 hover:bg-white/20 text-white text-xs"
+                                  >
+                                    {isSwitchingWallet ? (
+                                      <>
+                                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                        Switching...
+                                      </>
+                                    ) : (
+                                      "Use as main"
+                                    )}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    onClick={handleConnectWallet}
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full h-7 border-white/20 text-white hover:bg-white/10 text-xs"
+                                  >
+                                    Connect Wallet
+                                  </Button>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-3 text-center">
+                        <p className="text-sm text-white/50">
+                          No linked wallets found
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

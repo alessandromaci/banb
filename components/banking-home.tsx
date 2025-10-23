@@ -3,8 +3,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-
 import {
   BarChart3,
   CreditCard,
@@ -20,21 +18,15 @@ import {
   Activity,
   Home,
   User,
-  Search,
-  AudioLines,
   Wallet,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useAccount } from "wagmi";
-import { useSetActiveWallet } from "@privy-io/wagmi";
+import { useAccountSafe as useAccount } from "@/lib/use-account-safe";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
-import { createAccount, useAccounts } from "@/lib/accounts";
-import { useToast } from "@/hooks/use-toast";
 import {
   type Currency,
   useExchangeRate,
@@ -45,7 +37,6 @@ import { getRecentTransactions, type Transaction } from "@/lib/transactions";
 import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
-import { AIBar } from "@/components/ai-bar";
 import { InsightsCarousel } from "@/components/insights-carousel";
 import { useInvestments } from "@/lib/investments";
 import {
@@ -60,6 +51,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useSetActiveWalletSafe } from "@/lib/use-account-safe";
+import { createAccount, getAccountsByProfile } from "@/lib/accounts";
+import { type Account } from "@/lib/supabase";
+import { toast } from "sonner";
 
 enum AccountType {
   Main = "main",
@@ -90,12 +86,10 @@ export function BankingHome() {
   );
   const [currentSpendingAccountIndex, setCurrentSpendingAccountIndex] =
     useState(0);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [copied, setCopied] = useState(false);
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIConsent, setShowAIConsent] = useState(false);
-  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
   const { hasConsent, grantConsent } = useAIConsent();
 
   // Touch/Swipe State
@@ -141,9 +135,15 @@ export function BankingHome() {
 
   const router = useRouter();
   const { address } = useAccount();
-  const { formattedBalance: usdcBalance, isLoading: balanceLoading } =
-    useUSDCBalance(address);
   const { profile, isLoading: profileLoading } = useUser();
+  const { connectWallet: privyConnectWallet } = usePrivy();
+  const { wallets: privyWallets } = useWallets();
+  const { setActiveWallet } = useSetActiveWalletSafe();
+
+  // Spending Accounts State
+  const [spendingAccounts, setSpendingAccounts] = useState<Account[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [isAddingAccount, setIsAddingAccount] = useState(false);
   const { rate: eurRate, isLoading: rateLoading } = useExchangeRate();
   const {
     investments,
@@ -158,11 +158,9 @@ export function BankingHome() {
 
   // Calculate displayed balance based on currency
   // Use on-chain USDC balance as source of truth (1 USDC = 1 USD)
-  const usdBalance: number = usdcBalance ? parseFloat(usdcBalance) : 0;
-  const displayedBalance: number =
-    currency === "EUR"
-      ? convertCurrency(usdBalance, "USD", "EUR", eurRate)
-      : usdBalance;
+  // This will be calculated after we know the current card
+  let displayedBalance: number = 0;
+  let balanceLoading = false;
 
   // Mount check to prevent hydration mismatch
   useEffect(() => {
@@ -188,6 +186,27 @@ export function BankingHome() {
       router.push("/");
     }
   }, [profile, profileLoading, router]);
+
+  // Load all spending accounts from database
+  useEffect(() => {
+    const loadSpendingAccounts = async () => {
+      if (!profile?.id) return;
+
+      setIsLoadingAccounts(true);
+      try {
+        const accounts = await getAccountsByProfile(profile.id);
+        const spending = accounts.filter((acc) => acc.type === "spending");
+        setSpendingAccounts(spending);
+      } catch (error) {
+        console.error("Failed to load spending accounts:", error);
+        toast.error("Failed to load accounts");
+      } finally {
+        setIsLoadingAccounts(false);
+      }
+    };
+
+    loadSpendingAccounts();
+  }, [profile?.id]);
 
   // Fetch recent transactions
   useEffect(() => {
@@ -286,25 +305,97 @@ export function BankingHome() {
     }
   }, [activeAccount, fetchMovements]);
 
-  const toggleCurrency = () => {
-    setCurrency(currency === "USD" ? "EUR" : "USD");
-  };
-
-  const openBaseScan = () => {
-    if (address) {
-      window.open(`https://basescan.org/address/${address}`, "_blank");
-    }
-  };
-
   const copyAddress = async () => {
-    if (address) {
+    if (currentCardAddress) {
       try {
-        await navigator.clipboard.writeText(address);
+        await navigator.clipboard.writeText(currentCardAddress);
         setCopied(true);
         setTimeout(() => setCopied(false), 1000);
       } catch (err) {
         // Silently fail - user can manually copy if needed
       }
+    }
+  };
+
+  // Handle adding a new spending account
+  const handleAddSpendingAccount = async () => {
+    if (!profile?.id) {
+      toast.error("No profile found");
+      return;
+    }
+
+    setIsAddingAccount(true);
+    setShowAddAccountModal(false);
+
+    try {
+      // Store current wallets count
+      const previousWalletCount = privyWallets.length;
+
+      // Open Privy wallet connection modal
+      await privyConnectWallet();
+
+      // Wait for new wallet to appear in privyWallets
+      let attempts = 0;
+      while (privyWallets.length === previousWalletCount && attempts < 20) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        attempts++;
+      }
+
+      // Find the newly added wallet (last one in the array)
+      const newWallet = privyWallets[privyWallets.length - 1];
+
+      if (!newWallet?.address) {
+        throw new Error("No new wallet connected");
+      }
+
+      const newAddress = newWallet.address;
+
+      // Check if this wallet is already linked
+      const existingAccounts = await getAccountsByProfile(profile.id);
+      const isDuplicate = existingAccounts.some(
+        (acc) => acc.address.toLowerCase() === newAddress.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        toast.error("This wallet is already linked to your account");
+        return;
+      }
+
+      // Create account in database
+      const accountNumber = spendingAccounts.length + 2; // +2 because primary is #1
+      const newAccount = await createAccount({
+        profile_id: profile.id,
+        name: `Spending Account ${accountNumber}`,
+        type: "spending",
+        address: newAddress,
+        network: "base",
+        is_primary: false,
+      });
+
+      // Add to local state
+      setSpendingAccounts((prev) => [...prev, newAccount]);
+
+      // Set as active wallet in wagmi
+      await setActiveWallet(
+        newWallet as unknown as Parameters<typeof setActiveWallet>[0]
+      );
+
+      toast.success(`Spending Account ${accountNumber} added!`);
+
+      // Navigate to the new account (main + all spending accounts index)
+      setCurrentCardIndex(1 + spendingAccounts.length);
+    } catch (error) {
+      console.error("❌ Failed to add spending account:", error);
+
+      // Check if user cancelled
+      const errorMessage = error instanceof Error ? error.message : "";
+      if (errorMessage.includes("abort") || errorMessage.includes("cancel")) {
+        return;
+      }
+
+      toast.error(errorMessage || "Failed to add spending account");
+    } finally {
+      setIsAddingAccount(false);
     }
   };
 
@@ -351,15 +442,87 @@ export function BankingHome() {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    if (isLeftSwipe && activeAccount === AccountType.Main) {
-      setActiveAccount(AccountType.Investment);
+    if (isLeftSwipe) {
+      // Swipe left -> next card
+      setCurrentCardIndex((prev) =>
+        prev < allAccountCards.length - 1 ? prev + 1 : prev
+      );
     }
-    if (isRightSwipe && activeAccount === AccountType.Investment) {
-      setActiveAccount(AccountType.Main);
+    if (isRightSwipe) {
+      // Swipe right -> previous card
+      setCurrentCardIndex((prev) => (prev > 0 ? prev - 1 : prev));
     }
+
+    setTouchStart(null);
+    setTouchEnd(null);
   };
 
   const hasInvestmentAccount = investmentAccounts.length > 0;
+
+  // Calculate all accounts in order: Active wallet first (from DB), then other accounts, Add New, Investment
+  // Source of truth: accounts table in database
+  const allAccountCards = useMemo(() => {
+    const cards: Array<{
+      type: "spending" | "add-new" | "investment";
+      account?: Account;
+      index: number;
+    }> = [];
+
+    // Find the active account from DB that matches wagmi's connected address
+    const activeAccount = spendingAccounts.find(
+      (acc) => address && acc.address.toLowerCase() === address.toLowerCase()
+    );
+
+    // Add active account first (leftmost dot)
+    if (activeAccount) {
+      cards.push({ type: "spending", account: activeAccount, index: 0 });
+    }
+
+    // Add all other accounts from DB (not the active one)
+    spendingAccounts.forEach((account) => {
+      if (!address || account.address.toLowerCase() !== address.toLowerCase()) {
+        cards.push({ type: "spending", account, index: cards.length });
+      }
+    });
+
+    // Add new card
+    cards.push({ type: "add-new", index: cards.length });
+
+    // Investment account (if exists)
+    if (hasInvestmentAccount) {
+      cards.push({ type: "investment", index: cards.length });
+    }
+
+    return cards;
+  }, [spendingAccounts, hasInvestmentAccount, address]);
+
+  // Track current card index
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const currentCard = allAccountCards[currentCardIndex] || allAccountCards[0];
+
+  // Get the address for the current card (from DB account)
+  const currentCardAddress = useMemo(() => {
+    if (currentCard.type === "spending" && currentCard.account) {
+      return currentCard.account.address;
+    }
+    return undefined;
+  }, [currentCard]);
+
+  // Use current card's address for balance
+  const {
+    formattedBalance: currentCardBalance,
+    isLoading: currentBalanceLoading,
+  } = useUSDCBalance(currentCardAddress as `0x${string}`);
+
+  // Calculate displayed balance for current card
+  const usdBalance: number = currentCardBalance
+    ? parseFloat(currentCardBalance)
+    : 0;
+  displayedBalance =
+    currency === "EUR"
+      ? convertCurrency(usdBalance, "USD", "EUR", eurRate)
+      : usdBalance;
+  balanceLoading = currentBalanceLoading;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#3B1EFF] via-[#5B3FFF] to-[#1A0F3D] text-white">
@@ -399,12 +562,13 @@ export function BankingHome() {
             onTouchEnd={handleTouchEnd}
           >
             <div className="text-sm text-white/70 mb-3">
-              {activeAccount === AccountType.Main
-                ? "Main"
-                : "Investment Account"}{" "}
-              - {currency}
+              {currentCard.type === "spending" &&
+                (currentCard.account?.name || "Spending Account")}
+              {currentCard.type === "add-new" && ""}
+              {currentCard.type === "investment" && "Investment Account"}
+              {currentCard.type !== "add-new" && ` - ${currency}`}
             </div>
-            {activeAccount === AccountType.Main ? (
+            {currentCard.type === "spending" ? (
               <>
                 <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
                   {!isMounted || balanceLoading || rateLoading ? (
@@ -439,14 +603,15 @@ export function BankingHome() {
                     </>
                   )}
                 </div>
-                {address && isMounted && (
+                {currentCardAddress && isMounted && (
                   <div className="text-sm text-white/70 mb-3 flex items-center justify-center gap-1">
                     <button
                       onClick={copyAddress}
                       className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
                     >
                       <span>
-                        {address.slice(0, 6)}...{address.slice(-4)}
+                        {currentCardAddress.slice(0, 6)}...
+                        {currentCardAddress.slice(-4)}
                       </span>
                       {copied ? (
                         <Check className="h-4 w-4 text-white" />
@@ -456,7 +621,7 @@ export function BankingHome() {
                     </button>
                     <span className="text-white/50">-</span>
                     <span className="flex items-center gap-1 font-sans">
-                      {usdcBalance || "0.00"}{" "}
+                      {currentCardBalance || "0.00"}{" "}
                       {/* <Image
                         src="/usdc-logo.png"
                         alt="USDC"
@@ -468,8 +633,21 @@ export function BankingHome() {
                   </div>
                 )}
               </>
+            ) : currentCard.type === "add-new" ? (
+              <>
+                {/* Add New Account Card */}
+                <div className="text-center py-8">
+                  <Button
+                    onClick={() => setShowAddAccountModal(true)}
+                    className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-full px-6 py-3"
+                  >
+                    Add New Accounnt
+                  </Button>
+                </div>
+              </>
             ) : (
               <>
+                {/* Investment Account */}
                 {hasInvestmentAccount ? (
                   <>
                     <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
@@ -526,14 +704,7 @@ export function BankingHome() {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-8">
-                    <Button
-                      onClick={() => setShowAddAccountModal(true)}
-                      className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-full px-6 py-3"
-                    >
-                      Add new account
-                    </Button>
-                  </div>
+                  <div className="text-center py-8"></div>
                 )}
               </>
             )}
@@ -541,39 +712,17 @@ export function BankingHome() {
 
           {/* Pagination Dots */}
           <div className="flex justify-center gap-2 mb-10">
-            <button
-              onClick={() => setActiveAccount(AccountType.Main)}
-              className={`h-2 w-2 rounded-full ${
-                activeAccount === AccountType.Main
-                  ? "bg-white shadow-lg shadow-white/50"
-                  : "bg-white/30"
-              }`}
-            />
-            {investmentAccounts.map((_, index) => (
+            {allAccountCards.map((card, index) => (
               <button
-                key={index}
-                onClick={() => {
-                  setActiveAccount(AccountType.Investment);
-                  setCurrentInvestmentAccount(index);
-                }}
+                key={`dot-${card.type}-${index}`}
+                onClick={() => setCurrentCardIndex(index)}
                 className={`h-2 w-2 rounded-full transition-colors ${
-                  activeAccount === AccountType.Investment &&
-                  currentInvestmentAccount === index
-                    ? "bg-white"
+                  currentCardIndex === index
+                    ? "bg-white shadow-lg shadow-white/50"
                     : "bg-white/30"
                 }`}
               />
             ))}
-            {investmentAccounts.length === 0 && (
-              <button
-                onClick={() => setActiveAccount(AccountType.Investment)}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  activeAccount === AccountType.Investment
-                    ? "bg-white"
-                    : "bg-white/30"
-                }`}
-              />
-            )}
           </div>
 
           {/* Action Buttons */}
@@ -684,28 +833,9 @@ export function BankingHome() {
             </div>
           </div>
 
-          {/* AI Assistant Search Bar */}
-          <div className="relative mb-10">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 pointer-events-none" />
-            <Input
-              placeholder="Ask AI anything about your banking..."
-              onClick={() => {
-                // Check consent before opening AI chat
-                if (hasConsent === false || hasConsent === null) {
-                  setShowAIConsent(true);
-                } else {
-                  setShowAIChat(true);
-                }
-              }}
-              readOnly
-              className="pl-12 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-14 rounded-2xl backdrop-blur-sm cursor-pointer hover:bg-white/15 transition-colors"
-            />
-            <AudioLines className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 pointer-events-none" />
-          </div>
+          <InsightsCarousel />
 
-          {/* Transactions/Investments Card */}
-
-          {/* Rewards Summary */}
+          {/* Rewards Summary & Transactions/Investments Card */}
           {activeAccount === AccountType.Investment && currentAccount && (
             <RewardsSummaryCard
               totalRewards={
@@ -808,13 +938,6 @@ export function BankingHome() {
           </Card>
         </div>
 
-        {/* AI Bar - Controlled by Navigation Button */}
-        <AIBar
-          isExpanded={isAIBarExpanded}
-          onToggle={setIsAIBarExpanded}
-          hideCollapsed={true}
-        />
-
         {/* Bottom Navigation */}
         <div className="fixed bottom-0 left-0 right-0 bg-[#1A0F3D]/95 backdrop-blur-lg border-t border-white/10">
           <div className="mx-auto max-w-md px-6 py-3">
@@ -844,7 +967,12 @@ export function BankingHome() {
               {/* Center AI Button */}
               <button
                 onClick={() => {
-                  setIsAIBarExpanded(!isAIBarExpanded);
+                  // Check consent before opening AI chat
+                  if (hasConsent === false || hasConsent === null) {
+                    setShowAIConsent(true);
+                  } else {
+                    setShowAIChat(true);
+                  }
                 }}
                 className="flex flex-col items-center gap-1 py-2 transition-colors"
               >
@@ -891,36 +1019,32 @@ export function BankingHome() {
         <div className="h-20" />
       </div>
 
-      {/* More Menu - Commented out due to missing state variable */}
-      {/* <MoreMenu
-        isOpen={moreMenuOpen}
-        onClose={() => setMoreMenuOpen(false)}
-        onCurrencyToggle={toggleCurrency}
-        onExploreBaseScan={openBaseScan}
-        onThemeToggle={() => {
-          setTheme(theme === "dark" ? "light" : "dark");
-        }}
-        onAddInvestmentAccount={() => setShowAddAccountModal(true)}
-        currency={currency}
-        theme={theme}
-      /> */}
-
       {/* Add New Account Modal */}
       {showAddAccountModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[#2A1F4D] rounded-3xl p-6 w-full max-w-sm">
             <h2 className="text-xl font-semibold text-white mb-6 text-center">
-              Add new account
+              Add New Account
             </h2>
 
             <div className="space-y-4">
               <button
-                disabled
-                className="w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white/40 cursor-not-allowed"
+                onClick={handleAddSpendingAccount}
+                disabled={isAddingAccount}
+                className="w-full p-4 rounded-2xl bg-white/10 border border-white/20 text-white hover:bg-white/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="text-left">
-                  <div className="font-medium">Spending Account</div>
-                  <div className="text-sm text-white/40">Coming soon</div>
+                  <div className="font-medium flex items-center gap-2">
+                    {isAddingAccount && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    Spending Account
+                  </div>
+                  <div className="text-sm text-white/60">
+                    {isAddingAccount
+                      ? "Connecting wallet..."
+                      : "Connect a new wallet"}
+                  </div>
                 </div>
               </button>
 
@@ -942,7 +1066,8 @@ export function BankingHome() {
 
             <button
               onClick={() => setShowAddAccountModal(false)}
-              className="w-full mt-6 py-3 text-white/60 hover:text-white transition-colors"
+              disabled={isAddingAccount}
+              className="w-full mt-6 py-3 text-white/60 hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -965,7 +1090,7 @@ export function BankingHome() {
 
       {/* AI Chat Dialog */}
       <Dialog open={showAIChat} onOpenChange={setShowAIChat}>
-        <DialogContent className="max-w-4xl h-[80vh] p-0 gap-0">
+        <DialogContent className="ai-chat-dialog max-w-4xl h-[70vh] p-0 gap-0 rounded-t-2xl rounded-b-none">
           <DialogHeader className="sr-only">
             <DialogTitle>AI Banking Assistant</DialogTitle>
           </DialogHeader>

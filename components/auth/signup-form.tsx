@@ -33,25 +33,7 @@ export function SignUpForm() {
   const { address } = useAccount(); // Get active wallet from wagmi
   const { setActiveWallet } = useSetActiveWallet();
 
-  // Log wallets for debugging, but DON'T auto-switch
   // Trust that wagmi already has the correct active wallet (the one user logged in with)
-  useEffect(() => {
-    if (privyWallets.length > 0) {
-      console.log(
-        "👛 All wallets in signup:",
-        privyWallets.map((w) => ({
-          address: w.address,
-          type: w.walletClientType,
-          connectorType: w.connectorType,
-        }))
-      );
-
-      console.log("🎯 Active wagmi wallet:", {
-        address: address,
-        isFromWagmi: true,
-      });
-    }
-  }, [privyWallets, address]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,14 +47,11 @@ export function SignUpForm() {
     if (step === "details") {
       // If wallet is already connected, move to wallet step
       if (privyWallets.length > 0) {
-        console.log("✅ Wallet already connected, moving to wallet step");
         setExistingWallet(false);
         setStep("wallet");
         setShouldCreateProfile(true);
       } else {
         // No wallet, open Privy modal
-        console.log("🔌 No wallet, opening Privy modal");
-
         if (!privyReady) {
           setError("Authentication system not ready. Please wait a moment.");
           return;
@@ -81,11 +60,10 @@ export function SignUpForm() {
         try {
           await new Promise((resolve) => setTimeout(resolve, 100));
           await privyLogin();
-          console.log("✅ Wallet connected");
           setStep("wallet");
           setShouldCreateProfile(true);
         } catch (loginError: unknown) {
-          console.error("❌ Wallet connection error:", loginError);
+          console.error("Wallet connection error:", loginError);
           const error = loginError as Error;
           if (
             !error?.message?.includes("abort") &&
@@ -136,14 +114,8 @@ export function SignUpForm() {
 
       // Use the active wallet from wagmi (the one user logged in with)
       if (!address) {
-        console.log("⚠️ No active wallet address from wagmi");
         return;
       }
-
-      console.log("👛 Creating profile with active wagmi wallet:", {
-        address: address,
-        totalPrivyWallets: privyWallets.length,
-      });
 
       setIsCheckingWallet(true);
       setIsCreatingProfile(true);
@@ -153,7 +125,6 @@ export function SignUpForm() {
         const existingProfile = await getProfileByAnyWallet(address);
 
         if (existingProfile) {
-          console.log("⚠️ Profile already exists for this wallet");
           setExistingWallet(true);
           setIsCreatingProfile(false);
           setIsCheckingWallet(false);
@@ -162,16 +133,12 @@ export function SignUpForm() {
         }
 
         // Create new profile
-        console.log("📝 Creating new profile...");
         const profile = await createProfile({
           name: formData.name,
           wallet_address: address,
         });
 
-        console.log("✅ Profile created successfully");
-
         // Create initial spending account
-        console.log("💳 Creating initial spending account...");
         await createAccount({
           profile_id: profile.id,
           name: "Spending Account 1",
@@ -181,11 +148,10 @@ export function SignUpForm() {
           is_primary: true,
         });
 
-        console.log("✅ Initial spending account created");
         setProfile(profile);
         router.push("/home");
       } catch (err) {
-        console.error("❌ Failed to create profile:", err);
+        console.error("Failed to create profile:", err);
         setError(
           err instanceof Error ? err.message : "Failed to create profile"
         );
