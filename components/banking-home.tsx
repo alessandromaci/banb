@@ -3,7 +3,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 import {
   BarChart3,
@@ -20,21 +19,15 @@ import {
   Activity,
   Home,
   User,
-  Search,
-  AudioLines,
   Wallet,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useAccount } from "wagmi";
-import { useSetActiveWallet } from "@privy-io/wagmi";
+import { useAccountSafe as useAccount } from "@/lib/use-account-safe";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
-import { createAccount, useAccounts } from "@/lib/accounts";
-import { useToast } from "@/hooks/use-toast";
 import {
   type Currency,
   useExchangeRate,
@@ -45,7 +38,6 @@ import { getRecentTransactions, type Transaction } from "@/lib/transactions";
 import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
-import { AIBar } from "@/components/ai-bar";
 import { InsightsCarousel } from "@/components/insights-carousel";
 import { useInvestments } from "@/lib/investments";
 import {
@@ -95,7 +87,6 @@ export function BankingHome() {
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIConsent, setShowAIConsent] = useState(false);
-  const [isAIBarExpanded, setIsAIBarExpanded] = useState(false);
   const { hasConsent, grantConsent } = useAIConsent();
 
   // Touch/Swipe State
@@ -285,16 +276,6 @@ export function BankingHome() {
       setMonthlyRewards(0);
     }
   }, [activeAccount, fetchMovements]);
-
-  const toggleCurrency = () => {
-    setCurrency(currency === "USD" ? "EUR" : "USD");
-  };
-
-  const openBaseScan = () => {
-    if (address) {
-      window.open(`https://basescan.org/address/${address}`, "_blank");
-    }
-  };
 
   const copyAddress = async () => {
     if (address) {
@@ -684,28 +665,9 @@ export function BankingHome() {
             </div>
           </div>
 
-          {/* AI Assistant Search Bar */}
-          <div className="relative mb-10">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 pointer-events-none" />
-            <Input
-              placeholder="Ask AI anything about your banking..."
-              onClick={() => {
-                // Check consent before opening AI chat
-                if (hasConsent === false || hasConsent === null) {
-                  setShowAIConsent(true);
-                } else {
-                  setShowAIChat(true);
-                }
-              }}
-              readOnly
-              className="pl-12 bg-white/10 border-white/20 text-white placeholder:text-white/60 h-14 rounded-2xl backdrop-blur-sm cursor-pointer hover:bg-white/15 transition-colors"
-            />
-            <AudioLines className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60 pointer-events-none" />
-          </div>
+          <InsightsCarousel />
 
-          {/* Transactions/Investments Card */}
-
-          {/* Rewards Summary */}
+          {/* Rewards Summary & Transactions/Investments Card */}
           {activeAccount === AccountType.Investment && currentAccount && (
             <RewardsSummaryCard
               totalRewards={
@@ -808,13 +770,6 @@ export function BankingHome() {
           </Card>
         </div>
 
-        {/* AI Bar - Controlled by Navigation Button */}
-        <AIBar
-          isExpanded={isAIBarExpanded}
-          onToggle={setIsAIBarExpanded}
-          hideCollapsed={true}
-        />
-
         {/* Bottom Navigation */}
         <div className="fixed bottom-0 left-0 right-0 bg-[#1A0F3D]/95 backdrop-blur-lg border-t border-white/10">
           <div className="mx-auto max-w-md px-6 py-3">
@@ -844,7 +799,12 @@ export function BankingHome() {
               {/* Center AI Button */}
               <button
                 onClick={() => {
-                  setIsAIBarExpanded(!isAIBarExpanded);
+                  // Check consent before opening AI chat
+                  if (hasConsent === false || hasConsent === null) {
+                    setShowAIConsent(true);
+                  } else {
+                    setShowAIChat(true);
+                  }
                 }}
                 className="flex flex-col items-center gap-1 py-2 transition-colors"
               >
@@ -890,20 +850,6 @@ export function BankingHome() {
         {/* Bottom Spacer for Navigation */}
         <div className="h-20" />
       </div>
-
-      {/* More Menu - Commented out due to missing state variable */}
-      {/* <MoreMenu
-        isOpen={moreMenuOpen}
-        onClose={() => setMoreMenuOpen(false)}
-        onCurrencyToggle={toggleCurrency}
-        onExploreBaseScan={openBaseScan}
-        onThemeToggle={() => {
-          setTheme(theme === "dark" ? "light" : "dark");
-        }}
-        onAddInvestmentAccount={() => setShowAddAccountModal(true)}
-        currency={currency}
-        theme={theme}
-      /> */}
 
       {/* Add New Account Modal */}
       {showAddAccountModal && (
@@ -965,7 +911,7 @@ export function BankingHome() {
 
       {/* AI Chat Dialog */}
       <Dialog open={showAIChat} onOpenChange={setShowAIChat}>
-        <DialogContent className="max-w-4xl h-[80vh] p-0 gap-0">
+        <DialogContent className="ai-chat-dialog max-w-4xl h-[70vh] p-0 gap-0 rounded-t-2xl rounded-b-none">
           <DialogHeader className="sr-only">
             <DialogTitle>AI Banking Assistant</DialogTitle>
           </DialogHeader>

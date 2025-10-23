@@ -123,6 +123,35 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* AI Dialog positioning - anchor to bottom and cover navigation */
+  [data-slot="dialog-content"].ai-chat-dialog,
+  [data-slot="dialog-overlay"] + [data-slot="dialog-content"] {
+    bottom: 0 !important;
+    top: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  [data-slot="dialog-overlay"] {
+    z-index: 100 !important;
+  }
+
+  [data-slot="dialog-content"] {
+    z-index: 101 !important;
+  }
+
+  /* Hide scrollbar in dialogs while keeping scrolling */
+  [data-slot="dialog-content"],
+  [data-slot="dialog-content"] * {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE/Edge */
+  }
+
+  [data-slot="dialog-content"]::-webkit-scrollbar,
+  [data-slot="dialog-content"] *::-webkit-scrollbar {
+    display: none !important; /* Chrome/Safari */
+  }
 }
 
 @layer utilities {

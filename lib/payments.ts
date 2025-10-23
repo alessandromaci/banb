@@ -21,7 +21,7 @@ import ERC20_ABI from "./abi/ERC20.abi.json";
 
 /**
  * Data required to execute a crypto payment.
- * 
+ *
  * @interface CryptoPaymentData
  * @property {string} recipientId - Recipient ID from recipients table
  * @property {string} amount - Amount to send as string (e.g., "100.50")
@@ -45,7 +45,7 @@ export interface CryptoPaymentData {
 
 /**
  * Result returned after executing a crypto payment.
- * 
+ *
  * @interface CryptoPaymentResult
  * @property {string} hash - Blockchain transaction hash
  * @property {string} txId - Database transaction ID (UUID)
@@ -73,17 +73,17 @@ const USDC_DECIMALS = 6;
  * React hook for executing crypto payments.
  * Handles the complete payment flow: database record creation, blockchain transaction,
  * and status updates. Monitors transaction confirmation automatically.
- * 
+ *
  * @returns {Object} Payment execution state and function
  * @returns {function} return.executePayment - Function to execute a payment
  * @returns {boolean} return.isLoading - True while payment is processing
  * @returns {string | undefined} return.error - Error message if payment failed
- * 
+ *
  * @example
  * ```tsx
  * function PaymentButton() {
  *   const { executePayment, isLoading, error } = useCryptoPayment();
- *   
+ *
  *   const handlePay = async () => {
  *     try {
  *       const result = await executePayment({
@@ -99,7 +99,7 @@ const USDC_DECIMALS = 6;
  *       console.error("Payment failed:", err);
  *     }
  *   };
- *   
+ *
  *   return (
  *     <button onClick={handlePay} disabled={isLoading}>
  *       {isLoading ? "Processing..." : "Pay"}
@@ -138,7 +138,7 @@ export function useCryptoPayment() {
   /**
    * Executes a crypto payment with the provided data.
    * Creates database record, executes blockchain transaction, and updates status.
-   * 
+   *
    * @async
    * @param {CryptoPaymentData} data - Payment data
    * @returns {Promise<CryptoPaymentResult>} Payment result with hash and transaction ID
@@ -250,23 +250,23 @@ export function useCryptoPayment() {
 /**
  * React hook for monitoring transaction status.
  * Fetches transaction details and automatically updates status when blockchain confirmation is received.
- * 
+ *
  * @param {string | null} txId - Transaction ID to monitor (UUID)
  * @returns {Object} Transaction monitoring state
  * @returns {Transaction | null} return.transaction - Current transaction object
  * @returns {boolean} return.isLoading - True while fetching or waiting for confirmation
  * @returns {string | null} return.error - Error message if fetch failed
  * @returns {function} return.refetch - Function to manually refetch transaction
- * 
+ *
  * @example
  * ```tsx
  * function TransactionStatus({ txId }: { txId: string }) {
  *   const { transaction, isLoading, error, refetch } = useTransactionStatus(txId);
- *   
+ *
  *   if (isLoading) return <div>Loading...</div>;
  *   if (error) return <div>Error: {error}</div>;
  *   if (!transaction) return <div>Transaction not found</div>;
- *   
+ *
  *   return (
  *     <div>
  *       <p>Status: {transaction.status}</p>
@@ -335,41 +335,51 @@ export function useTransactionStatus(txId: string | null) {
 /**
  * React hook to fetch USDC balance for a wallet address.
  * Reads from the USDC contract on Base chain and formats the balance.
- * 
+ *
  * @param {`0x${string}`} [address] - Wallet address to check balance for
  * @returns {Object} Balance state
  * @returns {string | undefined} return.formattedBalance - Formatted balance with 2 decimals (e.g., "100.50")
  * @returns {boolean} return.isLoading - True while fetching balance
  * @returns {boolean} return.isError - True if fetch failed
- * 
+ *
  * @example
  * ```tsx
  * function WalletBalance() {
  *   const { address } = useAccount();
  *   const { formattedBalance, isLoading, isError } = useUSDCBalance(address);
- *   
+ *
  *   if (isLoading) return <div>Loading balance...</div>;
  *   if (isError) return <div>Error loading balance</div>;
- *   
+ *
  *   return <div>USDC Balance: ${formattedBalance}</div>;
  * }
  * ```
  */
 export function useUSDCBalance(address?: `0x${string}`) {
-  const {
-    data: balance,
-    error: balanceError,
-    isLoading,
-  } = useReadContract({
-    address: USDC_BASE_ADDRESS as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    chainId: base.id,
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address,
-    },
-  });
+  let balance: bigint | undefined;
+  let balanceError: Error | null = null;
+  let isLoading = false;
+
+  try {
+    const result = useReadContract({
+      address: USDC_BASE_ADDRESS as `0x${string}`,
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      chainId: base.id,
+      args: address ? [address] : undefined,
+      query: {
+        enabled: !!address,
+      },
+    });
+    balance = result.data;
+    balanceError = result.error;
+    isLoading = result.isLoading;
+  } catch (error) {
+    // WagmiProvider not available yet, return safe defaults
+    balance = undefined;
+    balanceError = null;
+    isLoading = false;
+  }
 
   return {
     formattedBalance:
