@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivySafe as usePrivy } from "@/lib/use-privy-safe";
+import { usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,51 @@ export default function CheckProfilePage() {
     "waiting"
   );
   const [error, setError] = useState<string | null>(null);
+  const hasCheckedRef = useRef(false);
+  const isCheckingRef = useRef(false);
+
+  const checkProfile = useCallback(async () => {
+    if (!address) return;
+
+    // Prevent multiple simultaneous checks
+    if (isCheckingRef.current) {
+      console.log("⏸️ Already checking, skipping...");
+      return;
+    }
+
+    // Prevent re-checking after successful check
+    if (hasCheckedRef.current) {
+      console.log("⏸️ Already checked, skipping...");
+      return;
+    }
+
+    isCheckingRef.current = true;
+    setStatus("checking");
+    setError(null);
+    console.log("🔍 Checking profile for:", address);
+
+    try {
+      // Check if wallet is primary OR linked to any account
+      const profile = await getProfileByAnyWallet(address);
+
+      if (profile) {
+        console.log("✅ Profile found:", profile);
+        hasCheckedRef.current = true; // Mark as checked
+        setProfile(profile);
+        console.log("🔄 Redirecting to /home...");
+        router.push("/home");
+      } else {
+        console.log("❌ No profile found, redirecting to signup");
+        hasCheckedRef.current = true; // Mark as checked
+        router.push("/signup");
+      }
+    } catch (err) {
+      console.error("❌ Error checking profile:", err);
+      isCheckingRef.current = false; // Allow retry on error
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Failed to check profile");
+    }
+  }, [address, setProfile, router]);
 
   useEffect(() => {
     // Wait for Privy to be ready
@@ -45,40 +90,28 @@ export default function CheckProfilePage() {
     if (!address) {
       console.log("⏳ Waiting for wallet address...");
       setStatus("waiting");
-      return;
+
+      // Safety timeout: If address doesn't load within 8 seconds, something is wrong
+      const timeoutTimer = setTimeout(() => {
+        console.error("❌ Wallet address failed to load after 8 seconds");
+        setStatus("error");
+        setError("Wallet failed to load. Please disconnect and try again.");
+      }, 8000);
+
+      return () => {
+        clearTimeout(timeoutTimer);
+      };
     }
 
     // Check profile
     checkProfile();
-  }, [privyReady, authenticated, address]);
-
-  const checkProfile = useCallback(async () => {
-    if (!address) return;
-
-    setStatus("checking");
-    setError(null);
-    console.log("🔍 Checking profile for:", address);
-
-    try {
-      // Check if wallet is primary OR linked to any account
-      const profile = await getProfileByAnyWallet(address);
-
-      if (profile) {
-        console.log("✅ Profile found:", profile);
-        setProfile(profile);
-        router.push("/home");
-      } else {
-        console.log("❌ No profile found, redirecting to signup");
-        router.push("/signup");
-      }
-    } catch (err) {
-      console.error("❌ Error checking profile:", err);
-      setStatus("error");
-      setError(err instanceof Error ? err.message : "Failed to check profile");
-    }
-  }, [address, setProfile, router]);
+  }, [privyReady, authenticated, address, checkProfile, router]);
 
   const handleRetry = () => {
+    // Reset refs to allow retry
+    hasCheckedRef.current = false;
+    isCheckingRef.current = false;
+
     if (address) {
       checkProfile();
     } else {
@@ -136,7 +169,7 @@ export default function CheckProfilePage() {
       <div className="text-center space-y-6">
         <Loader2 className="h-16 w-16 animate-spin mx-auto text-white" />
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">{"Retrieving Profile..."}</h2>
+          <h2 className="text-xl font-semibold">{"Retrieving Profile"}</h2>
           <p className="text-white/60 text-sm">
             {status === "waiting"
               ? "0x..."

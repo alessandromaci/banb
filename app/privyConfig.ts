@@ -4,7 +4,7 @@ import { base } from "viem/chains";
 export const privyConfig: PrivyClientConfig = {
   embeddedWallets: {
     ethereum: {
-      createOnLogin: "off", // Don't auto-create - users connect external wallets
+      createOnLogin: "users-without-wallets", // Create embedded wallet for email/social logins
     },
     showWalletUIs: true,
   },

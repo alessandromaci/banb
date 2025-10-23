@@ -2,13 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
-import { useLoginToMiniAppSafe as useLoginToMiniApp } from "@/lib/use-privy-safe";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
+import { useSetActiveWallet } from "@privy-io/wagmi";
+import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, Wallet } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const slides = [
   {
@@ -34,41 +45,54 @@ export function LandingPage() {
   const [isInsideFarcaster, setIsInsideFarcaster] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [userInteractionCount, setUserInteractionCount] = useState(0);
+  const [showWalletSelector, setShowWalletSelector] = useState(false);
   const {
     login: privyLogin,
     ready: privyReady,
     authenticated,
     logout,
+    connectWallet: privyConnectWallet,
   } = usePrivy();
   const { wallets } = useWallets();
+  const { address } = useAccount(); // Get the ACTIVE wallet address from wagmi
+  const { setActiveWallet } = useSetActiveWallet();
   const { initLoginToMiniApp, loginToMiniApp } = useLoginToMiniApp();
   const router = useRouter();
 
-  // Only redirect after user clicks button (counter = 1)
+  // Simple redirect: Trust Privy to handle wallet activation
   useEffect(() => {
     if (
       userInteractionCount === 1 &&
       authenticated &&
       privyReady &&
-      wallets.length > 0
+      address // Active wallet from wagmi (Privy's choice)
     ) {
       console.log(
-        "✅ User clicked, wallet ready, redirecting to check-profile"
+        "✅ User clicked, redirecting to check-profile with:",
+        address
       );
       setIsRedirecting(true);
 
-      // Show success animation for 1.5s before redirect
+      // Show loading animation for 1s before redirect
       const timer = setTimeout(() => {
-        console.log("🔄 Executing redirect to check-profile");
         router.push("/check-profile");
-      }, 1500);
+      }, 1000);
 
-      return () => {
-        console.log("🧹 Cleanup: clearing redirect timer");
-        clearTimeout(timer);
-      };
+      return () => clearTimeout(timer);
     }
-  }, [userInteractionCount, authenticated, privyReady, wallets.length, router]);
+  }, [userInteractionCount, authenticated, privyReady, address, router]);
+
+  // Debug: Log authentication state changes
+  useEffect(() => {
+    console.log("🔄 Auth state changed:", {
+      authenticated,
+      walletsCount: wallets.length,
+      walletAddresses: wallets.map((w) => w.address),
+      activeWagmiAddress: address, // The address wagmi is using
+      privyReady,
+      userInteractionCount,
+    });
+  }, [authenticated, wallets, address, privyReady, userInteractionCount]);
 
   // Initialize Farcaster SDK and detect environment
   useEffect(() => {
@@ -125,6 +149,43 @@ export function LandingPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Handle wallet switching
+  const handleSwitchWallet = async (wallet: any) => {
+    try {
+      console.log("🔄 Switching to wallet:", wallet.address);
+      await setActiveWallet(wallet);
+      setShowWalletSelector(false);
+      toast({
+        title: "Wallet switched",
+        description: `Now using ${wallet.address.slice(
+          0,
+          6
+        )}...${wallet.address.slice(-4)}`,
+      });
+    } catch (error) {
+      console.error("❌ Failed to switch wallet:", error);
+      toast({
+        title: "Failed to switch wallet",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle connecting new wallet
+  const handleConnectNewWallet = () => {
+    setShowWalletSelector(false);
+    privyConnectWallet?.();
+  };
+
+  // Helper to format wallet name
+  const getWalletDisplayName = (walletClientType: string | undefined) => {
+    if (!walletClientType) return "Other Wallet";
+    if (walletClientType === "privy") return "Embedded Wallet";
+    // Capitalize first letter
+    return walletClientType.charAt(0).toUpperCase() + walletClientType.slice(1);
+  };
+
   const handleLogin = async () => {
     // Increment counter to indicate user clicked
     console.log(
@@ -135,9 +196,28 @@ export function LandingPage() {
     );
     setUserInteractionCount(1);
 
+    // Debug: Check authentication state
+    console.log("🔍 Auth Debug:", {
+      authenticated,
+      walletsCount: wallets.length,
+      walletAddresses: wallets.map((w) => w.address),
+      activeWagmiAddress: address,
+      privyReady,
+    });
+
     // If already authenticated with wallet, redirect will happen via useEffect
-    if (authenticated && wallets.length > 0) {
-      console.log("✅ Already authenticated, will redirect via useEffect");
+    if (authenticated && address) {
+      console.log(
+        "✅ Already authenticated with address, will redirect via useEffect"
+      );
+      return;
+    }
+
+    // If authenticated but no address, set counter and wait for address to load
+    // (The useEffect with timeout will handle if it doesn't load)
+    if (authenticated && !address) {
+      console.log("⚠️ Authenticated but no address loaded yet, waiting...");
+      // Counter is already incremented, just return and let useEffect handle it
       return;
     }
 
@@ -186,6 +266,15 @@ export function LandingPage() {
         // Auto-redirect happens via useEffect
       } catch (loginError: unknown) {
         const error = loginError as Error;
+
+        // SPECIAL CASE: User is already logged in (session persisted)
+        if (error?.message?.includes("already logged in")) {
+          console.log("✅ Session already active, redirecting immediately");
+          // User is already authenticated, just redirect
+          router.push("/check-profile");
+          return;
+        }
+
         console.error("❌ Wallet connection error:", {
           message: error?.message,
           name: error?.name,
@@ -311,22 +400,29 @@ export function LandingPage() {
                 size="lg"
                 variant="ghost"
                 onClick={handleLogin}
-                disabled={!privyReady || isRedirecting}
+                disabled={
+                  !privyReady || isRedirecting || (authenticated && !address)
+                }
                 className="w-full rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 h-12 sm:h-14 text-sm sm:text-base font-semibold relative flex items-center justify-center gap-2"
               >
                 {isRedirecting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : !privyReady ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
-                ) : authenticated && wallets.length > 0 ? (
+                ) : authenticated && !address ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span className="text-sm">Loading...</span>
+                  </>
+                ) : authenticated && address ? (
                   <>
                     <div className="font-sans font-bold text-base flex items-center gap-2">
                       <div>Log In</div>
                       <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30">
                         <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
                         <span className="text-xs text-green-300 font-mono">
-                          {wallets[0]?.address?.slice(0, 6)}...
-                          {wallets[0]?.address?.slice(-3)}
+                          {address.slice(0, 6)}...
+                          {address.slice(-3)}
                         </span>
                       </div>
                     </div>
@@ -338,14 +434,14 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Show disconnect option when wallet is connected */}
-          {authenticated && wallets.length > 0 && !isRedirecting && (
+          {/* Show wallet selector option when wallet is connected */}
+          {authenticated && address && !isRedirecting && (
             <div className="flex justify-center">
               <button
-                onClick={logout}
+                onClick={() => setShowWalletSelector(true)}
                 className="text-xs font-sans text-white/60 hover:text-white/80 underline"
               >
-                I want to use a different wallet
+                Use a different wallet
               </button>
             </div>
           )}
@@ -549,6 +645,85 @@ export function LandingPage() {
           }
         }
       `}</style>
+
+      {/* Wallet Selector Dialog */}
+      <Dialog open={showWalletSelector} onOpenChange={setShowWalletSelector}>
+        <DialogContent className="bg-black/95 border border-white/10 text-white backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">
+              Choose Wallet
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Select a wallet to continue or connect a new one
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {/* Existing Wallets */}
+            {wallets.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-white/80">
+                  Your Wallets
+                </h3>
+                <div
+                  className={`space-y-2 ${
+                    wallets.length > 2
+                      ? "max-h-[200px] overflow-y-auto pr-2"
+                      : ""
+                  }`}
+                >
+                  {wallets.map((wallet) => (
+                    <Card
+                      key={wallet.address}
+                      onClick={() => handleSwitchWallet(wallet)}
+                      className={`p-4 cursor-pointer transition-all hover:bg-white/10 ${
+                        wallet.address === address
+                          ? "bg-white/10 border-white/30"
+                          : "bg-white/5 border-white/10"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                            <Wallet className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white">
+                              {getWalletDisplayName(wallet.walletClientType)}
+                            </p>
+                            <p className="text-xs text-white/60 font-mono">
+                              {wallet.address.slice(0, 6)}...
+                              {wallet.address.slice(-4)}
+                            </p>
+                          </div>
+                        </div>
+                        {wallet.address === address && (
+                          <Check className="w-5 h-5 text-green-400" />
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Connect New Wallet */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-white/80">
+                Or Connect New
+              </h3>
+              <Button
+                onClick={handleConnectNewWallet}
+                className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                variant="outline"
+              >
+                <Wallet className="w-4 h-4 mr-2" />
+                Connect External Wallet
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

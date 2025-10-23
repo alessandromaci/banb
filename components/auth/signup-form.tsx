@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { createProfile, getProfileByAnyWallet } from "@/lib/profile";
 import { createAccount } from "@/lib/accounts";
 import { useUser } from "@/lib/user-context";
-import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
-import { useSetActiveWalletSafe as useSetActiveWallet } from "@/lib/use-privy-safe";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
+import { useSetActiveWallet } from "@privy-io/wagmi";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -29,40 +30,28 @@ export function SignUpForm() {
   const { setProfile } = useUser();
   const { login: privyLogin, ready: privyReady } = usePrivy();
   const { wallets: privyWallets } = useWallets();
+  const { address } = useAccount(); // Get active wallet from wagmi
   const { setActiveWallet } = useSetActiveWallet();
 
-  // Sync Privy wallet with wagmi when wallet connects
-  // Prefer external wallets (MetaMask, Phantom) over embedded wallets
+  // Log wallets for debugging, but DON'T auto-switch
+  // Trust that wagmi already has the correct active wallet (the one user logged in with)
   useEffect(() => {
-    const syncWallet = async () => {
-      if (privyWallets.length > 0 && setActiveWallet) {
-        console.log(
-          "👛 All wallets in signup:",
-          privyWallets.map((w) => ({
-            address: w.address,
-            type: w.walletClientType,
-            connectorType: w.connectorType,
-          }))
-        );
+    if (privyWallets.length > 0) {
+      console.log(
+        "👛 All wallets in signup:",
+        privyWallets.map((w) => ({
+          address: w.address,
+          type: w.walletClientType,
+          connectorType: w.connectorType,
+        }))
+      );
 
-        // Find first external wallet (not embedded)
-        const externalWallet = privyWallets.find(
-          (w) => w.walletClientType !== "privy"
-        );
-
-        // Use external wallet if found, otherwise use first wallet
-        const walletToUse = externalWallet || privyWallets[0];
-
-        console.log("🎯 Using wallet for signup:", {
-          address: walletToUse.address,
-          type: walletToUse.walletClientType,
-        });
-
-        await setActiveWallet(walletToUse);
-      }
-    };
-    syncWallet();
-  }, [privyWallets, setActiveWallet]);
+      console.log("🎯 Active wagmi wallet:", {
+        address: address,
+        isFromWagmi: true,
+      });
+    }
+  }, [privyWallets, address]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,31 +134,23 @@ export function SignUpForm() {
         return;
       }
 
-      // Prefer external wallet over embedded wallet
-      const externalWallet = privyWallets.find(
-        (w) => w.walletClientType !== "privy"
-      );
-      const primaryWallet = externalWallet || privyWallets[0];
-
-      if (!primaryWallet?.address) {
+      // Use the active wallet from wagmi (the one user logged in with)
+      if (!address) {
+        console.log("⚠️ No active wallet address from wagmi");
         return;
       }
 
-      console.log("👛 Wallet detected, creating profile with:", {
-        address: primaryWallet.address,
-        type: primaryWallet.walletClientType,
-        connectorType: primaryWallet.connectorType,
-        totalWallets: privyWallets.length,
-        preferredExternal: !!externalWallet,
+      console.log("👛 Creating profile with active wagmi wallet:", {
+        address: address,
+        totalPrivyWallets: privyWallets.length,
       });
+
       setIsCheckingWallet(true);
       setIsCreatingProfile(true);
 
       try {
         // Check if wallet already has a profile
-        const existingProfile = await getProfileByAnyWallet(
-          primaryWallet.address
-        );
+        const existingProfile = await getProfileByAnyWallet(address);
 
         if (existingProfile) {
           console.log("⚠️ Profile already exists for this wallet");
@@ -184,7 +165,7 @@ export function SignUpForm() {
         console.log("📝 Creating new profile...");
         const profile = await createProfile({
           name: formData.name,
-          wallet_address: primaryWallet.address,
+          wallet_address: address,
         });
 
         console.log("✅ Profile created successfully");
@@ -195,7 +176,7 @@ export function SignUpForm() {
           profile_id: profile.id,
           name: "Spending Account 1",
           type: "spending",
-          address: primaryWallet.address,
+          address: address,
           network: "base",
           is_primary: true,
         });
@@ -218,7 +199,8 @@ export function SignUpForm() {
   }, [
     shouldCreateProfile,
     step,
-    privyWallets,
+    address,
+    privyWallets.length,
     formData.name,
     isCreatingProfile,
     router,
@@ -339,12 +321,12 @@ export function SignUpForm() {
               ) : existingWallet ? (
                 <div className="text-center space-y-4">
                   <p className="text-sm text-white/60 font-sans">
-                    You already have an account.{" "}
+                    We found an error.{" "}
                     <Link
-                      href="/login"
+                      href="/"
                       className="text-white underline underline-offset-4"
                     >
-                      Log in
+                      Try again
                     </Link>
                   </p>
                 </div>

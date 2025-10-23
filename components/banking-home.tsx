@@ -28,9 +28,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivySafe as usePrivy, useWalletsSafe as useWallets } from "@/lib/use-privy-safe";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
-import { useSetActiveWalletSafe as useSetActiveWallet } from "@/lib/use-privy-safe";
+import { useSetActiveWallet } from "@privy-io/wagmi";
 import { useUSDCBalance } from "@/lib/payments";
 import { useUser } from "@/lib/user-context";
 import { createAccount, useAccounts } from "@/lib/accounts";
@@ -64,7 +64,7 @@ import {
 enum AccountType {
   Main = "main",
   Investment = "investment",
-  Spending = "spending"
+  Spending = "spending",
 }
 
 /**
@@ -185,7 +185,7 @@ export function BankingHome() {
   // Redirect to login if no profile
   useEffect(() => {
     if (!profileLoading && !profile) {
-      router.push("/login");
+      router.push("/");
     }
   }, [profile, profileLoading, router]);
 
@@ -399,8 +399,10 @@ export function BankingHome() {
             onTouchEnd={handleTouchEnd}
           >
             <div className="text-sm text-white/70 mb-3">
-              {activeAccount === AccountType.Main ? "Main" : "Investment Account"} -{" "}
-              {currency}
+              {activeAccount === AccountType.Main
+                ? "Main"
+                : "Investment Account"}{" "}
+              - {currency}
             </div>
             {activeAccount === AccountType.Main ? (
               <>
@@ -541,10 +543,11 @@ export function BankingHome() {
           <div className="flex justify-center gap-2 mb-10">
             <button
               onClick={() => setActiveAccount(AccountType.Main)}
-              className={`h-2 w-2 rounded-full ${activeAccount === AccountType.Main
+              className={`h-2 w-2 rounded-full ${
+                activeAccount === AccountType.Main
                   ? "bg-white shadow-lg shadow-white/50"
                   : "bg-white/30"
-                }`}
+              }`}
             />
             {investmentAccounts.map((_, index) => (
               <button
@@ -553,18 +556,22 @@ export function BankingHome() {
                   setActiveAccount(AccountType.Investment);
                   setCurrentInvestmentAccount(index);
                 }}
-                className={`h-2 w-2 rounded-full transition-colors ${activeAccount === AccountType.Investment &&
-                    currentInvestmentAccount === index
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  activeAccount === AccountType.Investment &&
+                  currentInvestmentAccount === index
                     ? "bg-white"
                     : "bg-white/30"
-                  }`}
+                }`}
               />
             ))}
             {investmentAccounts.length === 0 && (
               <button
                 onClick={() => setActiveAccount(AccountType.Investment)}
-                className={`h-2 w-2 rounded-full transition-colors ${activeAccount === AccountType.Investment ? "bg-white" : "bg-white/30"
-                  }`}
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  activeAccount === AccountType.Investment
+                    ? "bg-white"
+                    : "bg-white/30"
+                }`}
               />
             )}
           </div>
@@ -593,7 +600,8 @@ export function BankingHome() {
                     // Investment account - add more to same vault
                     if (currentAccount?.vault_address) {
                       router.push(
-                        `/invest/amount?vault=${currentAccount.vault_address
+                        `/invest/amount?vault=${
+                          currentAccount.vault_address
                         }&name=${encodeURIComponent(
                           currentAccount.investment_name || ""
                         )}`
@@ -745,14 +753,14 @@ export function BankingHome() {
 
                       {transactions.filter((tx) => tx.status === "success")
                         .length > 3 && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => router.push("/transactions")}
-                            className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                          >
-                            See all
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          onClick={() => router.push("/transactions")}
+                          className="w-full text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                        >
+                          See all
+                        </Button>
+                      )}
                     </>
                   )}
                 </>
@@ -813,8 +821,9 @@ export function BankingHome() {
             <div className="grid grid-cols-5 gap-2">
               <button
                 onClick={() => setActiveTab("home")}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "home" ? "text-white" : "text-white/50"
-                  }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "home" ? "text-white" : "text-white/50"
+                }`}
               >
                 <Home className="size-8" />
                 <span className="text-xs">Home</span>
@@ -824,8 +833,9 @@ export function BankingHome() {
                   setActiveTab("analytics");
                   router.push("/analytics");
                 }}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "analytics" ? "text-white" : "text-white/50"
-                  }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "analytics" ? "text-white" : "text-white/50"
+                }`}
               >
                 <BarChart3 className="size-8" />
                 <span className="text-xs">Analytics</span>
@@ -854,8 +864,9 @@ export function BankingHome() {
                   setActiveTab("cards");
                   router.push("/cards");
                 }}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "cards" ? "text-white" : "text-white/50"
-                  }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "cards" ? "text-white" : "text-white/50"
+                }`}
               >
                 <CreditCard className="size-8" />
                 <span className="text-xs">Cards</span>
@@ -865,8 +876,9 @@ export function BankingHome() {
                   setActiveTab("profile");
                   router.push("/profile");
                 }}
-                className={`flex flex-col items-center gap-1 py-2 transition-colors ${activeTab === "profile" ? "text-white" : "text-white/50"
-                  }`}
+                className={`flex flex-col items-center gap-1 py-2 transition-colors ${
+                  activeTab === "profile" ? "text-white" : "text-white/50"
+                }`}
               >
                 <User className="size-8" />
                 <span className="text-xs">Profile</span>
