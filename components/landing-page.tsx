@@ -12,7 +12,11 @@ import {
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import {
+  usePrivy,
+  useWallets,
+  type ConnectedWallet,
+} from "@privy-io/react-auth";
 import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
 import { useSetActiveWallet } from "@privy-io/wagmi";
 import { useAccount } from "wagmi";
@@ -150,7 +154,7 @@ export function LandingPage() {
   }, []);
 
   // Handle wallet switching
-  const handleSwitchWallet = async (wallet: any) => {
+  const handleSwitchWallet = async (wallet: ConnectedWallet) => {
     try {
       console.log("🔄 Switching to wallet:", wallet.address);
       await setActiveWallet(wallet);
