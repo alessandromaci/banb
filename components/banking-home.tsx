@@ -564,7 +564,7 @@ export function BankingHome() {
             <div className="text-sm text-white/70 mb-3">
               {currentCard.type === "spending" &&
                 (currentCard.account?.name || "Spending Account")}
-              {currentCard.type === "add-new" && "Add New Account"}
+              {currentCard.type === "add-new" && ""}
               {currentCard.type === "investment" && "Investment Account"}
               {currentCard.type !== "add-new" && ` - ${currency}`}
             </div>
