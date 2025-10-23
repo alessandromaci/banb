@@ -641,7 +641,7 @@ export function BankingHome() {
                     onClick={() => setShowAddAccountModal(true)}
                     className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-full px-6 py-3"
                   >
-                    Add new account
+                    Add New Accounnt
                   </Button>
                 </div>
               </>
@@ -704,14 +704,7 @@ export function BankingHome() {
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-8">
-                    <Button
-                      onClick={() => setShowAddAccountModal(true)}
-                      className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-full px-6 py-3"
-                    >
-                      Add new account
-                    </Button>
-                  </div>
+                  <div className="text-center py-8"></div>
                 )}
               </>
             )}
@@ -1031,7 +1024,7 @@ export function BankingHome() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[#2A1F4D] rounded-3xl p-6 w-full max-w-sm">
             <h2 className="text-xl font-semibold text-white mb-6 text-center">
-              Add new account
+              Add New Account
             </h2>
 
             <div className="space-y-4">

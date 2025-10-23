@@ -32,7 +32,7 @@ import { updateProfileName, deleteProfile } from "@/lib/profile";
 import { getAccountsByProfile, updateAccount } from "@/lib/accounts";
 import { type Account } from "@/lib/supabase";
 import { useSetActiveWalletSafe } from "@/lib/use-account-safe";
-import { useWallets } from "@privy-io/react-auth";
+import { useWallets, usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
@@ -41,6 +41,7 @@ export default function ProfilePage() {
   const { connector, address } = useAccount();
   const { wallets: privyWallets } = useWallets();
   const { setActiveWallet } = useSetActiveWalletSafe();
+  const { connectWallet } = usePrivy();
   const [currency, setCurrency] = useState<"USD" | "EUR">("USD");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [isEditing, setIsEditing] = useState(false);
@@ -135,6 +136,25 @@ export default function ProfilePage() {
     window.location.href = "mailto:support@banb.app";
   };
 
+  const handleConnectWallet = async () => {
+    try {
+      await connectWallet();
+      toast.success("Wallet connected! You can now use it.");
+      // Reload accounts to refresh connection status
+      if (profile?.id) {
+        const accounts = await getAccountsByProfile(profile.id);
+        setLinkedAccounts(accounts);
+      }
+    } catch (err) {
+      console.error("Failed to connect wallet:", err);
+      // Don't show error if user cancelled
+      const errorMessage = err instanceof Error ? err.message : "";
+      if (!errorMessage.includes("abort") && !errorMessage.includes("cancel")) {
+        toast.error("Failed to connect wallet");
+      }
+    }
+  };
+
   const handleSwitchWallet = async (account: Account) => {
     if (!address || account.address.toLowerCase() === address.toLowerCase()) {
       return; // Already active
@@ -148,19 +168,31 @@ export default function ProfilePage() {
       );
 
       if (!targetWallet) {
-        toast.error("Wallet not found. Please reconnect this wallet.");
+        toast.error(
+          "This wallet is not connected. Please connect it first to use it."
+        );
+        setIsSwitchingWallet(false);
         return;
       }
+
+      console.log("Switching to wallet:", account.address);
 
       // Switch active wallet in wagmi
       await setActiveWallet(
         targetWallet as unknown as Parameters<typeof setActiveWallet>[0]
       );
 
+      console.log("Wallet switched successfully");
+
       toast.success(`Switched to ${account.name}`);
+
+      // Force a small delay to ensure wagmi updates
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (err) {
       console.error("Failed to switch wallet:", err);
-      toast.error("Failed to switch wallet");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to switch wallet"
+      );
     } finally {
       setIsSwitchingWallet(false);
     }
@@ -445,6 +477,11 @@ export default function ProfilePage() {
                           account.address.toLowerCase() ===
                             address.toLowerCase();
                         const isEditing = editingAccountId === account.id;
+                        const isConnected = privyWallets.some(
+                          (w) =>
+                            w.address.toLowerCase() ===
+                            account.address.toLowerCase()
+                        );
 
                         return (
                           <div
@@ -529,25 +566,36 @@ export default function ProfilePage() {
                                   Cancel
                                 </Button>
                               </div>
-                            ) : (
-                              !isActive && (
-                                <Button
-                                  onClick={() => handleSwitchWallet(account)}
-                                  disabled={isSwitchingWallet}
-                                  size="sm"
-                                  className="w-full h-7 bg-white/10 hover:bg-white/20 text-white text-xs"
-                                >
-                                  {isSwitchingWallet ? (
-                                    <>
-                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                      Switching...
-                                    </>
-                                  ) : (
-                                    "Use as main"
-                                  )}
-                                </Button>
-                              )
-                            )}
+                            ) : !isActive ? (
+                              <div className="space-y-1">
+                                {isConnected ? (
+                                  <Button
+                                    onClick={() => handleSwitchWallet(account)}
+                                    disabled={isSwitchingWallet}
+                                    size="sm"
+                                    className="w-full h-7 bg-white/10 hover:bg-white/20 text-white text-xs"
+                                  >
+                                    {isSwitchingWallet ? (
+                                      <>
+                                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                        Switching...
+                                      </>
+                                    ) : (
+                                      "Use as main"
+                                    )}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    onClick={handleConnectWallet}
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full h-7 border-white/20 text-white hover:bg-white/10 text-xs"
+                                  >
+                                    Connect Wallet
+                                  </Button>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })
