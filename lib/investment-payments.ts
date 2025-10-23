@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAccount, useSendCalls } from "wagmi";
+import { useSendCalls } from "wagmi";
+import { useAccountSafe as useAccount } from "./use-account-safe";
 import { parseUnits, encodeFunctionData } from "viem";
 import { useInvestments } from "./investments";
 import { createDepositMovement } from "./investment-movements";
