@@ -231,8 +231,8 @@ export default function TestMCPPage() {
                     >
                       <div
                         className={`max-w-[80%] rounded-lg p-3 ${msg.role === "user"
-                            ? "bg-blue-500 text-white"
-                            : "bg-white dark:bg-gray-800 border"
+                          ? "bg-blue-500 text-white"
+                          : "bg-white dark:bg-gray-800 border"
                           }`}
                       >
                         <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
