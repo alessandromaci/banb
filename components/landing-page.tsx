@@ -18,8 +18,10 @@ import {
   type ConnectedWallet,
 } from "@privy-io/react-auth";
 import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
-import { useSetActiveWallet } from "@privy-io/wagmi";
-import { useAccount } from "wagmi";
+import {
+  useAccountSafe as useAccount,
+  useSetActiveWalletSafe as useSetActiveWallet,
+} from "@/lib/use-account-safe";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Check, Wallet } from "lucide-react";
@@ -58,7 +60,7 @@ export function LandingPage() {
     connectWallet: privyConnectWallet,
   } = usePrivy();
   const { wallets } = useWallets();
-  const { address } = useAccount(); // Get the ACTIVE wallet address from wagmi
+  const { address } = useAccount(); // Safe wrapper handles WagmiProvider not ready
   const { setActiveWallet } = useSetActiveWallet();
   const { initLoginToMiniApp, loginToMiniApp } = useLoginToMiniApp();
   const router = useRouter();
