@@ -371,7 +371,7 @@ export function useUSDCBalance(address?: `0x${string}`) {
         enabled: !!address,
       },
     });
-    balance = result.data;
+    balance = result.data as bigint | undefined;
     balanceError = result.error;
     isLoading = result.isLoading;
   } catch (error) {
