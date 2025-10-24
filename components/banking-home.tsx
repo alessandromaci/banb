@@ -1057,6 +1057,7 @@ Thanks!`;
                   setActiveTab("analytics");
                   router.push("/analytics");
                 }}
+                disabled={true}
                 className={`flex flex-col items-center gap-1 py-2 transition-colors ${
                   activeTab === "analytics" ? "text-white" : "text-white/50"
                 }`}
