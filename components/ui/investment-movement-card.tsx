@@ -1,12 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import {
-  TrendingUp,
-  TrendingDown,
-  ArrowUpRight,
-  ArrowDownLeft,
-} from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 
 /**
@@ -39,6 +35,7 @@ interface InvestmentMovementCardProps {
 export function InvestmentMovementCard({
   movement,
 }: InvestmentMovementCardProps) {
+  const router = useRouter();
   const isPositive =
     movement.movement_type === "deposit" || movement.movement_type === "reward";
   const isNegative =
@@ -47,9 +44,9 @@ export function InvestmentMovementCard({
   const getIcon = () => {
     switch (movement.movement_type) {
       case "deposit":
-        return <ArrowDownLeft className="h-5 w-5 text-green-400" />;
+        return <ArrowUp className="h-5 w-5 text-green-400" />;
       case "withdrawal":
-        return <ArrowUpRight className="h-5 w-5 text-red-400" />;
+        return <ArrowDown className="h-5 w-5 text-red-400" />;
       case "reward":
         return <TrendingUp className="h-5 w-5 text-green-400" />;
       case "fee":
@@ -74,36 +71,60 @@ export function InvestmentMovementCard({
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-    );
 
-    if (diffInHours < 1) {
-      return "Just now";
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`;
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d ago`;
-    }
+    // Format time
+    const time = date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // Get day and ordinal suffix
+    const day = date.getDate();
+    const getOrdinalSuffix = (n: number) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return s[(v - 20) % 10] || s[v] || s[0];
+    };
+
+    const month = date.toLocaleString("en-US", { month: "short" });
+
+    return {
+      time,
+      day: day.toString(),
+      ordinal: getOrdinalSuffix(day),
+      month,
+    };
+  };
+
+  const handleClick = () => {
+    router.push(`/invest/status/${movement.id}`);
   };
 
   return (
-    <div className="flex items-center justify-between">
+    <button
+      onClick={handleClick}
+      className="flex items-center justify-between w-full hover:bg-white/5 p-3 -m-3 rounded-xl transition-colors cursor-pointer"
+    >
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
           {getIcon()}
         </div>
         <div>
-          <div className="font-medium text-white">{getLabel()}</div>
-          <div className="text-sm text-white/60">
-            {new Date(movement.created_at).toLocaleTimeString("en-US", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+          <div className="font-medium text-white text-left">{getLabel()}</div>
+          <div className="text-sm text-white/60 text-left">
+            {(() => {
+              const { time, day, ordinal, month } = formatDateTime(
+                movement.created_at
+              );
+              return (
+                <>
+                  {time}, {day}
+                  <sup className="text-[0.65em]">{ordinal}</sup> {month}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -113,6 +134,6 @@ export function InvestmentMovementCard({
           {formatCurrency(parseFloat(movement.amount), "USD")}
         </div>
       </div>
-    </div>
+    </button>
   );
 }

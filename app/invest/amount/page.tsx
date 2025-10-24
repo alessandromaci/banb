@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
@@ -143,14 +143,14 @@ function InvestmentAmountContent() {
     <div className="h-screen bg-[#0E0E0F] text-white flex flex-col overflow-hidden">
       <div className="max-w-md mx-auto w-full flex flex-col h-full">
         {/* Header */}
-        <div className="px-6 py-8 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4 ml-2">
-            <div>
-              <h1 className="text-xl font-medium">{investmentOption.name}</h1>
-              <p className="text-sm text-white/50">
-                From: {currentAccount?.name || "Main Account"}
-              </p>
-            </div>
+        <div className="px-6 py-6 flex items-center justify-between flex-shrink-0">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-lg font-medium">
+              Investment: {investmentOption.name}
+            </h1>
+            <p className="text-xs text-white/50">
+              Balance: ${usdcBalance || "0.00"} USDC
+            </p>
           </div>
           <Link href="/invest/select">
             <Button
@@ -158,9 +158,33 @@ function InvestmentAmountContent() {
               size="icon"
               className="text-white hover:bg-white/10 rounded-full"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <X className="w-6 h-6" />
             </Button>
           </Link>
+        </div>
+
+        {/* To Field - Vault Info */}
+        <div className="px-6 pb-4 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-white/50">To</span>
+            <div className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-full">
+              <Image
+                src={investmentOption.logo || "/morpho.svg"}
+                alt={investmentOption.name}
+                width={20}
+                height={20}
+                className="w-5 h-5"
+              />
+              <span className="text-sm text-white font-medium">
+                {investmentOption.vault_address
+                  ? `${investmentOption.vault_address.slice(
+                      0,
+                      6
+                    )}...${investmentOption.vault_address.slice(-4)}`
+                  : investmentOption.name}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Amount display - centered with scroll */}
@@ -192,13 +216,8 @@ function InvestmentAmountContent() {
               </span>
             </div>
 
-            {/* Available Balance */}
-            <div className="mt-4 text-sm text-white/50">
-              Available: ${usdcBalance || "0.00"}
-            </div>
-
             {hasInsufficientBalance && (
-              <div className="mt-2 text-red-400 text-sm">
+              <div className="mt-4 text-red-400 text-sm">
                 Insufficient balance
               </div>
             )}

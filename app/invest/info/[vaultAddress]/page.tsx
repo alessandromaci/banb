@@ -134,7 +134,9 @@ export default function InvestmentInfoPage() {
 
         {/* Product Description */}
         <Card className="bg-gray-900 border-gray-700 p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Product Description</h2>
+          <h2 className="text-xl text-white font-semibold mb-4">
+            Product Description
+          </h2>
           <p className="text-gray-300 leading-relaxed">
             {vaultInfo.description}
           </p>
