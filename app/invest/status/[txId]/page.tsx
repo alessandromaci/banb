@@ -43,8 +43,8 @@ export default function InvestmentStatusPage() {
 
   const steps = useMemo(
     () => [
-      { label: "Pending", status: "pending" },
-      { label: "Processing", status: "active" },
+      { label: "Sending", status: "pending" },
+      { label: "Confirming", status: "confirming" },
       { label: "Invested", status: "confirmed" },
     ],
     []
@@ -53,14 +53,18 @@ export default function InvestmentStatusPage() {
   // Update current step based on investment status
   useEffect(() => {
     if (movement) {
-      const stepIndex = steps.findIndex(
-        (step) => step.status === movement.status
-      );
-      // If status is "active", show as processing
-      // If status is "success", all steps should be complete
-      setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 0);
+      if (movement.status === "pending") {
+        // Pending: tx is being sent/mined
+        setCurrentStep(1);
+      } else if (movement.status === "confirmed") {
+        // Confirmed: all steps complete
+        setCurrentStep(3);
+      } else if (movement.status === "failed") {
+        // Failed: show error state
+        setCurrentStep(0);
+      }
     }
-  }, [movement, steps]);
+  }, [movement]);
 
   if (isLoading) {
     return (

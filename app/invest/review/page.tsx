@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, Lock } from "lucide-react";
+import { ArrowLeft, TrendingUp, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
@@ -22,6 +22,7 @@ function InvestmentReviewContent() {
     executeInvestment,
     isLoading,
     error: investmentError,
+    pendingStep,
   } = useInvestmentPayment(profile?.id);
 
   const [investmentOption, setInvestmentOption] =
@@ -200,7 +201,10 @@ function InvestmentReviewContent() {
               }}
             >
               {isLoading ? (
-                "Processing Investment..."
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{pendingStep || "Processing..."}</span>
+                </div>
               ) : !profile ? (
                 "Please log in"
               ) : (

@@ -88,3 +88,83 @@ export async function pollTransactionStatus(
   console.warn("Transaction status polling timed out");
   return null;
 }
+
+/**
+ * Poll a regular transaction (non-batch) until it's confirmed on-chain.
+ * This is for sequential transactions that return a direct tx hash.
+ *
+ * @param txHash - The transaction hash
+ * @param movementId - The movement ID to update
+ * @param maxAttempts - Maximum number of attempts (default: 30)
+ * @param intervalMs - Interval between checks in milliseconds (default: 2000)
+ */
+export async function pollRegularTransactionStatus(
+  txHash: string,
+  movementId: string,
+  maxAttempts: number = 30,
+  intervalMs: number = 2000
+): Promise<void> {
+  console.log(`Polling regular transaction: ${txHash}`);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      // Check transaction receipt using window.ethereum
+      const ethereum = (
+        window as {
+          ethereum?: {
+            request: (args: {
+              method: string;
+              params: unknown[];
+            }) => Promise<unknown>;
+          };
+        }
+      ).ethereum;
+
+      if (!ethereum) {
+        console.warn("No ethereum provider found");
+        return;
+      }
+
+      const receipt = await ethereum.request({
+        method: "eth_getTransactionReceipt",
+        params: [txHash],
+      });
+
+      if (
+        receipt &&
+        typeof receipt === "object" &&
+        "status" in receipt &&
+        receipt.status
+      ) {
+        const isSuccess = receipt.status === "0x1";
+
+        console.log(
+          `Transaction ${txHash} ${isSuccess ? "confirmed" : "failed"}`
+        );
+
+        // Update the movement status in database
+        const { error } = await supabase
+          .from("investment_movements")
+          .update({
+            status: isSuccess ? "confirmed" : "failed",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", movementId);
+
+        if (error) {
+          console.error("Failed to update movement status:", error);
+        }
+
+        return; // Done
+      }
+
+      // Still pending, wait and try again
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    } catch (error) {
+      console.error("Error checking transaction receipt:", error);
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  console.warn(`Regular transaction polling timed out for: ${txHash}`);
+}

@@ -216,7 +216,11 @@ export function BankingHome() {
       try {
         setLoadingTransactions(true);
         const data = await getRecentTransactions(profile.id, 3);
-        setTransactions(data);
+        // Filter to show only successful transactions (exclude pending/sent)
+        const successfulTransactions = data.filter(
+          (tx) => tx.status === "success"
+        );
+        setTransactions(successfulTransactions);
       } catch (error) {
         console.error("Failed to fetch transactions:", error);
       } finally {
@@ -271,7 +275,11 @@ export function BankingHome() {
 
       if (currentAccountData) {
         const movements = await getInvestmentHistory(profile.id, 10);
-        setInvestmentMovements(movements);
+        // Filter to show only confirmed movements (exclude pending)
+        const confirmedMovements = movements.filter(
+          (movement) => movement.status === "confirmed"
+        );
+        setInvestmentMovements(confirmedMovements);
 
         const monthlyRewards = parseFloat(
           String(currentAccountData?.total_rewards || "0")
@@ -459,12 +467,22 @@ export function BankingHome() {
 
   const hasInvestmentAccount = investmentAccounts.length > 0;
 
-  // Calculate all accounts in order: Active wallet first (from DB), then other accounts, Add New, Investment
-  // Source of truth: accounts table in database
+  // Calculate all accounts in order: Active wallet first (from DB), then other accounts, then individual Investments, Add New last
+  // Source of truth: accounts table in database + investments table
   const allAccountCards = useMemo(() => {
     const cards: Array<{
       type: "spending" | "add-new" | "investment";
       account?: Account;
+      investmentAccount?: {
+        vault_address: string;
+        total_invested: number;
+        total_rewards: number;
+        total_value: number;
+        investment_name: string;
+        investment_id: string;
+        apr: number;
+        status: string;
+      };
       index: number;
     }> = [];
 
@@ -485,20 +503,43 @@ export function BankingHome() {
       }
     });
 
-    // Add new card
+    // Add individual investment cards (each investment gets its own card)
+    investmentAccounts.forEach((investment) => {
+      cards.push({
+        type: "investment",
+        investmentAccount: investment,
+        index: cards.length,
+      });
+    });
+
+    // Add new card at the end
     cards.push({ type: "add-new", index: cards.length });
 
-    // Investment account (if exists)
-    if (hasInvestmentAccount) {
-      cards.push({ type: "investment", index: cards.length });
-    }
-
     return cards;
-  }, [spendingAccounts, hasInvestmentAccount, address]);
+  }, [spendingAccounts, investmentAccounts, address]);
 
   // Track current card index
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const currentCard = allAccountCards[currentCardIndex] || allAccountCards[0];
+
+  // Sync activeAccount state with current card type
+  useEffect(() => {
+    if (currentCard.type === "investment") {
+      setActiveAccount(AccountType.Investment);
+      // Find the index of this investment in investmentAccounts array
+      if (currentCard.investmentAccount) {
+        const investmentIndex = investmentAccounts.findIndex(
+          (inv) =>
+            inv.vault_address === currentCard.investmentAccount?.vault_address
+        );
+        if (investmentIndex !== -1) {
+          setCurrentInvestmentAccount(investmentIndex);
+        }
+      }
+    } else if (currentCard.type === "spending") {
+      setActiveAccount(AccountType.Main);
+    }
+  }, [currentCard.type, currentCard.investmentAccount, investmentAccounts]);
 
   // Get the address for the current card (from DB account)
   const currentCardAddress = useMemo(() => {
@@ -641,14 +682,15 @@ export function BankingHome() {
                     onClick={() => setShowAddAccountModal(true)}
                     className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-full px-6 py-3"
                   >
-                    Add New Accounnt
+                    Add New Account
                   </Button>
                 </div>
               </>
             ) : (
               <>
                 {/* Investment Account */}
-                {hasInvestmentAccount ? (
+                {currentCard.type === "investment" &&
+                currentCard.investmentAccount ? (
                   <>
                     <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
                       {!isMounted || investmentsLoading ? (
@@ -658,7 +700,7 @@ export function BankingHome() {
                           <span>
                             {
                               formatBalanceWithDifferentSizes(
-                                currentAccountBalance,
+                                currentCard.investmentAccount.total_value || 0,
                                 currency
                               ).symbol
                             }
@@ -666,7 +708,7 @@ export function BankingHome() {
                           <span>
                             {
                               formatBalanceWithDifferentSizes(
-                                currentAccountBalance,
+                                currentCard.investmentAccount.total_value || 0,
                                 currency
                               ).integerPart
                             }
@@ -675,7 +717,7 @@ export function BankingHome() {
                             .
                             {
                               formatBalanceWithDifferentSizes(
-                                currentAccountBalance,
+                                currentCard.investmentAccount.total_value || 0,
                                 currency
                               ).decimalPart
                             }
@@ -689,7 +731,7 @@ export function BankingHome() {
                         className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
                       >
                         <span>
-                          {currentAccount?.investment_name ||
+                          {currentCard.investmentAccount.investment_name ||
                             "Investment Account"}
                         </span>
                         {copied ? (
@@ -700,7 +742,12 @@ export function BankingHome() {
                       </button>
 
                       <span className="text-white/50">-</span>
-                      <span>{currentAccountBalance || "0.00"} USDC</span>
+                      <span>
+                        {currentCard.investmentAccount.total_value?.toFixed(
+                          2
+                        ) || "0.00"}{" "}
+                        USDC
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -745,17 +792,18 @@ export function BankingHome() {
                       })
                     );
                     router.push("/deposit");
-                  } else {
+                  } else if (
+                    currentCard.type === "investment" &&
+                    currentCard.investmentAccount
+                  ) {
                     // Investment account - add more to same vault
-                    if (currentAccount?.vault_address) {
-                      router.push(
-                        `/invest/amount?vault=${
-                          currentAccount.vault_address
-                        }&name=${encodeURIComponent(
-                          currentAccount.investment_name || ""
-                        )}`
-                      );
-                    }
+                    router.push(
+                      `/invest/amount?vault=${
+                        currentCard.investmentAccount.vault_address
+                      }&name=${encodeURIComponent(
+                        currentCard.investmentAccount.investment_name || ""
+                      )}`
+                    );
                   }
                 }}
               >

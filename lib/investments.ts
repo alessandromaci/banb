@@ -144,37 +144,48 @@ export function useInvestments(profileId?: string) {
     apr: number;
     vault_address?: string;
     tx_hash?: string;
+    skipMovement?: boolean; // Add flag to skip deposit movement creation
   }): Promise<Investment> => {
     // Create the investment record
     const { data: investment, error } = await supabase
       .from("investments")
       .insert({
-        ...data,
+        profile_id: data.profile_id,
+        investment_name: data.investment_name,
+        investment_type: data.investment_type,
+        amount_invested: data.amount_invested,
+        apr: data.apr,
+        vault_address: data.vault_address,
+        tx_hash: data.tx_hash,
         current_rewards: "0",
         status: "pending",
       })
       .select()
       .single();
 
-    if (error) {
-      throw new Error(`Failed to create investment: ${error.message}`);
+    if (error || !investment) {
+      throw new Error(
+        `Failed to create investment: ${error?.message || "No data returned"}`
+      );
     }
 
-    // Create the corresponding deposit movement
-    try {
-      await createDepositMovement({
-        profile_id: data.profile_id,
-        investment_id: investment.id,
-        amount: data.amount_invested,
-        tx_hash: data.tx_hash,
-        metadata: {
-          vault_address: data.vault_address,
-          investment_type: data.investment_type,
-        },
-      });
-    } catch (movementError) {
-      // Don't throw here - the investment was created successfully
-      // Movement creation failure is not critical
+    // Create the corresponding deposit movement only if not skipped
+    if (!data.skipMovement) {
+      try {
+        await createDepositMovement({
+          profile_id: data.profile_id,
+          investment_id: investment.id,
+          amount: data.amount_invested,
+          tx_hash: data.tx_hash,
+          metadata: {
+            vault_address: data.vault_address,
+            investment_type: data.investment_type,
+          },
+        });
+      } catch (movementError) {
+        // Don't throw here - the investment was created successfully
+        // Movement creation failure is not critical
+      }
     }
 
     setInvestments((prev) => [investment, ...prev]);
