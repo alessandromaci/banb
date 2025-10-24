@@ -58,12 +58,12 @@ const queryClient = new QueryClient();
 export function Providers({ children }: { children: ReactNode }) {
   const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
-  // Check if we're on the server side
-  const isServer = typeof window === "undefined";
-
   // Development mode: Skip Privy if no valid app ID is configured
-  const isDevelopmentMode = !privyAppId || privyAppId === "your_privy_app_id" || privyAppId.startsWith("#");
-  
+  const isDevelopmentMode =
+    !privyAppId ||
+    privyAppId === "your_privy_app_id" ||
+    privyAppId.startsWith("#");
+
   // Development mode without Privy
   if (isDevelopmentMode) {
     console.log("🚧 Running in development mode without Privy authentication");
@@ -74,19 +74,8 @@ export function Providers({ children }: { children: ReactNode }) {
     );
   }
 
-  // Production mode with Privy
+  // Production mode with Privy (always include WagmiProvider for consistency)
   const appId = privyAppId;
-
-  // If on server, provide minimal setup without WagmiProvider
-  if (isServer) {
-    return (
-      <PrivyProvider appId={appId} config={privyConfig}>
-        <QueryClientProvider client={queryClient}>
-          <UserProvider>{children}</UserProvider>
-        </QueryClientProvider>
-      </PrivyProvider>
-    );
-  }
 
   return (
     <PrivyProvider appId={appId} config={privyConfig}>
