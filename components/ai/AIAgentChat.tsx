@@ -274,10 +274,14 @@ function MessageBubble({
   const isUser = message.role === "user";
 
   // Detect if message suggests checking onchain transactions
+  // Look for keywords that indicate the AI is suggesting to check blockchain
   const suggestsOnchainCheck = !isUser && (
     message.content.toLowerCase().includes("check onchain") ||
+    message.content.toLowerCase().includes("check for onchain") ||
     message.content.toLowerCase().includes("blockchain") ||
-    message.content.toLowerCase().includes("on-chain")
+    message.content.toLowerCase().includes("on-chain") ||
+    (message.content.toLowerCase().includes("no transactions") && 
+     message.content.toLowerCase().includes("database"))
   );
 
   return (
