@@ -1193,11 +1193,13 @@ Thanks!`;
 
       {/* AI Chat Dialog */}
       <Dialog open={showAIChat} onOpenChange={setShowAIChat}>
-        <DialogContent className="ai-chat-dialog max-w-4xl h-[70vh] p-0 gap-0 rounded-t-2xl rounded-b-none">
+        <DialogContent className="ai-chat-dialog w-full max-w-full sm:max-w-4xl h-[90vh] sm:h-[85vh] p-0 gap-0 rounded-t-2xl rounded-b-none sm:rounded-b-2xl flex flex-col">
           <DialogHeader className="sr-only">
-            <DialogTitle>AI Banking Assistant</DialogTitle>
+            <DialogTitle>BANB AI</DialogTitle>
           </DialogHeader>
-          <AIAgentChat />
+          <div className="flex-1 overflow-hidden">
+            <AIAgentChat />
+          </div>
         </DialogContent>
       </Dialog>
 

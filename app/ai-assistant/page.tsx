@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 /**
- * AI Banking Assistant Page
+ * BANB AI Page
  * 
  * Full-screen AI chat interface for banking operations.
  * Accessible at /ai-assistant for dedicated AI interaction experience.
@@ -29,7 +29,7 @@ export default function AIAssistantPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white">AI Banking Assistant</h1>
+            <h1 className="text-2xl font-bold text-white">BANB AI</h1>
             <p className="text-sm text-white/70">Your intelligent banking companion</p>
           </div>
         </div>

@@ -507,20 +507,35 @@ async function getRecipientsHandler(context: ToolExecutionContext): Promise<Arra
 }
 
 /**
+ * Transaction summary response type
+ */
+type TransactionSummaryResponse = 
+  | {
+      total_spent: string;
+      top_recipients: Array<{ name: string; amount: string }>;
+      spending_trend: string;
+      average_transaction: string;
+      summary: string;
+    }
+  | { message: string; suggestion: string };
+
+/**
  * Handler for get_transaction_summary tool.
  * Retrieves portfolio insights and spending analysis.
  * 
  * @param {ToolExecutionContext} context - User context
- * @returns {Promise<{total_spent: string; top_recipients: Array<{name: string; amount: string}>; spending_trend: string; average_transaction: string; summary: string}>} Transaction summary data
+ * @returns {Promise<TransactionSummaryResponse>} Transaction summary data or suggestion
  */
-async function getTransactionSummaryHandler(context: ToolExecutionContext): Promise<{
-  total_spent: string;
-  top_recipients: Array<{ name: string; amount: string }>;
-  spending_trend: string;
-  average_transaction: string;
-  summary: string;
-}> {
+async function getTransactionSummaryHandler(context: ToolExecutionContext): Promise<TransactionSummaryResponse> {
   const insights = await getPortfolioInsights(context.profileId);
+
+  // If no transactions found, suggest checking onchain
+  if (insights.totalSpent === "0.00" && insights.topRecipients.length === 0) {
+    return {
+      message: "No transactions found in the database.",
+      suggestion: "Would you like to check for onchain transactions? This will fetch your transaction history directly from the blockchain."
+    };
+  }
 
   return {
     total_spent: `$${insights.totalSpent}`,
@@ -578,8 +593,8 @@ type OnchainTransactionResponse =
       token: string;
       date: string;
       direction: string;
-      status: string;
       explorer_url: string;
+      display: string;
     }>
   | { error: string; message: string };
 
@@ -612,12 +627,13 @@ async function getOnchainTransactionsHandler(
       tx_hash: `${tx.tx_hash.slice(0, 10)}...${tx.tx_hash.slice(-8)}`,
       from: `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}`,
       to: `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}`,
-      amount: `$${tx.amount}`,
+      amount: tx.amount,
       token: tx.token,
       date: tx.date,
       direction: tx.direction === "in" ? "received" : "sent",
-      status: tx.status,
       explorer_url: `https://basescan.org/tx/${tx.tx_hash}`,
+      // Add a formatted display string for easy presentation (no status shown to user)
+      display: `${tx.direction === "in" ? "📥 Received" : "📤 Sent"} ${tx.amount} ${tx.token} - ${tx.date}`,
     }));
   } catch (error) {
     return {
