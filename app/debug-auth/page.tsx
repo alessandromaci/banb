@@ -18,10 +18,10 @@ export default function DebugAuthPage() {
     // Capture console errors
     const originalError = console.error;
     const errors: string[] = [];
-    console.error = (...args: any[]) => {
-      errors.push(args.map(a => String(a)).join(' '));
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((a) => String(a)).join(" "));
       setConsoleErrors([...errors]);
-      originalError.apply(console, args);
+      originalError.apply(console, args as Parameters<typeof console.error>);
     };
 
     return () => {
@@ -94,7 +94,10 @@ export default function DebugAuthPage() {
           ) : (
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {consoleErrors.map((error, i) => (
-                <div key={i} className="text-red-400 text-xs font-mono bg-red-900/20 p-2 rounded">
+                <div
+                  key={i}
+                  className="text-red-400 text-xs font-mono bg-red-900/20 p-2 rounded"
+                >
                   {error}
                 </div>
               ))}
