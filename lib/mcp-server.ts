@@ -106,6 +106,14 @@ export const MCP_TOOLS: MCPTool[] = [
     },
   },
   {
+    name: "get_accounts",
+    description: "Get accounts linked to the authenticated user profile with their balances and metadata.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
     name: "get_recent_transactions",
     description: "Retrieve recent transaction history for the authenticated user. Includes transaction details like amount, recipient, date, and status.",
     inputSchema: {
@@ -216,6 +224,10 @@ export async function executeToolHandler(
 
       case "get_user_balance":
         result = await getUserBalanceHandler(context);
+        break;
+
+      case "get_accounts":
+        result = await getAccountsHandler(context);
         break;
 
       case "get_recent_transactions":
@@ -373,6 +385,47 @@ async function getRecentTransactionsHandler(
     status: tx.status,
     token: tx.token,
     chain: tx.chain,
+  }));
+}
+
+/**
+ * Handler for get_accounts tool.
+ * Retrieves all accounts linked to the authenticated user profile with balances.
+ * Returns masked addresses for privacy and formatted balances.
+ * 
+ * @param {ToolExecutionContext} context - User context
+ * @returns {Promise<Array<{id: string; name: string; type: string; address: string; network: string; balance: string; is_primary: boolean; status: string}>>} Accounts data
+ */
+async function getAccountsHandler(context: ToolExecutionContext): Promise<Array<{
+  id: string;
+  name: string;
+  type: string;
+  address: string;
+  network: string;
+  balance: string;
+  is_primary: boolean;
+  status: string;
+}>> {
+  const { data: accounts, error } = await supabase
+    .from("accounts")
+    .select("id, name, type, address, network, balance, is_primary, status")
+    .eq("profile_id", context.profileId)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error("Failed to fetch accounts");
+  }
+
+  return (accounts || []).map((acc) => ({
+    id: acc.id,
+    name: acc.name,
+    type: acc.type,
+    address: acc.address ? `${acc.address.slice(0, 6)}...${acc.address.slice(-4)}` : "",
+    network: acc.network,
+    balance: `$${parseFloat(acc.balance || "0").toFixed(2)}`,
+    is_primary: !!acc.is_primary,
+    status: acc.status,
   }));
 }
 
