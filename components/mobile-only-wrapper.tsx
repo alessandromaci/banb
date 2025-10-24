@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export function MobileOnlyWrapper({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = useState(true);

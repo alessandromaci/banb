@@ -78,11 +78,28 @@ async function getUserContext(
       };
     }
 
-    // Get balance if requested (from blockchain, not DB)
+    // Get balance if requested (server-side via MCP tool)
     if (options.includeBalance) {
-      // Note: In production, fetch from blockchain via wagmi
-      // For now, we'll indicate it should be fetched client-side
-      context.balance = "FETCH_FROM_BLOCKCHAIN";
+      try {
+        const balanceResult = await executeToolHandler(
+          "get_user_balance",
+          {},
+          { profileId } as ToolExecutionContext
+        );
+        let balanceInfo: unknown = null;
+        if (balanceResult.content && balanceResult.content[0]?.text) {
+          const parsed = JSON.parse(balanceResult.content[0].text);
+          if (parsed.success) {
+            balanceInfo = parsed.data;
+          }
+        }
+        // Provide structured balance info or omit if unavailable
+        if (balanceInfo) {
+          context.balance = balanceInfo;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch balance via MCP tool:", e);
+      }
     }
 
     // Get recent transactions if requested
@@ -214,7 +231,7 @@ function validateAIConfiguration(): { valid: boolean; error?: string } {
   }
 
   // Check if API key is configured
-  if (!apiKey || apiKey === "your_ai_api_key" || apiKey.startsWith("your_")) {
+  if (!apiKey || apiKey === "your_ai_api_key" || (typeof apiKey === "string" && apiKey.startsWith("your_"))) {
     return {
       valid: false,
       error: "AI_API_KEY is not configured. Please add a valid OpenAI API key to your .env.local file."
@@ -222,7 +239,7 @@ function validateAIConfiguration(): { valid: boolean; error?: string } {
   }
 
   // Basic API key format validation (OpenAI keys start with sk-)
-  if (!apiKey.startsWith("sk-")) {
+  if (typeof apiKey === "string" && !apiKey.startsWith("sk-")) {
     return {
       valid: false,
       error: "Invalid AI_API_KEY format. OpenAI API keys should start with 'sk-'."
@@ -247,7 +264,7 @@ async function callAIBackend(
   const configValidation = validateAIConfiguration();
   if (!configValidation.valid) {
     console.warn("AI configuration invalid:", configValidation.error);
-    return generateMockResponse(message, context, configValidation.error);
+    return await generateMockResponse(message, context, profileId, configValidation.error);
   }
 
   try {
@@ -258,12 +275,26 @@ async function callAIBackend(
 You have access to the following tools to query user data:
 - get_investment_options: Get available investment products with APR, risk level, and details
 - get_user_balance: Get current USDC balance for the authenticated user
+- get_accounts: Get accounts linked to the user with balances and metadata
 - get_recent_transactions: Get recent transaction history with recipient details
+- get_onchain_transactions: Fetch transaction history directly from Base blockchain (ONLY call this when user explicitly requests onchain check)
 - get_recipients: Get saved payment recipients (friends list)
 - get_transaction_summary: Get spending analysis and patterns with insights
 
 Use these tools when users ask about their data. Always provide helpful, accurate information based on the tool results.
-When users ask about investments, balance, transactions, recipients, or spending patterns, use the appropriate tools to get current data.
+When users ask about investments, balance, transactions, accounts, recipients, or spending patterns, use the appropriate tools to get current data.
+
+IMPORTANT BEHAVIOR FOR TRANSACTIONS:
+- When a user asks about transactions, call get_recent_transactions
+- If get_recent_transactions returns a JSON object with "message" and "suggestion" fields, this means NO transactions found in database
+- DO NOT automatically call get_onchain_transactions
+- Instead, inform the user that no transactions were found in the database, and suggest they can check onchain transactions
+- Tell them to click a button or say "check onchain" to search the blockchain directly
+- ONLY call get_onchain_transactions if the user explicitly says "check onchain", "search blockchain", "onchain transactions", or similar requests
+
+LANGUAGE:
+- Respond in the same language as the user's question. If the user asks in Italian, respond in Italian. If the user asks in English, respond in English
+- Keep answers concise and helpful
 
 When suggesting a payment, use the format: "I can send $X to [recipient name] for you. Would you like me to proceed?"`;
 
@@ -315,7 +346,7 @@ When suggesting a payment, use the format: "I can send $X to [recipient name] fo
         // Handle specific API key errors
         if (response.status === 401) {
           console.error("OpenAI API key is invalid or expired");
-          return generateMockResponse(message, context, "Invalid or expired OpenAI API key. Please check your AI_API_KEY in .env.local.");
+          return generateMockResponse(message, context, profileId, "Invalid or expired OpenAI API key. Please check your AI_API_KEY in .env.local.");
         }
         
         if (response.status === 429) {
@@ -482,20 +513,102 @@ When suggesting a payment, use the format: "I can send $X to [recipient name] fo
     }
   } catch (error) {
     console.error("AI backend error:", error);
-    return generateMockResponse(message, context);
+    return generateMockResponse(message, context, profileId);
   }
 }
 
 /**
  * Generate mock response when AI backend is unavailable
  */
-function generateMockResponse(message: string, context: Record<string, unknown>, configError?: string): string {
+async function generateMockResponse(
+  message: string,
+  context: Record<string, unknown>,
+  profileId?: string,
+  configError?: string
+): Promise<string> {
   // If there's a configuration error, include it in the response
   const configMessage = configError 
     ? `⚠️ Configuration Issue: ${configError}\n\n` 
     : "⚠️ AI_API_KEY not configured. Please add a valid OpenAI API key to your .env.local file for full functionality.\n\n";
   const lowerMessage = message.toLowerCase();
 
+  // If we have an authenticated user, try to satisfy the request via MCP tools directly (DB-backed)
+  if (profileId) {
+    try {
+      // Italian keyword detection
+      const itTransazioni = lowerMessage.includes("transazioni") || lowerMessage.includes("storico");
+      const itConti = lowerMessage.includes("conti") || lowerMessage.includes("account") || lowerMessage.includes("collegati");
+      const itSaldi = lowerMessage.includes("saldo") || lowerMessage.includes("ammontare") || lowerMessage.includes("disponibile");
+      const itInvestimenti = lowerMessage.includes("investimenti") || lowerMessage.includes("investimento") || lowerMessage.includes("tipologie");
+
+      // If the user asks for a combined Italian report, fetch all relevant data
+      if (itTransazioni || itConti || itSaldi || itInvestimenti) {
+        const parts: string[] = [];
+
+        if (itConti || itSaldi) {
+          const accountsData = await executeMCPTool("get_accounts", {}, profileId);
+          parts.push("Conti collegati e saldi (dati live):\n" + accountsData);
+        }
+        if (itTransazioni) {
+          const txData = await executeMCPTool("get_recent_transactions", { limit: 10 }, profileId);
+          parts.push("Transazioni recenti (dati live):\n" + txData);
+        }
+        if (itInvestimenti) {
+          const invData = await executeMCPTool("get_investment_options", {}, profileId);
+          parts.push("Tipologie di investimenti disponibili (dati dal codice):\n" + invData);
+        }
+
+        if (parts.length > 0) {
+          return configMessage + parts.join("\n\n");
+        }
+      }
+
+      // Map English intent to MCP tool
+      if (lowerMessage.includes("investment") || lowerMessage.includes("invest")) {
+        const data = await executeMCPTool("get_investment_options", {}, profileId);
+        return configMessage + "Here are the available investment options (live data):\n\n" + data;
+      }
+
+      if (lowerMessage.includes("spending") || lowerMessage.includes("analyze") || lowerMessage.includes("summary")) {
+        const data = await executeMCPTool("get_transaction_summary", {}, profileId);
+        return configMessage + "Here is your spending summary (live data):\n\n" + data;
+      }
+
+      if (lowerMessage.includes("transaction") || lowerMessage.includes("history")) {
+        const data = await executeMCPTool("get_recent_transactions", { limit: 10 }, profileId);
+        return configMessage + "Here are your recent transactions (live data):\n\n" + data;
+      }
+
+      if (lowerMessage.includes("recipient") || lowerMessage.includes("friend")) {
+        const data = await executeMCPTool("get_recipients", {}, profileId);
+        return configMessage + "Here are your saved recipients (live data):\n\n" + data;
+      }
+
+      if (lowerMessage.includes("balance") || lowerMessage.includes("accounts")) {
+        // Provide both overall balance and accounts when asked about balance/accounts
+        const [balanceData, accountsData] = await Promise.all([
+          executeMCPTool("get_user_balance", {}, profileId),
+          executeMCPTool("get_accounts", {}, profileId),
+        ]);
+        return configMessage + "Balance information (live data):\n\n" + balanceData + "\n\nLinked accounts (live data):\n" + accountsData;
+      }
+
+      // Default authenticated fallback: return a brief live snapshot using MCP tools
+      const [summaryData, accountsData] = await Promise.all([
+        executeMCPTool("get_transaction_summary", {}, profileId),
+        executeMCPTool("get_accounts", {}, profileId),
+      ]);
+      return configMessage +
+        "Here is a quick snapshot of your account (live data):\n\n" +
+        "Spending summary:\n" + summaryData +
+        "\n\nLinked accounts and balances:\n" + accountsData;
+    } catch (e) {
+      console.warn("MCP fallback failed, returning generic guidance.", e);
+      // Fall through to generic responses below
+    }
+  }
+
+  // Generic guidance (no DB calls)
   if (lowerMessage.includes("investment") || lowerMessage.includes("invest")) {
     return configMessage + "I can help you explore investment options. You have access to several investment products with different risk levels and APR rates.";
   }

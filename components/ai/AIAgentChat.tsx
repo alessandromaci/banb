@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useUser } from "@/lib/user-context";
 import { useAccount } from "wagmi";
 import { useAIAgent, type AIAgentMessage, type ParsedAIOperation } from "@/lib/ai-agent";
@@ -69,6 +69,13 @@ export function AIAgentChat() {
 
   const handleSuggestedPrompt = (prompt: string) => {
     setInputValue(prompt);
+  };
+
+  const handleMessageAction = async (action: string) => {
+    if (action === "check_onchain") {
+      // Automatically send message to check onchain transactions
+      await sendMessage("check onchain transactions");
+    }
   };
 
   const suggestedPrompts = [
@@ -177,7 +184,11 @@ export function AIAgentChat() {
         ) : (
           <>
             {messages.map((message, index) => (
-              <MessageBubble key={index} message={message} />
+              <MessageBubble
+                key={index}
+                message={message}
+                onAction={handleMessageAction}
+              />
             ))}
 
             {/* Typing Indicator */}
@@ -251,9 +262,23 @@ export function AIAgentChat() {
 /**
  * Message Bubble Component
  * Displays individual chat messages with appropriate styling based on role.
+ * Detects suggestions for onchain transaction checks and provides action buttons.
  */
-function MessageBubble({ message }: { message: AIAgentMessage }) {
+function MessageBubble({
+  message,
+  onAction
+}: {
+  message: AIAgentMessage;
+  onAction?: (action: string) => void;
+}) {
   const isUser = message.role === "user";
+
+  // Detect if message suggests checking onchain transactions
+  const suggestsOnchainCheck = !isUser && (
+    message.content.toLowerCase().includes("check onchain") ||
+    message.content.toLowerCase().includes("blockchain") ||
+    message.content.toLowerCase().includes("on-chain")
+  );
 
   return (
     <div className={`flex items-start gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -271,23 +296,38 @@ function MessageBubble({ message }: { message: AIAgentMessage }) {
       </div>
 
       {/* Message Content */}
-      <Card
-        className={`p-3 max-w-[80%] ${
-          isUser ? "bg-primary text-primary-foreground" : ""
-        }`}
-      >
-        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-        <p
-          className={`text-xs mt-1 ${
-            isUser ? "text-primary-foreground/70" : "text-muted-foreground"
+      <div className="flex flex-col gap-2 max-w-[80%]">
+        <Card
+          className={`p-3 ${
+            isUser ? "bg-primary text-primary-foreground" : ""
           }`}
         >
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </p>
-      </Card>
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <p
+            className={`text-xs mt-1 ${
+              isUser ? "text-primary-foreground/70" : "text-muted-foreground"
+            }`}
+          >
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </Card>
+
+        {/* Action Button for Onchain Check */}
+        {suggestsOnchainCheck && onAction && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2"
+            onClick={() => onAction("check_onchain")}
+          >
+            <TrendingUp className="h-4 w-4" />
+            Check Onchain Transactions
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
