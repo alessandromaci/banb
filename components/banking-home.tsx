@@ -18,7 +18,6 @@ import {
   Home,
   User,
   MessageCircle,
-  ArrowDown,
   ArrowDownFromLine,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -46,6 +45,7 @@ import {
   getInvestmentHistory,
 } from "@/lib/investment-movements";
 import { useAIConsent } from "@/components/ai/AIConsentDialog";
+import { OnboardingTour } from "@/components/onboarding-tour";
 
 // Dynamically import AI components that use framer-motion (~300KB)
 const AIAgentChat = dynamic(
@@ -590,6 +590,7 @@ export function BankingHome() {
         <div className="pt-6 px-6 pb-6">
           <div className="flex items-center justify-between mb-10">
             <button
+              data-tour="profile"
               onClick={() => router.push("/profile")}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
@@ -798,7 +799,10 @@ Thanks!`;
           </div>
 
           {/* Pagination Dots */}
-          <div className="flex justify-center gap-2 mb-10">
+          <div
+            data-tour="pagination"
+            className="flex justify-center gap-2 mb-10"
+          >
             {allAccountCards.map((card, index) => (
               <button
                 key={`dot-${card.type}-${index}`}
@@ -855,7 +859,10 @@ Thanks!`;
             </div>
 
             {/* Invest/Withdraw Button */}
-            <div className="flex flex-col items-center gap-2">
+            <div
+              data-tour="invest"
+              className="flex flex-col items-center gap-2"
+            >
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
@@ -1060,6 +1067,7 @@ Thanks!`;
 
               {/* Center AI Button */}
               <button
+                data-tour="ai-bar"
                 onClick={() => {
                   // Check consent before opening AI chat
                   if (hasConsent === false || hasConsent === null) {
@@ -1191,6 +1199,8 @@ Thanks!`;
           <AIAgentChat />
         </DialogContent>
       </Dialog>
+
+      <OnboardingTour />
     </div>
   );
 }
