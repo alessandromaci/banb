@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
     "dev:https": "next dev --experimental-https",
     "build": "next build",
+    "build:analyze": "cross-env ANALYZE=true next build --webpack",
     "start": "next start",
     "lint": "next lint"
   },
@@ -76,11 +78,13 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@farcaster/quick-auth": "^0.0.7",
+    "@next/bundle-analyzer": "^16.0.0",
     "@next/eslint-plugin-next": "^15.3.4",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "postcss": "^8.5",

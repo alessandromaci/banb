@@ -1,14 +1,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ArrowLeft, TrendingUp } from "lucide-react";
+import { ArrowLeft, TrendingUp, Lock, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { getInvestmentOption, type InvestmentOption } from "@/lib/investments";
 import { useInvestmentPayment } from "@/lib/investment-payments";
 import { useUser } from "@/lib/user-context";
+import { useAccountSafe as useAccount } from "@/lib/use-account-safe";
+import { getAccountsByProfile } from "@/lib/accounts";
+import { type Account } from "@/lib/supabase";
+import Image from "next/image";
 
 function InvestmentReviewContent() {
   const router = useRouter();
@@ -22,11 +25,14 @@ function InvestmentReviewContent() {
     executeInvestment,
     isLoading,
     error: investmentError,
+    pendingStep,
   } = useInvestmentPayment(profile?.id);
 
   const [investmentOption, setInvestmentOption] =
     useState<InvestmentOption | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
+  const { address } = useAccount();
 
   useEffect(() => {
     if (optionId) {
@@ -45,6 +51,25 @@ function InvestmentReviewContent() {
       });
     }
   }, [optionId, vaultAddress, vaultName]);
+
+  // Load current account
+  useEffect(() => {
+    const loadCurrentAccount = async () => {
+      if (!profile?.id || !address) return;
+
+      try {
+        const accounts = await getAccountsByProfile(profile.id);
+        const account = accounts.find(
+          (acc) => acc.address.toLowerCase() === address.toLowerCase()
+        );
+        setCurrentAccount(account || null);
+      } catch (error) {
+        console.error("Failed to load account:", error);
+      }
+    };
+
+    loadCurrentAccount();
+  }, [profile?.id, address]);
 
   const handleInvest = async () => {
     if (!profile || !investmentOption || !amount) {
@@ -84,22 +109,31 @@ function InvestmentReviewContent() {
 
   if (!investmentOption || !amount) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-white/60">Missing investment information</p>
-          <Link href="/home">
-            <Button className="mt-4">Go Back</Button>
-          </Link>
+      <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
+        <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+          <div className="flex flex-col h-full px-6">
+            <div className="flex-1 flex flex-col justify-center items-center">
+              <p className="text-white/60 mb-4">
+                Missing investment information
+              </p>
+              <Link href="/home">
+                <Button className="bg-white text-black hover:bg-white/90">
+                  Go Back
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-md">
+    <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
+      <div className="mx-auto max-w-md w-full flex flex-col h-screen">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-8">
+          <h1 className="text-xl font-medium">Invest</h1>
           <Link
             href={
               optionId
@@ -110,84 +144,131 @@ function InvestmentReviewContent() {
             }
           >
             <Button
-              variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/10"
+              variant="ghost"
+              className="text-white hover:bg-white/10 rounded-full"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="w-6 h-6" />
             </Button>
           </Link>
-          <h1 className="text-xl font-semibold">Review Investment</h1>
-          <div className="w-10" />
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex flex-col h-full px-6">
           {(error || investmentError) && (
             <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
               {error || investmentError}
             </div>
           )}
 
-          <div className="flex-1 flex flex-col justify-center">
-            <Card className="bg-[#2A2640] border-0 rounded-3xl p-6 space-y-6">
-              <div>
-                <div className="text-white/60 text-sm mb-1">Investment</div>
-                <div className="text-white text-lg font-medium">
-                  {investmentOption.name}
-                </div>
-                <div className="text-white/50 text-sm">
-                  {investmentOption.description}
+          <div className="flex-1 flex flex-col justify-center items-center space-y-6">
+            {/* Investment icon with check badge */}
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                <TrendingUp className="w-8 h-8 text-white" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center border-2 border-[#0E0E0F]">
+                <Lock className="w-4 h-4 text-white" />
+              </div>
+            </div>
+
+            {/* Confirmation text */}
+            <div className="text-center">
+              <h2 className="text-base font-normal text-white/60 mb-2">
+                Confirm transaction to
+              </h2>
+              <p className="text-white font-medium text-lg">
+                {investmentOption.vault_address
+                  ? `${investmentOption.vault_address.slice(
+                      0,
+                      6
+                    )}...${investmentOption.vault_address.slice(-4)}`
+                  : investmentOption.name}
+              </p>
+            </div>
+
+            {/* Transaction details */}
+            <div className="w-full space-y-3 font-sans">
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Total Value</span>
+                <span className="text-white">${amount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Total USDC Value</span>
+                <div className="flex items-center gap-1">
+                  <Image
+                    src="/usdc-logo.png"
+                    alt="USDC"
+                    width={16}
+                    height={16}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-white">{amount}</span>
                 </div>
               </div>
-
-              <div className="h-px bg-white/10" />
-
-              <div>
-                <div className="text-white/60 text-sm mb-1">Amount</div>
-                <div className="text-white text-3xl font-light">
-                  ${amount} <span className="text-lg text-white/70">USDC</span>
-                </div>
-                <div className="text-white/50 text-sm mt-1">No fees</div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">From</span>
+                <span className="text-white">
+                  {currentAccount?.name || profile?.name || "Main"}
+                </span>
               </div>
-
-              <div className="h-px bg-white/10" />
-
-              <div>
-                <div className="text-white/60 text-sm mb-1">Expected APR</div>
-                <div className="text-white text-2xl font-semibold text-green-400">
-                  {investmentOption.apr}%
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">To</span>
+                <span className="text-white font-mono text-xs">
+                  {investmentOption.vault_address
+                    ? `${investmentOption.vault_address.slice(
+                        0,
+                        6
+                      )}...${investmentOption.vault_address.slice(-4)}`
+                    : "Vault"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Network</span>
+                <div className="flex items-center gap-1">
+                  <Image
+                    src="/usdc-logo.png"
+                    alt="Base"
+                    width={16}
+                    height={16}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-white">Base</span>
                 </div>
               </div>
-
-              <div className="h-px bg-white/10" />
-
-              <div>
-                <div className="text-white/60 text-sm mb-1">From</div>
-                <div className="text-white flex items-center gap-2">
-                  <span className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs flex-shrink-0">
-                    W
-                  </span>
-                  <span>Main (USDC)</span>
-                </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-white/60">Fee Estimate</span>
+                <span className="text-white">$0.01</span>
               </div>
-            </Card>
+            </div>
           </div>
-        </div>
 
-        {/* Bottom Button */}
-        <div className="p-6 pt-0">
-          <Button
-            onClick={handleInvest}
-            disabled={isLoading || !profile}
-            className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50"
-          >
-            {isLoading
-              ? "Processing Investment..."
-              : !profile
-              ? "Please log in"
-              : "Invest Now"}
-          </Button>
+          {/* Warning message */}
+          <div className="text-center text-xs text-white/40 px-6 pb-4">
+            Review the above before confirming.
+            <br />
+            Once sent, your transaction is irreversible.
+          </div>
+
+          {/* Action Button */}
+          <div className="px-6 pb-6">
+            <Button
+              onClick={handleInvest}
+              disabled={isLoading || !profile}
+              className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-30"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{pendingStep || "Processing..."}</span>
+                </div>
+              ) : !profile ? (
+                "Please log in"
+              ) : (
+                "Confirm"
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -198,7 +279,7 @@ export default function InvestmentReviewPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="min-h-screen bg-[#0E0E0F] flex items-center justify-center">
           <div className="text-white">Loading...</div>
         </div>
       }

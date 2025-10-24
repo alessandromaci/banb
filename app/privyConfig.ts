@@ -12,6 +12,7 @@ export const privyConfig: PrivyClientConfig = {
   supportedChains: [base], // Explicitly support Base chain
   loginMethods: ["wallet", "email", "farcaster"],
   appearance: {
+    walletList: ["metamask", "rainbow", "wallet_connect", "phantom"],
     showWalletLoginFirst: true,
     theme: "dark",
     accentColor: "#3B1EFF",

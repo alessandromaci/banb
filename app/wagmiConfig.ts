@@ -1,22 +1,21 @@
 /**
  * @fileoverview Wagmi configuration for blockchain connectivity.
- * Configures Base chain connection with Farcaster MiniApp and Porto connectors.
+ * Configures Base chain connection with Farcaster MiniApp connector.
  * Uses localStorage for wallet connection persistence.
  */
 
 import { http, createStorage } from "wagmi";
 import { createConfig } from "@privy-io/wagmi";
 import { base } from "viem/chains";
-import { porto, walletConnect } from "wagmi/connectors";
 import { farcasterMiniApp as miniAppConnector } from "@farcaster/miniapp-wagmi-connector";
 
 /**
  * Wagmi configuration for the application.
- * Supports Base chain with HTTP transport and multiple wallet connectors.
+ * Supports Base chain with HTTP transport.
  *
  * Configuration includes:
  * - Chain: Base mainnet
- * - Connectors: Farcaster MiniApp, Porto
+ * - Connectors: Farcaster MiniApp (Privy handles other wallets)
  * - Storage: Browser localStorage for connection persistence
  *
  * @constant

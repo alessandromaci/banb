@@ -66,7 +66,8 @@ export async function getInvestmentSummary(profileId: string) {
 
 /**
  * Get investment summary by vault/account for UI display.
- * Returns both active and pending investments to show in the investment account view.
+ * Returns only active (confirmed) investments to show in the investment account view.
+ * Pending investments are excluded until blockchain confirmation.
  *
  * @param {string} profileId - User profile ID
  * @returns {Promise<Array>} Array of investment account summaries
@@ -77,7 +78,7 @@ export async function getInvestmentSummary(profileId: string) {
  * @returns {string} return[].investment_name - Name of the investment
  * @returns {string} return[].investment_id - Investment ID
  * @returns {number} return[].apr - Annual percentage rate
- * @returns {string} return[].status - Investment status (active/pending)
+ * @returns {string} return[].status - Investment status (always 'active')
  */
 export async function getInvestmentSummaryByVault(profileId: string) {
   try {
@@ -92,11 +93,12 @@ export async function getInvestmentSummaryByVault(profileId: string) {
           .from("investments")
           .select("*")
           .eq("profile_id", profileId)
-          .in("status", ["active", "pending"])
+          .eq("status", "active") // Only show confirmed investments
           .order("created_at", { ascending: false });
 
         investments = result.data;
         investmentsError = result.error;
+
         break;
       } catch (networkError) {
         retryCount++;
@@ -255,7 +257,7 @@ export async function createDepositMovement(data: {
   tx_hash?: string;
   metadata?: Record<string, unknown>;
 }): Promise<InvestmentMovement> {
-  return await supabase
+  const { data: movement, error } = await supabase
     .from("investment_movements")
     .insert({
       ...data,
@@ -265,11 +267,17 @@ export async function createDepositMovement(data: {
       status: "pending",
     })
     .select()
-    .single()
-    .then(({ data, error }) => {
-      if (error)
-        throw new Error(`Failed to create deposit movement: ${error.message}`);
-      return data;
-    });
-}
+    .single();
 
+  if (error) {
+    console.error("Supabase error creating deposit movement:", error);
+    throw new Error(`Failed to create deposit movement: ${error.message}`);
+  }
+
+  if (!movement) {
+    console.error("Deposit movement insert returned no data");
+    throw new Error("Failed to create deposit movement: No data returned");
+  }
+
+  return movement;
+}

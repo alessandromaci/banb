@@ -1,13 +1,8 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { TrendingUp, Calendar } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
-import {
-  fetchLast30DaysRewards,
-  processChartData,
-  type DailyReward,
-} from "@/lib/rewards-api";
 
 /**
  * Props for the RewardsSummaryCard component.

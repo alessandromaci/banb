@@ -3,7 +3,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Check, AlertCircle, Copy, ExternalLink } from "lucide-react";
+import {
+  Check,
+  AlertCircle,
+  Copy,
+  ExternalLink,
+  TrendingUp,
+  Loader2,
+} from "lucide-react";
 import { useInvestmentMovementStatus } from "@/lib/investment-movement-status";
 import type { InvestmentMovementStatus } from "@/lib/investment-movement-status";
 
@@ -41,29 +48,40 @@ export default function InvestmentStatusPage() {
     }
   };
 
-  const steps = useMemo(() => [
-    { label: "Pending", status: "pending" },
-    { label: "Processing", status: "active" },
-    { label: "Invested", status: "confirmed" },
-  ], []);
+  const steps = useMemo(
+    () => [
+      { label: "Sending", status: "pending" },
+      { label: "Confirming", status: "confirming" },
+      { label: "Invested", status: "confirmed" },
+    ],
+    []
+  );
 
   // Update current step based on investment status
   useEffect(() => {
     if (movement) {
-      const stepIndex = steps.findIndex(
-        (step) => step.status === movement.status
-      );
-      // If status is "active", show as processing
-      // If status is "success", all steps should be complete
-      setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 0);
+      if (movement.status === "pending") {
+        // Pending: tx is being sent/mined
+        setCurrentStep(1);
+      } else if (movement.status === "confirmed") {
+        // Confirmed: all steps complete
+        setCurrentStep(3);
+      } else if (movement.status === "failed") {
+        // Failed: show error state
+        setCurrentStep(0);
+      }
     }
-  }, [movement, steps]);
+  }, [movement]);
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full px-6">
-        <div className="flex-1 flex flex-col justify-center items-center">
-          <div className="text-white/60">Loading investment status...</div>
+      <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
+        <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+          <div className="flex flex-col h-full px-6">
+            <div className="flex-1 flex flex-col justify-center items-center">
+              <div className="text-white/60">Loading investment status...</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -71,134 +89,237 @@ export default function InvestmentStatusPage() {
 
   if (error || !movement) {
     return (
-      <div className="flex flex-col h-full px-6">
-        <div className="flex-1 flex flex-col justify-center items-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-          <div className="text-red-400 text-center">
-            {error || "Transaction not found"}
+      <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
+        <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+          <div className="flex flex-col h-full px-6">
+            <div className="flex-1 flex flex-col justify-center items-center">
+              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+              <div className="text-red-400 text-center">
+                {error || "Transaction not found"}
+              </div>
+            </div>
+            <div className="pb-6 pt-4">
+              <Button
+                onClick={() => router.push("/home")}
+                className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium"
+              >
+                Back to Home
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="pb-6 pt-4">
-          <Button
-            onClick={() => router.push("/home")}
-            className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium"
-          >
-            Back to Home
-          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-md">
-        <div className="flex flex-col min-h-screen px-6 py-6">
-          <div className="flex-1 flex flex-col justify-center">
-            <div className="space-y-8">
-              {steps.map((step, index) => (
-                <div key={step.label} className="flex items-center gap-4">
-                  <div
-                    className={`h-12 w-12 rounded-full flex items-center justify-center transition-all duration-500 ${
-                      index < currentStep
-                        ? "bg-green-500"
-                        : index === currentStep
-                        ? "bg-blue-500 animate-pulse"
-                        : "bg-white/10"
-                    }`}
-                  >
-                    {index < currentStep ? (
-                      <Check className="h-6 w-6 text-white" />
-                    ) : (
-                      <div className="h-3 w-3 rounded-full bg-white/50" />
-                    )}
+    <div className="min-h-screen bg-[#0E0E0F] text-white flex flex-col">
+      <div className="mx-auto max-w-md w-full flex flex-col h-screen">
+        <div className="flex flex-col h-full px-6">
+          {movement.status === "confirmed" ? (
+            <>
+              {/* Success State */}
+              <div className="flex-1 flex flex-col justify-center items-center space-y-8">
+                {/* Icon with badge */}
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                    <TrendingUp className="w-8 h-8 text-white" />
                   </div>
-                  <div>
-                    <div
-                      className={`text-lg font-medium ${
-                        index <= currentStep ? "text-white" : "text-white/40"
-                      }`}
-                    >
-                      {step.label}
-                    </div>
-                    {index === currentStep && movement.status === "confirmed" && (
-                      <div className="text-white/60 text-sm">
-                        {String(movement.metadata?.investment_name || "Investment")}
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-green-500 flex items-center justify-center border-2 border-[#0E0E0F]">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+
+                {/* Status text */}
+                <div className="text-center">
+                  <h2 className="text-xl font-medium text-white mb-2">
+                    Investment complete!
+                  </h2>
+                  <p className="text-white/60 text-sm">
+                    Your funds are now earning{" "}
+                    {movement.metadata?.apr ? `${movement.metadata.apr}%` : ""}{" "}
+                    APR
+                  </p>
+                </div>
+
+                {/* Transaction steps */}
+                <div className="w-full space-y-4">
+                  {steps.map((step, index) => {
+                    const isActive = index < steps.length;
+
+                    return (
+                      <div
+                        key={step.label}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-base text-white">
+                          {step.label}
+                        </span>
+                        <div className="h-8 w-8 rounded-full flex items-center justify-center bg-green-500">
+                          <Check className="h-5 w-5 text-white" />
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                    );
+                  })}
 
-            {movement.status === "confirmed" && (
-              <div className="mt-12 text-center">
-                <div className="text-2xl font-medium text-white mb-2">
-                  Investment complete!
+                  {/* Transaction hash with inline buttons */}
+                  {movement.tx_hash && (
+                    <div className="pt-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-white text-sm">TX Hash</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={copyTxHash}
+                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                            title="Copy hash"
+                          >
+                            {copied ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4 text-white/60" />
+                            )}
+                          </button>
+                          <button
+                            onClick={openExplorer}
+                            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                            title="View on explorer"
+                          >
+                            <ExternalLink className="h-4 w-4 text-white/60" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-white/90 text-sm font-mono break-all bg-white/5 px-3 py-2 rounded-lg">
+                        {movement.tx_hash}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="text-white/60 mb-4">
-                  Your funds have been successfully invested in{" "}
-                  {String(movement.metadata?.investment_name || "Investment")}
-                </div>
-                <div className="space-y-3">
-                  <div className="text-white/40 text-sm">
-                    Amount: ${movement.amount} USDC
+              </div>
+
+              {/* Action Button */}
+              <div className="pb-8 pt-4">
+                <Button
+                  onClick={() => router.push("/home")}
+                  className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium"
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          ) : movement.status === "failed" ? (
+            <>
+              {/* Failed State */}
+              <div className="flex-1 flex flex-col justify-center items-center">
+                <div className="text-center space-y-6">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                      <TrendingUp className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center border-2 border-[#0E0E0F]">
+                      <AlertCircle className="w-4 h-4 text-white" />
+                    </div>
                   </div>
-                  <div className="flex justify-center gap-3">
-                    <Button
-                      onClick={copyTxHash}
-                      variant="outline"
-                      size="sm"
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-4 w-4 mr-2" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-4 w-4 mr-2" />
-                          Copy TX Hash
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={openExplorer}
-                      variant="outline"
-                      size="sm"
-                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View on Explorer
-                    </Button>
+
+                  <div>
+                    <div className="text-xl font-medium text-white mb-2">
+                      Investment failed
+                    </div>
+                    <div className="text-white/60 text-sm">
+                      There was an issue processing your investment
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
 
-            {movement.status === "failed" && (
-              <div className="mt-12 text-center">
-                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <div className="text-2xl font-medium text-red-400 mb-2">
-                  Investment failed
+              {/* Action Button */}
+              <div className="pb-8 pt-4">
+                <Button
+                  onClick={() => router.push("/home")}
+                  className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium"
+                >
+                  Back to Home
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Processing State */}
+              <div className="flex-1 flex flex-col justify-center items-center space-y-8">
+                {/* Icon with badge */}
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                    <TrendingUp className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center border-2 border-[#0E0E0F]">
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  </div>
                 </div>
-                <div className="text-white/60">
-                  There was an issue processing your investment
+
+                {/* Status text */}
+                <div className="text-center">
+                  <h2 className="text-xl font-medium text-white mb-2">
+                    Processing investment
+                  </h2>
+                  <p className="text-white/60 text-sm">
+                    Please wait while we process your transaction
+                  </p>
+                </div>
+
+                {/* Transaction steps */}
+                <div className="w-full space-y-4">
+                  {steps.map((step, index) => {
+                    const isActive = index < currentStep;
+                    const isCurrent = index === currentStep - 1;
+
+                    return (
+                      <div
+                        key={step.label}
+                        className="flex justify-between items-center"
+                      >
+                        <span
+                          className={`text-base ${
+                            isActive ? "text-white" : "text-white/40"
+                          }`}
+                        >
+                          {step.label}
+                        </span>
+                        <div
+                          className={`h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 ${
+                            isActive
+                              ? "bg-green-500"
+                              : isCurrent
+                              ? "bg-blue-500"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          {isActive ? (
+                            <Check className="h-5 w-5 text-white" />
+                          ) : isCurrent ? (
+                            <Loader2 className="h-4 w-4 text-white animate-spin" />
+                          ) : (
+                            <div className="h-2 w-2 rounded-full bg-white/50" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            )}
-          </div>
 
-          <div className="pb-6 pt-4">
-            <Button
-              onClick={() => router.push("/home")}
-              disabled={movement.status === "pending"}
-              className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50"
-            >
-              {movement.status === "confirmed" ? "Done" : "Back to Home"}
-            </Button>
-          </div>
+              {/* Action Button */}
+              <div className="pb-8 pt-4">
+                <Button
+                  onClick={() => router.push("/home")}
+                  disabled={movement.status === "pending"}
+                  className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-30"
+                >
+                  {movement.status === "pending"
+                    ? "Processing..."
+                    : "Back to Home"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

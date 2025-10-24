@@ -54,20 +54,20 @@ function generateRandomString(length: number): string {
 
 /**
  * Generates a unique handle from a user's name.
- * Format: {first3letters}{3randomchars}banb
+ * Format: {first3letters}{3randomchars}
  * Attempts up to 10 times to find a unique handle.
  *
  * @private
  * @async
  * @param {string} name - User's name to generate handle from
- * @returns {Promise<string>} Unique handle in format "abc7x2banb"
+ * @returns {Promise<string>} Unique handle in format "abc7x2"
  * @throws {Error} If unique handle cannot be generated after 10 attempts
  *
  * @example
  * ```typescript
- * await generateHandle("John Doe")     // => "joh7x2banb"
- * await generateHandle("Alice")        // => "ali3k9banb"
- * await generateHandle("Bo")           // => "box4m1banb" (padded with 'x')
+ * await generateHandle("John Doe")     // => "joh7x2"
+ * await generateHandle("Alice")        // => "ali3k9"
+ * await generateHandle("Bo")           // => "box4m1" (padded with 'x')
  * ```
  */
 async function generateHandle(name: string): Promise<string> {
@@ -81,7 +81,7 @@ async function generateHandle(name: string): Promise<string> {
   // Try to generate a unique handle (max 10 attempts)
   for (let attempt = 0; attempt < 10; attempt++) {
     const randomPart = generateRandomString(3);
-    const handle = `${prefix}${randomPart}banb`;
+    const handle = `${prefix}${randomPart}`;
 
     // Check if handle already exists in active profiles
     const { data, error } = await supabase
@@ -125,7 +125,7 @@ async function generateHandle(name: string): Promise<string> {
  *   name: "John Doe",
  *   wallet_address: "0x1234..."
  * });
- * console.log(profile.handle); // => "joh7x2banb"
+ * console.log(profile.handle); // => "joh7x2"
  * ```
  */
 export async function createProfile(data: CreateProfileData): Promise<Profile> {

@@ -12,13 +12,13 @@ import {
   Loader2,
   Copy,
   Check,
-  Sparkles,
   TrendingUp,
   Receipt,
   Activity,
   Home,
   User,
-  Wallet,
+  MessageCircle,
+  ArrowDownFromLine,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -38,13 +38,30 @@ import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
 import { InsightsCarousel } from "@/components/insights-carousel";
+import dynamic from "next/dynamic";
 import { useInvestments } from "@/lib/investments";
 import {
   getInvestmentSummaryByVault,
   getInvestmentHistory,
 } from "@/lib/investment-movements";
-import { AIAgentChat } from "@/components/ai/AIAgentChat";
-import { AIConsentDialog, useAIConsent } from "@/components/ai/AIConsentDialog";
+import { useAIConsent } from "@/components/ai/AIConsentDialog";
+import { OnboardingTour } from "@/components/onboarding-tour";
+
+// Dynamically import AI components that use framer-motion (~300KB)
+const AIAgentChat = dynamic(
+  () =>
+    import("@/components/ai/AIAgentChat").then((mod) => ({
+      default: mod.AIAgentChat,
+    })),
+  { ssr: false, loading: () => null }
+);
+const AIConsentDialog = dynamic(
+  () =>
+    import("@/components/ai/AIConsentDialog").then((mod) => ({
+      default: mod.AIConsentDialog,
+    })),
+  { ssr: false }
+);
 import {
   Dialog,
   DialogContent,
@@ -216,7 +233,11 @@ export function BankingHome() {
       try {
         setLoadingTransactions(true);
         const data = await getRecentTransactions(profile.id, 3);
-        setTransactions(data);
+        // Filter to show only successful transactions (exclude pending/sent)
+        const successfulTransactions = data.filter(
+          (tx) => tx.status === "success"
+        );
+        setTransactions(successfulTransactions);
       } catch (error) {
         console.error("Failed to fetch transactions:", error);
       } finally {
@@ -271,7 +292,11 @@ export function BankingHome() {
 
       if (currentAccountData) {
         const movements = await getInvestmentHistory(profile.id, 10);
-        setInvestmentMovements(movements);
+        // Filter to show only confirmed movements (exclude pending)
+        const confirmedMovements = movements.filter(
+          (movement) => movement.status === "confirmed"
+        );
+        setInvestmentMovements(confirmedMovements);
 
         const monthlyRewards = parseFloat(
           String(currentAccountData?.total_rewards || "0")
@@ -459,12 +484,22 @@ export function BankingHome() {
 
   const hasInvestmentAccount = investmentAccounts.length > 0;
 
-  // Calculate all accounts in order: Active wallet first (from DB), then other accounts, Add New, Investment
-  // Source of truth: accounts table in database
+  // Calculate all accounts in order: Active wallet first (from DB), then other accounts, then individual Investments, Add New last
+  // Source of truth: accounts table in database + investments table
   const allAccountCards = useMemo(() => {
     const cards: Array<{
       type: "spending" | "add-new" | "investment";
       account?: Account;
+      investmentAccount?: {
+        vault_address: string;
+        total_invested: number;
+        total_rewards: number;
+        total_value: number;
+        investment_name: string;
+        investment_id: string;
+        apr: number;
+        status: string;
+      };
       index: number;
     }> = [];
 
@@ -485,20 +520,43 @@ export function BankingHome() {
       }
     });
 
-    // Add new card
+    // Add individual investment cards (each investment gets its own card)
+    investmentAccounts.forEach((investment) => {
+      cards.push({
+        type: "investment",
+        investmentAccount: investment,
+        index: cards.length,
+      });
+    });
+
+    // Add new card at the end
     cards.push({ type: "add-new", index: cards.length });
 
-    // Investment account (if exists)
-    if (hasInvestmentAccount) {
-      cards.push({ type: "investment", index: cards.length });
-    }
-
     return cards;
-  }, [spendingAccounts, hasInvestmentAccount, address]);
+  }, [spendingAccounts, investmentAccounts, address]);
 
   // Track current card index
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const currentCard = allAccountCards[currentCardIndex] || allAccountCards[0];
+
+  // Sync activeAccount state with current card type
+  useEffect(() => {
+    if (currentCard.type === "investment") {
+      setActiveAccount(AccountType.Investment);
+      // Find the index of this investment in investmentAccounts array
+      if (currentCard.investmentAccount) {
+        const investmentIndex = investmentAccounts.findIndex(
+          (inv) =>
+            inv.vault_address === currentCard.investmentAccount?.vault_address
+        );
+        if (investmentIndex !== -1) {
+          setCurrentInvestmentAccount(investmentIndex);
+        }
+      }
+    } else if (currentCard.type === "spending") {
+      setActiveAccount(AccountType.Main);
+    }
+  }, [currentCard.type, currentCard.investmentAccount, investmentAccounts]);
 
   // Get the address for the current card (from DB account)
   const currentCardAddress = useMemo(() => {
@@ -532,6 +590,7 @@ export function BankingHome() {
         <div className="pt-6 px-6 pb-6">
           <div className="flex items-center justify-between mb-10">
             <button
+              data-tour="profile"
               onClick={() => router.push("/profile")}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
@@ -547,10 +606,33 @@ export function BankingHome() {
             </button>
             <Button
               className="bg-white text-indigo-600 hover:bg-white/90 rounded-full px-6 py-2 font-semibold shadow-lg shadow-white/20 transition-all hover:scale-105"
-              onClick={() => router.push("/upgrade")}
+              onClick={() => {
+                const subject = "BANB Feedback";
+                const body = `Hi BANB team,
+
+Here are three things I love:
+1. 
+2. 
+3. 
+
+Here are three things I would like to change:
+1. 
+2. 
+3. 
+
+Thanks!`;
+                const mailtoLink = `mailto:alessandromaci96@gmail.com?subject=${encodeURIComponent(
+                  subject
+                )}&body=${encodeURIComponent(body)}`;
+                const link = document.createElement("a");
+                link.href = mailtoLink;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.click();
+              }}
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Upgrade
+              <MessageCircle className="h-4 w-4" />
+              Feedback
             </Button>
           </div>
 
@@ -641,14 +723,15 @@ export function BankingHome() {
                     onClick={() => setShowAddAccountModal(true)}
                     className="bg-white/15 hover:bg-white/25 text-white border-0 rounded-full px-6 py-3"
                   >
-                    Add New Accounnt
+                    Add New Account
                   </Button>
                 </div>
               </>
             ) : (
               <>
                 {/* Investment Account */}
-                {hasInvestmentAccount ? (
+                {currentCard.type === "investment" &&
+                currentCard.investmentAccount ? (
                   <>
                     <div className="text-6xl font-bold mb-6 transition-all duration-500 ease-out flex items-end justify-center">
                       {!isMounted || investmentsLoading ? (
@@ -658,7 +741,7 @@ export function BankingHome() {
                           <span>
                             {
                               formatBalanceWithDifferentSizes(
-                                currentAccountBalance,
+                                currentCard.investmentAccount.total_value || 0,
                                 currency
                               ).symbol
                             }
@@ -666,7 +749,7 @@ export function BankingHome() {
                           <span>
                             {
                               formatBalanceWithDifferentSizes(
-                                currentAccountBalance,
+                                currentCard.investmentAccount.total_value || 0,
                                 currency
                               ).integerPart
                             }
@@ -675,7 +758,7 @@ export function BankingHome() {
                             .
                             {
                               formatBalanceWithDifferentSizes(
-                                currentAccountBalance,
+                                currentCard.investmentAccount.total_value || 0,
                                 currency
                               ).decimalPart
                             }
@@ -689,7 +772,7 @@ export function BankingHome() {
                         className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer"
                       >
                         <span>
-                          {currentAccount?.investment_name ||
+                          {currentCard.investmentAccount.investment_name ||
                             "Investment Account"}
                         </span>
                         {copied ? (
@@ -700,7 +783,12 @@ export function BankingHome() {
                       </button>
 
                       <span className="text-white/50">-</span>
-                      <span>{currentAccountBalance || "0.00"} USDC</span>
+                      <span>
+                        {currentCard.investmentAccount.total_value?.toFixed(
+                          2
+                        ) || "0.00"}{" "}
+                        USDC
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -711,7 +799,10 @@ export function BankingHome() {
           </div>
 
           {/* Pagination Dots */}
-          <div className="flex justify-center gap-2 mb-10">
+          <div
+            data-tour="pagination"
+            className="flex justify-center gap-2 mb-10"
+          >
             {allAccountCards.map((card, index) => (
               <button
                 key={`dot-${card.type}-${index}`}
@@ -745,17 +836,18 @@ export function BankingHome() {
                       })
                     );
                     router.push("/deposit");
-                  } else {
+                  } else if (
+                    currentCard.type === "investment" &&
+                    currentCard.investmentAccount
+                  ) {
                     // Investment account - add more to same vault
-                    if (currentAccount?.vault_address) {
-                      router.push(
-                        `/invest/amount?vault=${
-                          currentAccount.vault_address
-                        }&name=${encodeURIComponent(
-                          currentAccount.investment_name || ""
-                        )}`
-                      );
-                    }
+                    router.push(
+                      `/invest/amount?vault=${
+                        currentCard.investmentAccount.vault_address
+                      }&name=${encodeURIComponent(
+                        currentCard.investmentAccount.investment_name || ""
+                      )}`
+                    );
                   }
                 }}
               >
@@ -766,8 +858,11 @@ export function BankingHome() {
               </span>
             </div>
 
-            {/* Withdraw Button */}
-            <div className="flex flex-col items-center gap-2">
+            {/* Invest/Withdraw Button */}
+            <div
+              data-tour="invest"
+              className="flex flex-col items-center gap-2"
+            >
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 shadow-lg shadow-indigo-500/20 transition-all hover:scale-105"
@@ -781,10 +876,16 @@ export function BankingHome() {
                 }}
                 disabled={activeAccount === AccountType.Investment}
               >
-                <TrendingUp className="size-6" />
+                {activeAccount === AccountType.Investment ? (
+                  <ArrowDownFromLine className="size-6" />
+                ) : (
+                  <TrendingUp className="size-6" />
+                )}
               </Button>
               <span className="text-xs text-white/90 font-medium whitespace-nowrap">
-                Invest
+                {activeAccount === AccountType.Investment
+                  ? "Withdraw"
+                  : "Invest"}
               </span>
             </div>
 
@@ -956,6 +1057,7 @@ export function BankingHome() {
                   setActiveTab("analytics");
                   router.push("/analytics");
                 }}
+                disabled={true}
                 className={`flex flex-col items-center gap-1 py-2 transition-colors ${
                   activeTab === "analytics" ? "text-white" : "text-white/50"
                 }`}
@@ -966,6 +1068,7 @@ export function BankingHome() {
 
               {/* Center AI Button */}
               <button
+                data-tour="ai-bar"
                 onClick={() => {
                   // Check consent before opening AI chat
                   if (hasConsent === false || hasConsent === null) {
@@ -1097,6 +1200,8 @@ export function BankingHome() {
           <AIAgentChat />
         </DialogContent>
       </Dialog>
+
+      <OnboardingTour />
     </div>
   );
 }
