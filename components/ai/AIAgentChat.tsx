@@ -120,12 +120,12 @@ export function AIAgentChat() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full w-full">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="font-semibold">AI Banking Assistant</h2>
+          <h2 className="font-semibold">BANB AI</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -260,6 +260,33 @@ export function AIAgentChat() {
 }
 
 /**
+ * Formats message content, converting markdown links to clickable HTML links
+ */
+function formatMessageContent(content: string) {
+  // Convert markdown links [text](url) to clickable <a> tags
+  const parts = content.split(/(\[.*?\]\(.*?\))/g);
+  
+  return parts.map((part, index) => {
+    const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
+    if (linkMatch) {
+      const [, text, url] = linkMatch;
+      return (
+        <a
+          key={index}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:text-blue-600 underline"
+        >
+          {text}
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
+/**
  * Message Bubble Component
  * Displays individual chat messages with appropriate styling based on role.
  * Detects suggestions for onchain transaction checks and provides action buttons.
@@ -306,7 +333,9 @@ function MessageBubble({
             isUser ? "bg-primary text-primary-foreground" : ""
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <div className="text-sm whitespace-pre-wrap">
+            {formatMessageContent(message.content)}
+          </div>
           <p
             className={`text-xs mt-1 ${
               isUser ? "text-primary-foreground/70" : "text-muted-foreground"

@@ -75,7 +75,7 @@ export function AIConsentDialog({
         <DialogHeader>
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-6 w-6 text-primary" />
-            <DialogTitle>Enable AI Banking Assistant</DialogTitle>
+            <DialogTitle>Enable BANB AI</DialogTitle>
           </div>
         </DialogHeader>
 

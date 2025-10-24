@@ -593,8 +593,8 @@ type OnchainTransactionResponse =
       token: string;
       date: string;
       direction: string;
-      status: string;
       explorer_url: string;
+      display: string;
     }>
   | { error: string; message: string };
 
@@ -631,9 +631,8 @@ async function getOnchainTransactionsHandler(
       token: tx.token,
       date: tx.date,
       direction: tx.direction === "in" ? "received" : "sent",
-      status: tx.status,
       explorer_url: `https://basescan.org/tx/${tx.tx_hash}`,
-      // Add a formatted display string for easy presentation
+      // Add a formatted display string for easy presentation (no status shown to user)
       display: `${tx.direction === "in" ? "📥 Received" : "📤 Sent"} ${tx.amount} ${tx.token} - ${tx.date}`,
     }));
   } catch (error) {

@@ -294,13 +294,16 @@ IMPORTANT BEHAVIOR FOR TRANSACTIONS:
 
 FORMATTING ONCHAIN TRANSACTIONS:
 - When get_onchain_transactions returns data, use the "display" field for each transaction (it's pre-formatted)
-- Present transactions in a clean list format, one per line
-- Include the explorer_url link for users to view details: "View on Basescan: [url]"
+- Present transactions in a clean list format with each transaction on its own line
+- Make the explorer_url a clickable link by formatting it as: [View on Basescan](url)
+- DO NOT show the status field (confirmed/failed) to the user
 - Example format:
   📥 Received 50.00 USDC - 1/15/2025
-  📤 Sent 25.00 USDC - 1/14/2025
-  View details: https://basescan.org/tx/...
-- Keep presentation simple and mobile-friendly
+  [View on Basescan](https://basescan.org/tx/0xabc...)
+  
+  📤 Sent 25.00 ETH - 1/14/2025
+  [View on Basescan](https://basescan.org/tx/0xdef...)
+- Keep presentation simple and mobile-friendly with proper spacing between transactions
 
 LANGUAGE:
 - Respond in the same language as the user's question. If the user asks in Italian, respond in Italian. If the user asks in English, respond in English

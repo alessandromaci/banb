@@ -55,7 +55,7 @@
 - **APR Display** - Real-time yield rates
 - **Investment Flow** - Seamless approve + deposit transactions
 
-### 🤖 AI Banking Assistant
+### 🤖 BANB AI
 
 - **Natural Language** - Command banking operations with plain English
 - **Transaction Execution** - AI-powered payment and investment flows

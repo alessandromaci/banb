@@ -4,7 +4,7 @@ import { AIAgentChat } from "@/components/ai/AIAgentChat";
 import { Card } from "@/components/ui/card";
 
 /**
- * AI Banking Assistant Demo Page
+ * BANB AI Demo Page
  * 
  * Standalone demo page for testing the AI-powered banking assistant.
  * This page can be accessed at /ai-assistant for full-screen chat experience.
@@ -14,7 +14,7 @@ export default function AIAssistantDemo() {
     <div className="min-h-screen bg-background p-4">
       <div className="mx-auto max-w-4xl space-y-4">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">AI Banking Assistant</h1>
+          <h1 className="text-3xl font-bold">BANB AI</h1>
           <p className="text-muted-foreground">
             Your intelligent banking companion
           </p>
