@@ -118,6 +118,13 @@ export function useAIAgent(profileId: string, userAddress?: `0x${string}`) {
 
   const { formattedBalance } = useUSDCBalance(userAddress);
 
+  // Log when profile ID changes for debugging
+  useEffect(() => {
+    if (profileId) {
+      console.log("[useAIAgent] Initialized with profile ID:", profileId);
+    }
+  }, [profileId]);
+
   /**
    * Retrieves current user context for AI.
    * Fetches balance, recent transactions, and recipients.
@@ -142,7 +149,7 @@ export function useAIAgent(profileId: string, userAddress?: `0x${string}`) {
   const sendMessage = useCallback(
     async (message: string) => {
       if (!profileId) {
-        setError("User not authenticated");
+        setError("User not authenticated. Please log in to use the AI assistant.");
         return;
       }
 
@@ -158,10 +165,7 @@ export function useAIAgent(profileId: string, userAddress?: `0x${string}`) {
       setMessages((prev) => [...prev, userMessage]);
 
       try {
-        // Get user context
-        const context = await getContext();
-
-        // Send to AI API
+        // Send to AI API with profileId in context
         const response = await fetch("/api/ai/chat", {
           method: "POST",
           headers: {
@@ -175,7 +179,6 @@ export function useAIAgent(profileId: string, userAddress?: `0x${string}`) {
               includeTransactions: true,
               includeRecipients: true,
             },
-            userContext: context,
           }),
         });
 
@@ -206,7 +209,7 @@ export function useAIAgent(profileId: string, userAddress?: `0x${string}`) {
         setIsProcessing(false);
       }
     },
-    [profileId, getContext]
+    [profileId]
   );
 
   /**

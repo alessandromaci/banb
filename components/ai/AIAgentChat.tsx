@@ -24,7 +24,7 @@ import { useRouter } from "next/navigation";
  * ```
  */
 export function AIAgentChat() {
-  const { profile } = useUser();
+  const { profile, isLoading: isLoadingProfile } = useUser();
   const { address } = useAccount();
   const router = useRouter();
   const [inputValue, setInputValue] = useState("");
@@ -86,11 +86,29 @@ export function AIAgentChat() {
     },
   ];
 
+  // Show loading state while profile is being loaded
+  if (isLoadingProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading your profile...</p>
+      </div>
+    );
+  }
+
+  // Show authentication required if no profile
   if (!profile) {
     return (
-      <Card className="p-6 text-center">
-        <p className="text-muted-foreground">Please log in to use the AI assistant</p>
-      </Card>
+      <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4">
+        <Sparkles className="h-12 w-12 text-muted-foreground" />
+        <div>
+          <h3 className="font-semibold text-lg mb-2">Authentication Required</h3>
+          <p className="text-muted-foreground">Please log in to use the AI assistant</p>
+        </div>
+        <Button onClick={() => router.push("/home")}>
+          Go to Home
+        </Button>
+      </div>
     );
   }
 
