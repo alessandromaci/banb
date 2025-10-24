@@ -7,7 +7,7 @@
 // Import removed - we'll define investment options directly to avoid client/server issues
 import { getRecentTransactions, getSentTransactions } from "./transactions";
 import { getRecipientsByProfile } from "./recipients";
-import { getPortfolioInsights, type PortfolioInsights } from "./ai-agent";
+import { getPortfolioInsights, type PortfolioInsights } from "./portfolio-insights";
 import { supabase } from "./supabase";
 
 /**
