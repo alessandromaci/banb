@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useUser } from "@/lib/user-context";
 import { useAccount } from "wagmi";
 import { useAIAgent, type AIAgentMessage, type ParsedAIOperation } from "@/lib/ai-agent";

@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "./providers";
 import { MobileOnlyWrapper } from "@/components/mobile-only-wrapper";
 import "./globals.css";
+import React from "react";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {

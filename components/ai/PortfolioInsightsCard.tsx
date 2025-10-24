@@ -3,6 +3,7 @@
 import { type PortfolioInsights } from "@/lib/ai-agent";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus, DollarSign, Users, BarChart3 } from "lucide-react";
+import React from "react";
 
 interface PortfolioInsightsCardProps {
   insights: PortfolioInsights;

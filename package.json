@@ -9,7 +9,8 @@
     "build": "next build",
     "build:analyze": "cross-env ANALYZE=true next build --webpack",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node tests\\run-tests.mjs"
   },
   "dependencies": {
     "@coinbase/onchainkit": "1.1.0",

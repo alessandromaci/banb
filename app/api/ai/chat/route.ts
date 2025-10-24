@@ -95,7 +95,7 @@ async function getUserContext(
         }
         // Provide structured balance info or omit if unavailable
         if (balanceInfo) {
-          (context as any).balance = balanceInfo;
+          context.balance = balanceInfo;
         }
       } catch (e) {
         console.warn("Failed to fetch balance via MCP tool:", e);
