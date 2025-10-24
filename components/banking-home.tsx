@@ -12,13 +12,14 @@ import {
   Loader2,
   Copy,
   Check,
-  Sparkles,
   TrendingUp,
   Receipt,
   Activity,
   Home,
   User,
-  Wallet,
+  MessageCircle,
+  ArrowDown,
+  ArrowDownFromLine,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -604,10 +605,33 @@ export function BankingHome() {
             </button>
             <Button
               className="bg-white text-indigo-600 hover:bg-white/90 rounded-full px-6 py-2 font-semibold shadow-lg shadow-white/20 transition-all hover:scale-105"
-              onClick={() => router.push("/upgrade")}
+              onClick={() => {
+                const subject = "BANB Feedback";
+                const body = `Hi BANB team,
+
+Here are three things I love:
+1. 
+2. 
+3. 
+
+Here are three things I would like to change:
+1. 
+2. 
+3. 
+
+Thanks!`;
+                const mailtoLink = `mailto:alessandromaci96@gmail.com?subject=${encodeURIComponent(
+                  subject
+                )}&body=${encodeURIComponent(body)}`;
+                const link = document.createElement("a");
+                link.href = mailtoLink;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.click();
+              }}
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Upgrade
+              <MessageCircle className="h-4 w-4" />
+              Feedback
             </Button>
           </div>
 
@@ -830,7 +854,7 @@ export function BankingHome() {
               </span>
             </div>
 
-            {/* Withdraw Button */}
+            {/* Invest/Withdraw Button */}
             <div className="flex flex-col items-center gap-2">
               <Button
                 size="icon"
@@ -845,10 +869,16 @@ export function BankingHome() {
                 }}
                 disabled={activeAccount === AccountType.Investment}
               >
-                <TrendingUp className="size-6" />
+                {activeAccount === AccountType.Investment ? (
+                  <ArrowDownFromLine className="size-6" />
+                ) : (
+                  <TrendingUp className="size-6" />
+                )}
               </Button>
               <span className="text-xs text-white/90 font-medium whitespace-nowrap">
-                Invest
+                {activeAccount === AccountType.Investment
+                  ? "Withdraw"
+                  : "Invest"}
               </span>
             </div>
 

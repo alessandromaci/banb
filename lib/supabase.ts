@@ -28,7 +28,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * @interface Profile
  * @property {string} id - Unique identifier (UUID)
  * @property {string} name - User's display name
- * @property {string} handle - Unique handle in format: {first3letters}{3random}banb (e.g., "joh7x2banb")
+ * @property {string} handle - Unique handle in format: {first3letters}{3random} (e.g., "joh7x2")
  * @property {string} wallet_address - Ethereum wallet address (lowercase)
  * @property {"active" | "inactive"} [status] - Account status, defaults to "active"
  * @property {string} created_at - ISO timestamp of profile creation

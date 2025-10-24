@@ -25,6 +25,7 @@ import {
   Copy,
   Check,
   WalletIcon,
+  Sparkles,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import { useUser } from "@/lib/user-context";
@@ -328,6 +329,32 @@ export default function ProfilePage() {
                 <p className="text-sm text-red-400 text-center">{error}</p>
               </div>
             )}
+          </div>
+
+          {/* Upgrade */}
+          <div>
+            <h2 className="text-base font-semibold text-white mb-3 px-1">
+              Premium
+            </h2>
+            <div className="bg-white/5 rounded-2xl border border-white/10">
+              <button
+                onClick={() => router.push("/upgrade")}
+                className="w-full flex items-center justify-between p-4 hover:bg-white/10 transition-colors rounded-2xl"
+              >
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-5 w-5 text-white/60" />
+                  <div className="text-left">
+                    <p className="text-base font-medium text-white">
+                      Upgrade Account
+                    </p>
+                    <p className="text-sm text-white/50">
+                      Unlock premium features
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-white/40" />
+              </button>
+            </div>
           </div>
 
           {/* Authentication */}
