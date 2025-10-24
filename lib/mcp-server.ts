@@ -8,6 +8,7 @@
 import { getRecentTransactions, getSentTransactions } from "./transactions";
 import { getRecipientsByProfile } from "./recipients";
 import { getPortfolioInsights, type PortfolioInsights } from "./portfolio-insights";
+import { fetchOnchainTransactions, type FormattedOnchainTransaction } from "./onchain-transactions";
 import { supabase } from "./supabase";
 
 /**
@@ -144,6 +145,21 @@ export const MCP_TOOLS: MCPTool[] = [
       properties: {},
     },
   },
+  {
+    name: "get_onchain_transactions",
+    description: "Fetch transaction history directly from the Base blockchain using Basescan API. Use this when database transactions are empty or user explicitly requests onchain data. Returns last transactions with amounts, counterparties, and dates.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Maximum number of transactions to return (default 5, max 20)",
+          minimum: 1,
+          maximum: 20,
+        },
+      },
+    },
+  },
 ];
 
 /**
@@ -240,6 +256,10 @@ export async function executeToolHandler(
 
       case "get_transaction_summary":
         result = await getTransactionSummaryHandler(context);
+        break;
+
+      case "get_onchain_transactions":
+        result = await getOnchainTransactionsHandler(args, context);
         break;
 
       default:
@@ -350,29 +370,44 @@ async function getUserBalanceHandler(context: ToolExecutionContext): Promise<{
 }
 
 /**
+ * Transaction response type for getRecentTransactionsHandler
+ */
+type TransactionResponse = 
+  | Array<{
+      id: string;
+      amount: string;
+      recipient_name: string;
+      recipient_address: string | null;
+      date: string;
+      status: string;
+      token: string;
+      chain: string;
+    }>
+  | { message: string; suggestion: string };
+
+/**
  * Handler for get_recent_transactions tool.
  * Retrieves recent transaction history with recipient details.
  * 
  * @param {Record<string, unknown>} args - Tool arguments
  * @param {ToolExecutionContext} context - User context
- * @returns {Promise<Array<{id: string; amount: string; recipient_name: string; recipient_address: string | null; date: string; status: string; token: string; chain: string}>>} Transaction data
+ * @returns {Promise<TransactionResponse>} Transaction data or suggestion message
  */
 async function getRecentTransactionsHandler(
   args: Record<string, unknown>,
   context: ToolExecutionContext
-): Promise<Array<{
-  id: string;
-  amount: string;
-  recipient_name: string;
-  recipient_address: string | null;
-  date: string;
-  status: string;
-  token: string;
-  chain: string;
-}>> {
+): Promise<TransactionResponse> {
   const limit = Math.min(Math.max((args.limit as number) || 10, 1), 50);
 
   const transactions = await getRecentTransactions(context.profileId, limit);
+
+  // If no transactions in database, suggest checking onchain
+  if (transactions.length === 0) {
+    return {
+      message: "No transactions found in the database.",
+      suggestion: "Would you like me to check for onchain transactions? This will fetch your transaction history directly from the blockchain."
+    };
+  }
 
   return transactions.map((tx) => ({
     id: tx.id,
@@ -529,6 +564,67 @@ function generateInsightsSummary(insights: PortfolioInsights): string {
   }
 
   return summary;
+}
+
+/**
+ * Onchain transaction response type for getOnchainTransactionsHandler
+ */
+type OnchainTransactionResponse = 
+  | Array<{
+      tx_hash: string;
+      from: string;
+      to: string;
+      amount: string;
+      token: string;
+      date: string;
+      direction: string;
+      status: string;
+      explorer_url: string;
+    }>
+  | { error: string; message: string };
+
+/**
+ * Handler for get_onchain_transactions tool.
+ * Fetches transaction history directly from Base blockchain via Basescan API.
+ * Returns formatted transaction data with explorer links.
+ * 
+ * @param {Record<string, unknown>} args - Tool arguments
+ * @param {ToolExecutionContext} context - User context
+ * @returns {Promise<OnchainTransactionResponse>} Onchain transaction data or error message
+ */
+async function getOnchainTransactionsHandler(
+  args: Record<string, unknown>,
+  context: ToolExecutionContext
+): Promise<OnchainTransactionResponse> {
+  try {
+    const limit = Math.min(Math.max((args.limit as number) || 5, 1), 20);
+    
+    const transactions = await fetchOnchainTransactions(context.profileId, limit);
+    
+    if (transactions.length === 0) {
+      return {
+        error: "no_transactions",
+        message: "No onchain transactions found for this account."
+      };
+    }
+
+    return transactions.map((tx) => ({
+      tx_hash: `${tx.tx_hash.slice(0, 10)}...${tx.tx_hash.slice(-8)}`,
+      from: `${tx.from.slice(0, 6)}...${tx.from.slice(-4)}`,
+      to: `${tx.to.slice(0, 6)}...${tx.to.slice(-4)}`,
+      amount: `$${tx.amount}`,
+      token: tx.token,
+      date: tx.date,
+      direction: tx.direction === "in" ? "received" : "sent",
+      status: tx.status,
+      explorer_url: `https://basescan.org/tx/${tx.tx_hash}`,
+    }));
+  } catch (error) {
+    return {
+      error: "fetch_failed",
+      message: error instanceof Error ? error.message : "Failed to fetch onchain transactions"
+    };
+  }
 }
 
 /**
