@@ -641,8 +641,8 @@ export default function ProfilePage() {
                                   <Button
                                     onClick={handleConnectWallet}
                                     size="sm"
-                                    variant="outline"
-                                    className="w-full h-7 border-white/20 text-white hover:bg-white/10 text-xs"
+                                    variant="ghost"
+                                    className="w-full h-7 border border-white/20 bg-white/5 text-white hover:bg-white/10 text-xs"
                                   >
                                     Connect Wallet
                                   </Button>

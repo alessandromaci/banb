@@ -13,16 +13,16 @@ export const minikitConfig = {
   accountAssociation: {
     header:
       "eyJmaWQiOjE5NDM0MiwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDliRDljRkQxMzA5RDE1NTkzNzUyM0U2RkRmNTE2ZDQ0OTYxNDZFQjAifQ",
-    payload: "eyJkb21haW4iOiJiYW5iLnZlcmNlbC5hcHAifQ",
+    payload: "eyJkb21haW4iOiJiYW5iLmZpbmFuY2UifQ",
     signature:
-      "30mnx5iCRscvE/pPD1Ko6Y3336YOTFrJBxaA8yKo/eEJ9VWQNA4mhW6u6k0z8M7UfxnQ1Ukd5hZT/wsdk3UFdBs=",
+      "wfljF5eZssHQ4Ia+l3C0xANoL85+w7nkgdQnKsBgGbpLK+M6NoCyKU9K4J0VwtU/dYULf43cefZ9+og//e81fRs=",
   },
   miniapp: {
     version: "1",
     name: "BANB",
-    subtitle: "Blockchain Agentic Neo Bank",
+    subtitle: "The Easiest Way to Manage Stablecoins Onchain",
     description:
-      "Decentralized banking with blockchain infrastructure and AI automation. Send payments, manage deposits, and invest—all powered by Web3 and smart agents.",
+      "BANB brings the simplicity of a neobank to the onchain world powered by AI.",
     screenshotUrls: [`${ROOT_URL}/banb-logo.png`],
     iconUrl: `${ROOT_URL}/banb-white-icon.png`,
     splashImageUrl: `${ROOT_URL}/banb-white-icon.png`,
