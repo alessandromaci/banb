@@ -73,10 +73,6 @@ export function LandingPage() {
       privyReady &&
       address // Active wallet from wagmi (Privy's choice)
     ) {
-      console.log(
-        "✅ User clicked, redirecting to check-profile with:",
-        address
-      );
       setIsRedirecting(true);
 
       // Show loading animation for 1s before redirect
@@ -88,61 +84,43 @@ export function LandingPage() {
     }
   }, [userInteractionCount, authenticated, privyReady, address, router]);
 
-  // Debug: Log authentication state changes
+  // Initialize Farcaster SDK and detect environment (deferred to not block rendering)
   useEffect(() => {
-    console.log("🔄 Auth state changed:", {
-      authenticated,
-      walletsCount: wallets.length,
-      walletAddresses: wallets.map((w) => w.address),
-      activeWagmiAddress: address, // The address wagmi is using
-      privyReady,
-      userInteractionCount,
-    });
-  }, [authenticated, wallets, address, privyReady, userInteractionCount]);
+    // Defer Farcaster SDK initialization to not block initial render
+    const timer = setTimeout(() => {
+      const initializeSDK = async () => {
+        try {
+          await sdk.actions.ready();
 
-  // Initialize Farcaster SDK and detect environment
-  useEffect(() => {
-    const initializeSDK = async () => {
-      try {
-        await sdk.actions.ready();
+          // Check if we're inside Farcaster
+          const context = await Promise.resolve(sdk.context);
 
-        // Check if we're inside Farcaster
-        const context = await Promise.resolve(sdk.context);
-        console.log("🎯 Farcaster context:", context);
+          // More robust check: verify we're actually in a Farcaster environment
+          // Check for user.fid AND client.clientFid to confirm it's a real Farcaster client
+          const hasUserFid =
+            context?.user?.fid != null &&
+            typeof context.user.fid === "number" &&
+            context.user.fid > 0;
+          const hasFarcasterClient =
+            context?.client?.clientFid != null &&
+            typeof context.client.clientFid === "number" &&
+            context.client.clientFid > 0;
 
-        // More robust check: verify we're actually in a Farcaster environment
-        // Check for user.fid AND client.clientFid to confirm it's a real Farcaster client
-        const hasUserFid =
-          context?.user?.fid != null &&
-          typeof context.user.fid === "number" &&
-          context.user.fid > 0;
-        const hasFarcasterClient =
-          context?.client?.clientFid != null &&
-          typeof context.client.clientFid === "number" &&
-          context.client.clientFid > 0;
-
-        if (hasUserFid && hasFarcasterClient) {
-          console.log("✅ Running inside Farcaster mini app", {
-            fid: context.user.fid,
-            clientFid: context.client.clientFid,
-          });
-          setIsInsideFarcaster(true);
-        } else {
-          console.log("❌ Not in Farcaster environment", {
-            hasUserFid,
-            hasFarcasterClient,
-            userFid: context?.user?.fid,
-            clientFid: context?.client?.clientFid,
-          });
+          if (hasUserFid && hasFarcasterClient) {
+            setIsInsideFarcaster(true);
+          } else {
+            setIsInsideFarcaster(false);
+          }
+        } catch (error) {
+          console.error("Failed to initialize Farcaster SDK:", error);
           setIsInsideFarcaster(false);
         }
-      } catch (error) {
-        console.error("Failed to initialize Farcaster SDK:", error);
-        setIsInsideFarcaster(false);
-      }
-    };
+      };
 
-    initializeSDK();
+      initializeSDK();
+    }, 100); // Defer by 100ms to allow UI to render first
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Note: We detect Farcaster environment but don't auto-login
@@ -158,7 +136,6 @@ export function LandingPage() {
   // Handle wallet switching
   const handleSwitchWallet = async (wallet: ConnectedWallet) => {
     try {
-      console.log("🔄 Switching to wallet:", wallet.address);
       await setActiveWallet(wallet);
       setShowWalletSelector(false);
       toast({
@@ -194,144 +171,64 @@ export function LandingPage() {
 
   const handleLogin = async () => {
     // Increment counter to indicate user clicked
-    console.log(
-      "🖱️ User clicked button, counter:",
-      userInteractionCount,
-      "→",
-      userInteractionCount + 1
-    );
     setUserInteractionCount(1);
-
-    // Debug: Check authentication state
-    console.log("🔍 Auth Debug:", {
-      authenticated,
-      walletsCount: wallets.length,
-      walletAddresses: wallets.map((w) => w.address),
-      activeWagmiAddress: address,
-      privyReady,
-    });
 
     // If already authenticated with wallet, redirect will happen via useEffect
     if (authenticated && address) {
-      console.log(
-        "✅ Already authenticated with address, will redirect via useEffect"
-      );
       return;
     }
 
     // If authenticated but no address, set counter and wait for address to load
     // (The useEffect with timeout will handle if it doesn't load)
     if (authenticated && !address) {
-      console.log("⚠️ Authenticated but no address loaded yet, waiting...");
-      // Counter is already incremented, just return and let useEffect handle it
       return;
     }
 
-    console.log("🔐 Connect Wallet clicked");
-    console.log("📱 Is inside Farcaster:", isInsideFarcaster);
-    console.log("✅ Privy ready:", privyReady);
-
     // Check if Privy is ready
     if (!privyReady) {
-      console.warn("⚠️ Privy not ready yet, waiting...");
       return;
     }
 
     try {
       // SCENARIO 1: Inside Farcaster - use proper Mini App authentication
       if (isInsideFarcaster) {
-        console.log("🔐 Farcaster Mini App login with nonce flow");
         try {
-          // Step 1: Get nonce from Privy
           const { nonce } = await initLoginToMiniApp();
-          console.log("✅ Got nonce:", nonce);
-
-          // Step 2: Request signature from Farcaster
           const result = await sdk.actions.signIn({ nonce });
-          console.log("✅ Got signature from Farcaster");
-
-          // Step 3: Authenticate with Privy
           await loginToMiniApp({
             message: result.message,
             signature: result.signature,
           });
-          console.log("✅ Authenticated with Privy");
-          // Auto-redirect happens via useEffect
         } catch (loginError) {
-          console.error("❌ Farcaster login failed:", loginError);
+          console.error("Farcaster login failed:", loginError);
         }
         return;
       }
 
       // SCENARIO 2: Outside Farcaster - open standard Privy modal
-      console.log("🔌 Opening Privy connect modal");
-
       try {
         await privyLogin();
-        console.log("✅ Wallet connected, will auto-redirect");
-        // Auto-redirect happens via useEffect
       } catch (loginError: unknown) {
         const error = loginError as Error;
 
         // SPECIAL CASE: User is already logged in (session persisted)
         if (error?.message?.includes("already logged in")) {
-          console.log("✅ Session already active, redirecting immediately");
-          // User is already authenticated, just redirect
           router.push("/check-profile");
           return;
         }
 
-        console.error("❌ Wallet connection error:", {
-          message: error?.message,
-          name: error?.name,
-          cause: error?.cause,
-          stack: error?.stack,
-          full: loginError,
-        });
-
-        // Check if it's just a cancellation
-        if (
+        // Check if it's just a cancellation (not an actual error)
+        const isCancellation =
           error?.message?.includes("abort") ||
           error?.message?.includes("cancel") ||
-          error?.name === "AbortError"
-        ) {
-          console.log("ℹ️ User cancelled or modal closed");
-        } else {
-          // Log the full error for debugging
-          console.error("🔥 Authentication failed:", loginError);
+          error?.name === "AbortError";
 
-          // Provide specific error hints
-          if (
-            error?.message?.includes("domain") ||
-            error?.message?.includes("Domain")
-          ) {
-            console.error(
-              "💡 HINT: Add 'http://localhost:3000' to your Privy Dashboard → Settings → Domains"
-            );
-          }
-          if (
-            error?.message?.includes("chain") ||
-            error?.message?.includes("Chain")
-          ) {
-            console.error(
-              "💡 HINT: Make sure your wallet is on Base network (Chain ID: 8453)"
-            );
-          }
-          if (
-            error?.message?.includes("400") ||
-            error?.message?.includes("Bad Request")
-          ) {
-            console.error(
-              "💡 HINT: Clear your browser cache and restart the dev server"
-            );
-            console.error(
-              "💡 HINT: Verify domains are configured in Privy Dashboard"
-            );
-          }
+        if (!isCancellation) {
+          console.error("Authentication failed:", error);
         }
       }
     } catch (error) {
-      console.error("❌ Unexpected login error:", error);
+      console.error("Unexpected login error:", error);
     }
   };
 
@@ -406,14 +303,10 @@ export function LandingPage() {
                 size="lg"
                 variant="ghost"
                 onClick={handleLogin}
-                disabled={
-                  !privyReady || isRedirecting || (authenticated && !address)
-                }
+                disabled={isRedirecting || (authenticated && !address)}
                 className="w-full rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 h-12 sm:h-14 text-sm sm:text-base font-semibold relative flex items-center justify-center gap-2"
               >
                 {isRedirecting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : !privyReady ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : authenticated && !address ? (
                   <>
@@ -434,7 +327,13 @@ export function LandingPage() {
                     </div>
                   </>
                 ) : (
-                  "Connect Wallet"
+                  <>
+                    {!privyReady ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <span>Connect Wallet</span>
+                    )}
+                  </>
                 )}
               </Button>
             </div>

@@ -38,13 +38,29 @@ import { TransactionCard } from "@/components/ui/transaction-card";
 import { InvestmentMovementCard } from "@/components/ui/investment-movement-card";
 import { RewardsSummaryCard } from "@/components/ui/rewards-summary-card";
 import { InsightsCarousel } from "@/components/insights-carousel";
+import dynamic from "next/dynamic";
 import { useInvestments } from "@/lib/investments";
 import {
   getInvestmentSummaryByVault,
   getInvestmentHistory,
 } from "@/lib/investment-movements";
-import { AIAgentChat } from "@/components/ai/AIAgentChat";
-import { AIConsentDialog, useAIConsent } from "@/components/ai/AIConsentDialog";
+import { useAIConsent } from "@/components/ai/AIConsentDialog";
+
+// Dynamically import AI components that use framer-motion (~300KB)
+const AIAgentChat = dynamic(
+  () =>
+    import("@/components/ai/AIAgentChat").then((mod) => ({
+      default: mod.AIAgentChat,
+    })),
+  { ssr: false, loading: () => null }
+);
+const AIConsentDialog = dynamic(
+  () =>
+    import("@/components/ai/AIConsentDialog").then((mod) => ({
+      default: mod.AIConsentDialog,
+    })),
+  { ssr: false }
+);
 import {
   Dialog,
   DialogContent,
