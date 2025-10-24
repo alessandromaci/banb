@@ -20,7 +20,7 @@ export const minikitConfig = {
   miniapp: {
     version: "1",
     name: "BANB",
-    subtitle: "The Easiest Way to Manage Stablecoins Onchain",
+    subtitle: "Manage Easily Your Stablecoins",
     description:
       "BANB brings the simplicity of a neobank to the onchain world powered by AI.",
     screenshotUrls: [`${ROOT_URL}/banb-logo.png`],
