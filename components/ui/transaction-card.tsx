@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { formatTransactionAmount } from "@/lib/transactions";
 import type { Transaction } from "@/lib/supabase";
 
@@ -14,6 +15,8 @@ export function TransactionCard({
   variant = "completed",
   showNegative = true,
 }: TransactionCardProps) {
+  const router = useRouter();
+
   const getVariantStyles = () => {
     switch (variant) {
       case "completed":
@@ -46,8 +49,15 @@ export function TransactionCard({
     ? `-${formatTransactionAmount(transaction.amount, transaction.token)}`
     : formatTransactionAmount(transaction.amount, transaction.token);
 
+  const handleClick = () => {
+    router.push(`/payments/status/${transaction.id}`);
+  };
+
   return (
-    <div className="flex items-center justify-between">
+    <button
+      onClick={handleClick}
+      className="flex items-center justify-between w-full hover:bg-white/5 p-3 -m-3 rounded-xl transition-colors cursor-pointer"
+    >
       <div className="flex items-center gap-3">
         <div
           className={`h-10 w-10 rounded-full ${styles.icon} flex items-center justify-center`}
@@ -69,6 +79,6 @@ export function TransactionCard({
       <div className="text-right">
         <div className={`font-semibold ${styles.amount}`}>{amount}</div>
       </div>
-    </div>
+    </button>
   );
 }

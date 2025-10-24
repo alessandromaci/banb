@@ -149,7 +149,8 @@ export function SignUpForm() {
         });
 
         setProfile(profile);
-        router.push("/home");
+        // Mark as new user to trigger onboarding tour
+        router.push("/home?newUser=true");
       } catch (err) {
         console.error("Failed to create profile:", err);
         setError(

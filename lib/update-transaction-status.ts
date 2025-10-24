@@ -1,12 +1,33 @@
 "use client";
 
-import { Porto } from "porto";
 import { supabase } from "./supabase";
 
-const { provider } = Porto.create();
+/**
+ * EIP-5792 GetCallsStatus response structure
+ * Reference: https://docs.metamask.io/wallet/how-to/send-transactions/send-batch-transactions
+ */
+interface CallsStatusResponse {
+  version: string; // API version (e.g., "2.0.0")
+  chainId: string; // Chain ID
+  id: string; // Batch ID
+  status: number; // Status code: 200 = confirmed, others = pending
+  atomic?: boolean; // Whether calls were executed atomically
+  receipts?: Array<{
+    logs: Array<{
+      address: string;
+      data: string;
+      topics: string[];
+    }>;
+    status: string; // "0x1" = success, "0x0" = failed
+    blockHash: string;
+    blockNumber: string;
+    gasUsed: string;
+    transactionHash: string;
+  }>;
+}
 
 /**
- * Check the status of a call batch using Porto provider and update the database.
+ * Check the status of a call batch using window.ethereum and update the database.
  *
  * @param batchId - The batch ID from sendCallsAsync
  * @param movementId - The movement ID to update
@@ -17,13 +38,31 @@ export async function updateTransactionStatus(
   movementId: string
 ): Promise<string | null> {
   try {
-    // Get the status of the call batch using Porto provider
-    const status = await provider.request({
-      method: "wallet_getCallsStatus",
-      params: [batchId as `0x${string}`],
-    });
+    // Get ethereum provider from window
+    const ethereum = (
+      window as {
+        ethereum?: {
+          request: (args: {
+            method: string;
+            params: unknown[];
+          }) => Promise<unknown>;
+        };
+      }
+    ).ethereum;
 
-    // Check if the transaction is confirmed (status 200 = success)
+    if (!ethereum) {
+      console.warn("No ethereum provider found");
+      return null;
+    }
+
+    // Get the status of the call batch using EIP-5792
+    const status = (await ethereum.request({
+      method: "wallet_getCallsStatus",
+      params: [batchId],
+    })) as CallsStatusResponse;
+
+    // Check if the transaction is confirmed (status code 200)
+    // Reference: https://docs.metamask.io/wallet/how-to/send-transactions/send-batch-transactions
     if (
       status.status === 200 &&
       status.receipts &&
@@ -32,6 +71,8 @@ export async function updateTransactionStatus(
       const receipt = status.receipts[0];
       const realTxHash = receipt.transactionHash;
       const isSuccess = receipt.status === "0x1"; // 0x1 = success, 0x0 = failure
+
+      console.log(`Batch transaction confirmed! TX Hash: ${realTxHash}`);
 
       // Update the movement record with the real transaction hash and success status
       const { error } = await supabase
@@ -52,6 +93,9 @@ export async function updateTransactionStatus(
     }
 
     // If still pending, return null (will be checked again later)
+    console.log(
+      `Batch transaction still pending. Status code: ${status.status}`
+    );
     return null;
   } catch (error) {
     console.error("Error checking transaction status:", error);

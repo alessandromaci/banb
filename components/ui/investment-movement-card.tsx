@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import {
   TrendingUp,
@@ -39,6 +40,7 @@ interface InvestmentMovementCardProps {
 export function InvestmentMovementCard({
   movement,
 }: InvestmentMovementCardProps) {
+  const router = useRouter();
   const isPositive =
     movement.movement_type === "deposit" || movement.movement_type === "reward";
   const isNegative =
@@ -91,8 +93,15 @@ export function InvestmentMovementCard({
     }
   };
 
+  const handleClick = () => {
+    router.push(`/invest/status/${movement.id}`);
+  };
+
   return (
-    <div className="flex items-center justify-between">
+    <button
+      onClick={handleClick}
+      className="flex items-center justify-between w-full hover:bg-white/5 p-3 -m-3 rounded-xl transition-colors cursor-pointer"
+    >
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
           {getIcon()}
@@ -113,6 +122,6 @@ export function InvestmentMovementCard({
           {formatCurrency(parseFloat(movement.amount), "USD")}
         </div>
       </div>
-    </div>
+    </button>
   );
 }

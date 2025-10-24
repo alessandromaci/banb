@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
@@ -49,21 +50,40 @@ const tourSteps: TourStep[] = [
 ];
 
 export function OnboardingTour() {
+  const searchParams = useSearchParams();
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
-    // Check if user has completed the tour
-    const hasCompletedTour = localStorage.getItem("hasCompletedTour");
-    if (!hasCompletedTour) {
+    const isNewUser = searchParams.get("newUser") === "true";
+
+    // Always show tour for new users (from signup)
+    if (isNewUser) {
+      // Clear the completed tour flag for new users
+      localStorage.removeItem("hasCompletedTour");
+
+      // Remove the newUser parameter from URL without page reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("newUser");
+      window.history.replaceState({}, "", url.toString());
+
       // Delay to allow data (balances, etc.) to load before starting tour
       setTimeout(() => {
         setIsActive(true);
       }, 2500);
+    } else {
+      // Check if user has completed the tour (for regular visits)
+      const hasCompletedTour = localStorage.getItem("hasCompletedTour");
+      if (!hasCompletedTour) {
+        // Delay to allow data (balances, etc.) to load before starting tour
+        setTimeout(() => {
+          setIsActive(true);
+        }, 2500);
+      }
     }
-  }, []);
+  }, [searchParams]);
 
   // Developer: To reset the tour, run this in console:
   // localStorage.removeItem("hasCompletedTour"); window.location.reload();
