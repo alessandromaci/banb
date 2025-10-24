@@ -1,14 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ArrowLeft, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { getInvestmentOption, type InvestmentOption } from "@/lib/investments";
 import { useUSDCBalance } from "@/lib/payments";
-import { useAccount } from "wagmi";
+import { useAccountSafe as useAccount } from "@/lib/use-account-safe";
+import { useUser } from "@/lib/user-context";
+import { NumberPad } from "@/components/payments/NumberPad";
+import { getAccountsByProfile } from "@/lib/accounts";
+import { type Account } from "@/lib/supabase";
+import Image from "next/image";
 
 function InvestmentAmountContent() {
   const router = useRouter();
@@ -18,11 +22,14 @@ function InvestmentAmountContent() {
   const vaultName = searchParams.get("name");
   const { address } = useAccount();
   const { formattedBalance: usdcBalance } = useUSDCBalance(address);
+  const { profile } = useUser();
 
   const [amount, setAmount] = useState("");
   const [investmentOption, setInvestmentOption] =
     useState<InvestmentOption | null>(null);
+  const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
 
+  // Load investment option
   useEffect(() => {
     if (optionId) {
       const option = getInvestmentOption(optionId);
@@ -41,6 +48,25 @@ function InvestmentAmountContent() {
     }
   }, [optionId, vaultAddress, vaultName]);
 
+  // Load current account (the one with matching address)
+  useEffect(() => {
+    const loadCurrentAccount = async () => {
+      if (!profile?.id || !address) return;
+
+      try {
+        const accounts = await getAccountsByProfile(profile.id);
+        const account = accounts.find(
+          (acc) => acc.address.toLowerCase() === address.toLowerCase()
+        );
+        setCurrentAccount(account || null);
+      } catch (error) {
+        console.error("Failed to load account:", error);
+      }
+    };
+
+    loadCurrentAccount();
+  }, [profile?.id, address]);
+
   const formatNumber = (value: string) => {
     const cleanValue = value.replace(/[^0-9.]/g, "").replace(/,/g, "");
 
@@ -52,7 +78,7 @@ function InvestmentAmountContent() {
 
     const [integer, decimal] = cleanValue.split(".");
 
-    // Validate length limits
+    // Validate length limits (max 4 digits for integer, 2 for decimal)
     if (integer.length > 4 || (decimal && decimal.length > 2)) {
       return amount;
     }
@@ -60,8 +86,25 @@ function InvestmentAmountContent() {
     return cleanValue;
   };
 
-  const handleAmountChange = (value: string) => {
-    setAmount(formatNumber(value));
+  const formatDisplayValue = (value: string) => {
+    if (!value || value === "0") return "0";
+    return value;
+  };
+
+  // Handle number pad input
+  const handleNumberClick = (num: string) => {
+    if (num === "." && amount.includes(".")) return; // Prevent multiple decimals
+
+    const newValue = amount + num;
+    const formatted = formatNumber(newValue);
+    if (formatted !== amount) {
+      setAmount(formatted);
+    }
+  };
+
+  // Handle backspace
+  const handleBackspace = () => {
+    setAmount(amount.slice(0, -1));
   };
 
   const handleContinue = () => {
@@ -97,95 +140,98 @@ function InvestmentAmountContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-md">
+    <div className="h-screen bg-[#0E0E0F] text-white flex flex-col overflow-hidden">
+      <div className="max-w-md mx-auto w-full flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="px-6 py-8 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-4 ml-2">
+            <div>
+              <h1 className="text-xl font-medium">{investmentOption.name}</h1>
+              <p className="text-sm text-white/50">
+                From: {currentAccount?.name || "Main Account"}
+              </p>
+            </div>
+          </div>
           <Link href="/invest/select">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/10"
+              className="text-white hover:bg-white/10 rounded-full"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="w-6 h-6" />
             </Button>
           </Link>
-          <h1 className="text-xl font-semibold">Investment Amount</h1>
-          <div className="w-10" />
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Investment Option Card */}
-          <Card className="bg-white/5 border-white/10 p-6 mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-12 w-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                <TrendingUp className="h-6 w-6 text-purple-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  {investmentOption.name}
-                </h3>
-                <p className="text-sm text-white/60">
-                  {investmentOption.description}
-                </p>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-green-400">
-              {investmentOption.apr}% APR
-            </div>
-          </Card>
-
-          {/* Amount Input */}
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-3">
-                Move funds from Main Account
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={amount}
-                  onChange={(e) => handleAmountChange(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full text-4xl font-light bg-transparent border-0 outline-none text-white placeholder:text-white/40"
-                />
-                <div className="text-white/60 text-lg">USDC</div>
-              </div>
+        {/* Amount display - centered with scroll */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-4">
+            <div className="inline-flex items-start justify-center gap-0.5">
+              <span className="text-3xl font-normal text-white mt-2 font-sans">
+                $
+              </span>
+              <span className="text-7xl font-light text-white min-w-[1ch] inline-block tracking-tight font-sans">
+                {formatDisplayValue(amount) || "0"}
+              </span>
             </div>
 
-            {/* Balance Info */}
-            <div className="text-sm text-white/60">
-              Available: {usdcBalance || "0.00"} USDC
+            {/* USDC equivalence display */}
+            <div className="flex items-center gap-1 text-sm text-white/50 mt-6 font-sans">
+              <span className="text-sm text-white/50">≈</span>
+              <Image
+                src="/usdc-logo.png"
+                alt="USDC"
+                width={16}
+                height={16}
+                className="w-4 h-4 text-white"
+              />
+              <span>
+                {amount && parseFloat(amount) > 0
+                  ? formatDisplayValue(amount)
+                  : "0.00"}{" "}
+              </span>
             </div>
+
+            {/* Available Balance */}
+            <div className="mt-4 text-sm text-white/50">
+              Available: ${usdcBalance || "0.00"}
+            </div>
+
             {hasInsufficientBalance && (
-              <div className="text-red-400 text-sm">Insufficient balance.</div>
+              <div className="mt-2 text-red-400 text-sm">
+                Insufficient balance
+              </div>
             )}
-
-            {/* Quick Amount Buttons */}
-            <div className="grid grid-cols-3 gap-3">
-              {[25, 50, 100].map((value) => (
-                <Button
-                  key={value}
-                  variant="outline"
-                  onClick={() => setAmount(value.toString())}
-                  className="bg-white/5 border-white/20 text-white hover:bg-white/10"
-                >
-                  ${value}
-                </Button>
-              ))}
-            </div>
           </div>
         </div>
 
+        {/* Number Pad */}
+        <div className="flex-shrink-0">
+          <NumberPad
+            onNumberClick={handleNumberClick}
+            onBackspace={handleBackspace}
+          />
+        </div>
+
         {/* Bottom Button */}
-        <div className="p-6 pt-0">
+        <div className="px-6 pb-6 flex-shrink-0">
           <Button
-            onClick={handleContinue}
             disabled={!isValidAmount}
-            className="w-full h-14 rounded-full bg-white text-black hover:bg-white/90 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleContinue}
+            className="w-full h-12 sm:h-14 rounded-full disabled:opacity-30 disabled:cursor-not-allowed text-white font-medium text-base border-0"
+            style={{
+              backgroundColor: isValidAmount
+                ? "#3479FF"
+                : "rgba(52, 121, 255, 0.3)",
+            }}
           >
-            {hasInsufficientBalance ? "Insufficient Balance" : "Continue"}
+            {investmentOption.logo ? (
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-white">Continue</span>
+              </div>
+            ) : (
+              <span className="text-white">Continue</span>
+            )}
           </Button>
         </div>
       </div>
