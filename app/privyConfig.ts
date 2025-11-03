@@ -13,7 +13,7 @@ export const privyConfig: PrivyClientConfig = {
   loginMethods: ["google", "apple", "email", "farcaster", "wallet"],
   appearance: {
     walletList: ["metamask", "rainbow", "wallet_connect", "phantom"],
-    showWalletLoginFirst: true,
+    showWalletLoginFirst: false,
     theme: "dark",
     accentColor: "#3B1EFF",
     logo: "/banb-logo-white.svg",

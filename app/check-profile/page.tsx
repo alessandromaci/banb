@@ -26,9 +26,10 @@ export default function CheckProfilePage() {
 
   // Get smart wallet address from Privy user's linkedAccounts
   const smartWallet = user?.linkedAccounts?.find(
-    (account) => account.type === "smart_wallet"
+    (account) => account.type === "smart_wallet" || account.type === "wallet"
   );
-  const smartWalletAddress = smartWallet ? (smartWallet as any).address : null;
+  const smartWalletAddress =
+    smartWallet && "address" in smartWallet ? (smartWallet.address as string) : null;
 
   // Use smart wallet address if available, otherwise fall back to wagmi address
   const address = smartWalletAddress || wagmiAddress;

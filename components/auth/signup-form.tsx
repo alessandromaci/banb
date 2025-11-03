@@ -33,9 +33,12 @@ export function SignUpForm() {
 
   // Get smart wallet address from Privy user's linkedAccounts
   const smartWallet = user?.linkedAccounts?.find(
-    (account) => account.type === "smart_wallet"
+    (account) => account.type === "smart_wallet" || account.type === "wallet"
   );
-  const smartWalletAddress = smartWallet ? (smartWallet as any).address : null;
+  const smartWalletAddress =
+    smartWallet && "address" in smartWallet
+      ? (smartWallet.address as string)
+      : null;
 
   // Use smart wallet address if available, otherwise fall back to wagmi address
   const address = smartWalletAddress || wagmiAddress;
@@ -48,12 +51,14 @@ export function SignUpForm() {
     const googleAccount = userToExtract.linkedAccounts?.find(
       (account) => account.type === "google_oauth"
     );
-    if (googleAccount) {
-      const googleEmail = (googleAccount as any).email;
+    if (googleAccount && "email" in googleAccount) {
+      const googleEmail = googleAccount.email as string | undefined;
       if (googleEmail) {
         return deriveUsernameFromEmail(googleEmail);
       }
-      const googleSubject = (googleAccount as any).subject;
+    }
+    if (googleAccount && "subject" in googleAccount) {
+      const googleSubject = googleAccount.subject as string | undefined;
       if (googleSubject) {
         return `user${googleSubject.slice(-8)}`;
       }
@@ -63,8 +68,8 @@ export function SignUpForm() {
     const appleAccount = userToExtract.linkedAccounts?.find(
       (account) => account.type === "apple_oauth"
     );
-    if (appleAccount) {
-      const appleEmail = (appleAccount as any).email;
+    if (appleAccount && "email" in appleAccount) {
+      const appleEmail = appleAccount.email as string | undefined;
       if (appleEmail) {
         return deriveUsernameFromEmail(appleEmail);
       }
@@ -74,8 +79,11 @@ export function SignUpForm() {
     const emailAccount = userToExtract.linkedAccounts?.find(
       (account) => account.type === "email"
     );
-    if (emailAccount && (emailAccount as any).address) {
-      return deriveUsernameFromEmail((emailAccount as any).address);
+    if (emailAccount && "address" in emailAccount) {
+      const emailAddress = emailAccount.address as string;
+      if (emailAddress) {
+        return deriveUsernameFromEmail(emailAddress);
+      }
     }
 
     // Try direct email property
