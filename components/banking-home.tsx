@@ -162,7 +162,7 @@ export function BankingHome() {
         linkedAddress = linkedAccount.address as string;
       } else {
         const walletAccounts = updatedUser?.linkedAccounts?.filter(
-          (acc) => "address" in acc && (acc.type === "wallet" || acc.type === "eoas")
+          (acc) => "address" in acc && acc.type === "wallet"
         );
         if (walletAccounts && walletAccounts.length > 0) {
           const lastWallet = walletAccounts[walletAccounts.length - 1];
