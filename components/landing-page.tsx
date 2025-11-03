@@ -16,6 +16,8 @@ import {
   usePrivy,
   useWallets,
   type ConnectedWallet,
+  useLoginWithOAuth,
+  useCreateWallet,
 } from "@privy-io/react-auth";
 import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
 import {
@@ -49,40 +51,85 @@ const slides = [
 export function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isInsideFarcaster, setIsInsideFarcaster] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const [userInteractionCount, setUserInteractionCount] = useState(0);
   const [showWalletSelector, setShowWalletSelector] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<
+    "google" | "apple" | null
+  >(null);
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const {
-    login: privyLogin,
     ready: privyReady,
     authenticated,
     logout,
     connectWallet: privyConnectWallet,
   } = usePrivy();
+  const { wallets: privyWallets } = useWallets();
+  const { createWallet } = useCreateWallet();
+
+  const { initOAuth, loading: oauthLoading } = useLoginWithOAuth({
+    onComplete: async ({ user, isNewUser }) => {
+      // Check if user has an embedded wallet (smart wallet)
+      const hasSmartWallet = user?.linkedAccounts?.some(
+        (account) =>
+          account.type === "smart_wallet" || account.type === "wallet"
+      );
+      const hasEmbeddedWallet = privyWallets.some(
+        (wallet) => wallet.walletClientType === "privy"
+      );
+
+      // If user doesn't have a wallet, create one
+      if (!hasSmartWallet && !hasEmbeddedWallet) {
+        setIsCreatingWallet(true);
+        try {
+          await createWallet();
+          setIsCreatingWallet(false);
+        } catch (error) {
+          setIsCreatingWallet(false);
+        }
+      }
+
+      setIsRedirecting(true);
+      // Redirect based on whether user is new or existing
+      if (isNewUser) {
+        router.push("/signup");
+        setTimeout(() => {
+          if (
+            typeof window !== "undefined" &&
+            window.location.pathname === "/"
+          ) {
+            window.location.href = "/signup";
+          }
+        }, 100);
+      } else {
+        router.push("/check-profile");
+      }
+    },
+    onError: () => {
+      setIsRedirecting(false);
+      setLoadingProvider(null);
+    },
+  });
+
+  // Detect OAuth callback and restore loadingProvider from URL params
+  useEffect(() => {
+    if (typeof window !== "undefined" && privyReady) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const provider = urlParams.get("privy_oauth_provider");
+      if (provider === "google" || provider === "apple") {
+        // Restore the loading provider when coming back from OAuth
+        if (!loadingProvider) {
+          setLoadingProvider(provider as "google" | "apple");
+        }
+      }
+    }
+  }, [privyReady, loadingProvider]);
   const { wallets } = useWallets();
   const { address } = useAccount(); // Safe wrapper handles WagmiProvider not ready
   const { setActiveWallet } = useSetActiveWallet();
   const { initLoginToMiniApp, loginToMiniApp } = useLoginToMiniApp();
   const router = useRouter();
 
-  // Simple redirect: Trust Privy to handle wallet activation
-  useEffect(() => {
-    if (
-      userInteractionCount === 1 &&
-      authenticated &&
-      privyReady &&
-      address // Active wallet from wagmi (Privy's choice)
-    ) {
-      setIsRedirecting(true);
-
-      // Show loading animation for 1s before redirect
-      const timer = setTimeout(() => {
-        router.push("/check-profile");
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [userInteractionCount, authenticated, privyReady, address, router]);
+  // Removed auto-redirect - users should always click sign-in button
 
   // Initialize Farcaster SDK and detect environment (deferred to not block rendering)
   useEffect(() => {
@@ -111,8 +158,7 @@ export function LandingPage() {
           } else {
             setIsInsideFarcaster(false);
           }
-        } catch (error) {
-          console.error("Failed to initialize Farcaster SDK:", error);
+        } catch {
           setIsInsideFarcaster(false);
         }
       };
@@ -145,8 +191,7 @@ export function LandingPage() {
           6
         )}...${wallet.address.slice(-4)}`,
       });
-    } catch (error) {
-      console.error("❌ Failed to switch wallet:", error);
+    } catch {
       toast({
         title: "Failed to switch wallet",
         description: "Please try again",
@@ -169,28 +214,14 @@ export function LandingPage() {
     return walletClientType.charAt(0).toUpperCase() + walletClientType.slice(1);
   };
 
-  const handleLogin = async () => {
-    // Increment counter to indicate user clicked
-    setUserInteractionCount(1);
+  // Handle email-first login with specific providers - exactly like the example
+  const handleLoginWithProvider = async (provider: "google" | "apple") => {
+    if (!privyReady || oauthLoading || isRedirecting) return;
 
-    // If already authenticated with wallet, redirect will happen via useEffect
-    if (authenticated && address) {
-      return;
-    }
-
-    // If authenticated but no address, set counter and wait for address to load
-    // (The useEffect with timeout will handle if it doesn't load)
-    if (authenticated && !address) {
-      return;
-    }
-
-    // Check if Privy is ready
-    if (!privyReady) {
-      return;
-    }
+    setLoadingProvider(provider);
 
     try {
-      // SCENARIO 1: Inside Farcaster - use proper Mini App authentication
+      // Inside Farcaster - use proper Mini App authentication
       if (isInsideFarcaster) {
         try {
           const { nonce } = await initLoginToMiniApp();
@@ -199,37 +230,24 @@ export function LandingPage() {
             message: result.message,
             signature: result.signature,
           });
-        } catch (loginError) {
-          console.error("Farcaster login failed:", loginError);
+        } catch {
+          setLoadingProvider(null);
         }
         return;
       }
 
-      // SCENARIO 2: Outside Farcaster - open standard Privy modal
-      try {
-        await privyLogin();
-      } catch (loginError: unknown) {
-        const error = loginError as Error;
-
-        // SPECIAL CASE: User is already logged in (session persisted)
-        if (error?.message?.includes("already logged in")) {
-          router.push("/check-profile");
-          return;
-        }
-
-        // Check if it's just a cancellation (not an actual error)
-        const isCancellation =
-          error?.message?.includes("abort") ||
-          error?.message?.includes("cancel") ||
-          error?.name === "AbortError";
-
-        if (!isCancellation) {
-          console.error("Authentication failed:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Unexpected login error:", error);
+      // Simple OAuth login - exactly like the Privy example
+      // The user will be redirected to OAuth provider's login page
+      // onComplete callback handles redirect
+      await initOAuth({ provider });
+    } catch {
+      setLoadingProvider(null);
     }
+  };
+
+  // Legacy handler for wallet login (kept for compatibility)
+  const handleLogin = async () => {
+    await handleLoginWithProvider("google");
   };
 
   return (
@@ -270,86 +288,111 @@ export function LandingPage() {
           </span>
         </div>
 
-        {/* Main Content */}
+        {/* Main Content - Simplified FOMO Style */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="max-w-md space-y-8">
-            {/* Carousel Indicators */}
-            <div className="flex justify-center gap-2">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    currentSlide === index
-                      ? "w-8 bg-white"
-                      : "w-1.5 bg-white/30"
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
+          <div className="max-w-md space-y-6 text-center">
+            {/* Logo Elements - Scattered decorative elements */}
+            <div className="flex items-center justify-center gap-3 mb-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm opacity-60"
+                  style={{
+                    transform: `rotate(${i * 22.5}deg) translateY(${
+                      i % 2 === 0 ? "10px" : "-10px"
+                    })`,
+                  }}
+                ></div>
               ))}
             </div>
-
-            <h1 className="text-4xl font-bold leading-tight text-white text-balance text-center">
-              {slides[currentSlide].title}
-            </h1>
           </div>
         </div>
 
-        {/* Bottom Buttons */}
+        {/* Bottom Buttons - Email-First Flow */}
         <div className="space-y-3 pb-2">
-          <div className="flex justify-center w-full gap-4">
-            <div className="w-full">
-              <Button
-                size="lg"
-                variant="ghost"
-                onClick={handleLogin}
-                disabled={isRedirecting || (authenticated && !address)}
-                className="w-full rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 h-12 sm:h-14 text-sm sm:text-base font-semibold relative flex items-center justify-center gap-2"
-              >
-                {isRedirecting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : authenticated && !address ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">Loading...</span>
-                  </>
-                ) : authenticated && address ? (
-                  <>
-                    <div className="font-sans font-bold text-base flex items-center gap-2">
-                      <div>Log In</div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30">
-                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                        <span className="text-xs text-green-300 font-mono">
-                          {address.slice(0, 6)}...
-                          {address.slice(-3)}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {!privyReady ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <span>Connect Wallet</span>
-                    )}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+          {/* Sign in with Apple */}
+          <Button
+            size="lg"
+            onClick={() => handleLoginWithProvider("apple")}
+            disabled={!privyReady || oauthLoading || isRedirecting}
+            className="w-full rounded-xl bg-white text-black hover:bg-gray-100 h-14 text-base font-semibold relative flex items-center justify-center gap-2 transition-all"
+          >
+            {loadingProvider !== null && loadingProvider === "apple" ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>
+                  {isCreatingWallet ? "Creating wallet..." : "Connecting..."}
+                </span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-8 h-8"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.08-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                </svg>
+                <span>Continue with Apple</span>
+              </>
+            )}
+          </Button>
 
-          {/* Show wallet selector option when wallet is connected */}
-          {authenticated && address && !isRedirecting && (
-            <div className="flex justify-center">
-              <button
-                onClick={() => setShowWalletSelector(true)}
-                className="text-xs font-sans text-white/60 hover:text-white/80 underline"
-              >
-                Use a different wallet
-              </button>
-            </div>
-          )}
+          {/* Sign in with Google */}
+          <Button
+            size="lg"
+            onClick={() => handleLoginWithProvider("google")}
+            disabled={!privyReady || oauthLoading || isRedirecting}
+            className="w-full rounded-xl bg-[#1f1f1f] text-white hover:bg-[#2a2a2a] h-14 text-base font-semibold relative flex items-center justify-center gap-2 transition-all border border-white/10"
+          >
+            {loadingProvider !== null && loadingProvider === "google" ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>
+                  {isCreatingWallet ? "Creating wallet..." : "Connecting..."}
+                </span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-8 h-8"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </>
+            )}
+          </Button>
+
+          {/* Legal text */}
+          <p className="text-xs text-white/50 text-center px-4 font-sans">
+            By continuing, you agree to our{" "}
+            <Link href="/" className="underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/" className="underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </div>
       </div>
 

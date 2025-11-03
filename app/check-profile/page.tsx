@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,19 @@ import { useUser } from "@/lib/user-context";
  */
 export default function CheckProfilePage() {
   const router = useRouter();
-  const { authenticated, ready: privyReady, logout } = usePrivy();
-  const { address } = useAccount();
+  const { authenticated, ready: privyReady, logout, user } = usePrivy();
+  const { wallets: privyWallets } = useWallets();
+  const { address: wagmiAddress } = useAccount();
+  const { createWallet } = useCreateWallet();
+
+  // Get smart wallet address from Privy user's linkedAccounts
+  const smartWallet = user?.linkedAccounts?.find(
+    (account) => account.type === "smart_wallet"
+  );
+  const smartWalletAddress = smartWallet ? (smartWallet as any).address : null;
+
+  // Use smart wallet address if available, otherwise fall back to wagmi address
+  const address = smartWalletAddress || wagmiAddress;
   const { setProfile } = useUser();
   const [status, setStatus] = useState<"waiting" | "checking" | "error">(
     "waiting"
@@ -32,83 +43,82 @@ export default function CheckProfilePage() {
   const checkProfile = useCallback(async () => {
     if (!address) return;
 
-    // Prevent multiple simultaneous checks
-    if (isCheckingRef.current) {
-      console.log("⏸️ Already checking, skipping...");
-      return;
-    }
-
-    // Prevent re-checking after successful check
-    if (hasCheckedRef.current) {
-      console.log("⏸️ Already checked, skipping...");
-      return;
-    }
+    if (isCheckingRef.current || hasCheckedRef.current) return;
 
     isCheckingRef.current = true;
     setStatus("checking");
     setError(null);
-    console.log("🔍 Checking profile for:", address);
 
     try {
-      // Check if wallet is primary OR linked to any account
       const profile = await getProfileByAnyWallet(address);
 
       if (profile) {
-        console.log("✅ Profile found:", profile);
-        hasCheckedRef.current = true; // Mark as checked
+        hasCheckedRef.current = true;
         setProfile(profile);
-        console.log("🔄 Redirecting to /home...");
         router.push("/home");
       } else {
-        console.log("❌ No profile found, redirecting to signup");
-        hasCheckedRef.current = true; // Mark as checked
+        hasCheckedRef.current = true;
         router.push("/signup");
       }
     } catch (err) {
-      console.error("❌ Error checking profile:", err);
-      isCheckingRef.current = false; // Allow retry on error
+      isCheckingRef.current = false;
       setStatus("error");
       setError(err instanceof Error ? err.message : "Failed to check profile");
     }
   }, [address, setProfile, router]);
 
   useEffect(() => {
-    // Wait for Privy to be ready
-    if (!privyReady) {
-      console.log("⏳ Waiting for Privy...");
-      return;
-    }
+    if (!privyReady) return;
 
-    // If not authenticated, redirect to landing
     if (!authenticated) {
-      console.log("❌ Not authenticated, redirecting to landing");
       router.push("/");
       return;
     }
 
-    // Wait for wagmi to sync the address
+    // Wait for wallet address
     if (!address) {
-      console.log("⏳ Waiting for wallet address...");
+      // Check if user has a wallet, create one if not
+      const hasSmartWallet = user?.linkedAccounts?.some(
+        (account) => account.type === "smart_wallet" || account.type === "wallet"
+      );
+      const hasEmbeddedWallet = privyWallets.some(
+        (wallet) => wallet.walletClientType === "privy"
+      );
+
+      if (!hasSmartWallet && !hasEmbeddedWallet) {
+        createWallet().catch(() => {
+          // Silent fail - will retry
+        });
+      }
+
       setStatus("waiting");
 
-      // Safety timeout: If address doesn't load within 8 seconds, something is wrong
+      // Safety timeout
       const timeoutTimer = setTimeout(() => {
-        console.error("❌ Wallet address failed to load after 8 seconds");
         setStatus("error");
-        setError("Wallet failed to load. Please disconnect and try again.");
-      }, 8000);
+        setError(
+          "Wallet creation is taking longer than expected. Please try refreshing the page."
+        );
+      }, 30000);
 
       return () => {
         clearTimeout(timeoutTimer);
       };
     }
 
-    // Check profile
     checkProfile();
-  }, [privyReady, authenticated, address, checkProfile, router]);
+  }, [
+    privyReady,
+    authenticated,
+    address,
+    checkProfile,
+    router,
+    user,
+    privyWallets,
+    createWallet,
+  ]);
 
   const handleRetry = () => {
-    // Reset refs to allow retry
     hasCheckedRef.current = false;
     isCheckingRef.current = false;
 
@@ -123,9 +133,7 @@ export default function CheckProfilePage() {
     try {
       await logout();
       router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-      // Force redirect anyway
+    } catch {
       router.push("/");
     }
   };
@@ -136,20 +144,18 @@ export default function CheckProfilePage() {
       <div className="h-dvh bg-gradient-to-b from-[#3B1EFF] via-[#5B3FFF] to-[#1A0F3D] text-white flex items-center justify-center p-6">
         <div className="max-w-md w-full space-y-6 text-center">
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Something Went Wrong</h1>
             <p className="text-white/60 text-sm">
-              {error || "We couldn't check your profile. Please try again."}
+              {error || "We couldn't load your profile. Please try again."}
             </p>
           </div>
 
           <div className="space-y-3">
             <Button
               onClick={handleRetry}
-              className="w-full bg-white text-indigo-600 hover:bg-white/90 rounded-full py-6 font-semibold"
+              className="w-full bg-white text-black hover:bg-gray-100 rounded-full"
             >
-              Try Again
+              Retry
             </Button>
-
             <Button
               onClick={handleLogout}
               variant="ghost"
@@ -169,12 +175,7 @@ export default function CheckProfilePage() {
       <div className="text-center space-y-6">
         <Loader2 className="h-16 w-16 animate-spin mx-auto text-white" />
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">{"Retrieving Profile"}</h2>
-          <p className="text-white/60 text-sm">
-            {status === "waiting"
-              ? "0x..."
-              : `${address?.slice(0, 6)}...${address?.slice(-4)}`}
-          </p>
+          <h2 className="text-xl font-semibold">Retrieving Profile...</h2>
         </div>
       </div>
     </div>

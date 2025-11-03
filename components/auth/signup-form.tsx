@@ -1,334 +1,247 @@
 "use client";
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Loader2, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
 import { createProfile, getProfileByAnyWallet } from "@/lib/profile";
 import { createAccount } from "@/lib/accounts";
 import { useUser } from "@/lib/user-context";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
-import { useSetActiveWallet } from "@privy-io/wagmi";
+
+/**
+ * Helper function to derive username from email
+ */
+function deriveUsernameFromEmail(email: string): string {
+  const beforeAt = email.split("@")[0];
+  return beforeAt.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "user";
+}
 
 export function SignUpForm() {
   const router = useRouter();
-  const [step, setStep] = useState<"details" | "wallet">("details");
-  const [formData, setFormData] = useState({
-    name: "",
-  });
   const [error, setError] = useState<string | null>(null);
-  const [existingWallet, setExistingWallet] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
-  const [isCheckingWallet, setIsCheckingWallet] = useState(false);
-  const [shouldCreateProfile, setShouldCreateProfile] = useState(false);
+  const isRedirectingRef = useRef(false);
+  const hasStartedRef = useRef(false);
 
   const { setProfile } = useUser();
-  const { login: privyLogin, ready: privyReady } = usePrivy();
+  const { user, ready: privyReady } = usePrivy();
   const { wallets: privyWallets } = useWallets();
-  const { address } = useAccount(); // Get active wallet from wagmi
-  const { setActiveWallet } = useSetActiveWallet();
+  const { address: wagmiAddress } = useAccount();
+  const { createWallet } = useCreateWallet();
 
-  // Trust that wagmi already has the correct active wallet (the one user logged in with)
+  // Get smart wallet address from Privy user's linkedAccounts
+  const smartWallet = user?.linkedAccounts?.find(
+    (account) => account.type === "smart_wallet"
+  );
+  const smartWalletAddress = smartWallet ? (smartWallet as any).address : null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  // Use smart wallet address if available, otherwise fall back to wagmi address
+  const address = smartWalletAddress || wagmiAddress;
 
-    if (!formData.name.trim()) {
-      setError("Please enter your name");
+  // Extract username from Google/Apple/Email
+  const extractUsernameFromUser = (userToExtract: typeof user) => {
+    if (!userToExtract || !privyReady) return null;
+
+    // Check for Google OAuth account first
+    const googleAccount = userToExtract.linkedAccounts?.find(
+      (account) => account.type === "google_oauth"
+    );
+    if (googleAccount) {
+      const googleEmail = (googleAccount as any).email;
+      if (googleEmail) {
+        return deriveUsernameFromEmail(googleEmail);
+      }
+      const googleSubject = (googleAccount as any).subject;
+      if (googleSubject) {
+        return `user${googleSubject.slice(-8)}`;
+      }
+    }
+
+    // Check for Apple OAuth account
+    const appleAccount = userToExtract.linkedAccounts?.find(
+      (account) => account.type === "apple_oauth"
+    );
+    if (appleAccount) {
+      const appleEmail = (appleAccount as any).email;
+      if (appleEmail) {
+        return deriveUsernameFromEmail(appleEmail);
+      }
+    }
+
+    // Fallback to email account
+    const emailAccount = userToExtract.linkedAccounts?.find(
+      (account) => account.type === "email"
+    );
+    if (emailAccount && (emailAccount as any).address) {
+      return deriveUsernameFromEmail((emailAccount as any).address);
+    }
+
+    // Try direct email property
+    if (userToExtract.email?.address) {
+      return deriveUsernameFromEmail(userToExtract.email.address);
+    }
+
+    // Last resort: generate a default username
+    return "user";
+  };
+
+  // Watch for address becoming available and trigger profile creation
+  useEffect(() => {
+    if (
+      hasStartedRef.current ||
+      isCreatingProfile ||
+      !privyReady ||
+      !user ||
+      isRedirectingRef.current
+    )
+      return;
+
+    const extractedUsername = extractUsernameFromUser(user);
+    if (!extractedUsername) return;
+
+    // If we have username, start the process
+    if (extractedUsername) {
+      hasStartedRef.current = true;
+      setUsername(extractedUsername);
+      createProfileWithUsername(extractedUsername);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, user, privyReady, isCreatingProfile]);
+
+  // Create profile with given username
+  const createProfileWithUsername = async (profileUsername: string) => {
+    if (!privyReady || isCreatingProfile) return;
+
+    // Check if user has a wallet, create one if not
+    const hasSmartWallet = user?.linkedAccounts?.some(
+      (account) => account.type === "smart_wallet" || account.type === "wallet"
+    );
+    const hasEmbeddedWallet = privyWallets.some(
+      (wallet) => wallet.walletClientType === "privy"
+    );
+
+    // If user doesn't have a wallet, create one before proceeding
+    if (!hasSmartWallet && !hasEmbeddedWallet && !address) {
+      try {
+        await createWallet();
+        return; // Exit early, useEffect will retry when address becomes available
+      } catch (error) {
+        setError("Failed to create wallet. Please try again.");
+        setIsCreatingProfile(false);
+        return;
+      }
+    }
+
+    // If address isn't ready yet, wait for it
+    if (!address) {
+      return; // Exit early, will retry when address is available via useEffect
+    }
+
+    if (!profileUsername) {
       return;
     }
 
-    if (step === "details") {
-      // If wallet is already connected, move to wallet step
-      if (privyWallets.length > 0) {
-        setExistingWallet(false);
-        setStep("wallet");
-        setShouldCreateProfile(true);
-      } else {
-        // No wallet, open Privy modal
-        if (!privyReady) {
-          setError("Authentication system not ready. Please wait a moment.");
-          return;
-        }
+    setIsCreatingProfile(true);
+    setError(null);
 
-        try {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          await privyLogin();
-          setStep("wallet");
-          setShouldCreateProfile(true);
-        } catch (loginError: unknown) {
-          console.error("Wallet connection error:", loginError);
-          const error = loginError as Error;
-          if (
-            !error?.message?.includes("abort") &&
-            !error?.message?.includes("cancel") &&
-            error?.name !== "AbortError"
-          ) {
-            setError("Failed to connect wallet. Please try again.");
-          }
+    try {
+      // Check if profile already exists
+      const existingProfile = await getProfileByAnyWallet(address);
+      if (existingProfile) {
+        isRedirectingRef.current = true;
+        setProfile(existingProfile);
+        setIsCreatingProfile(false);
+
+        if (typeof window !== "undefined") {
+          window.location.href = "/home";
+        } else {
+          router.push("/home");
         }
+        return;
       }
+
+      // Create new profile with username
+      const profile = await createProfile({
+        name: profileUsername,
+        wallet_address: address,
+      });
+
+      // Create initial spending account
+      await createAccount({
+        profile_id: profile.id,
+        name: "Spending Account 1",
+        type: "spending",
+        address: address,
+        network: "base",
+        is_primary: true,
+      });
+
+      // Mark as redirecting to prevent loops
+      isRedirectingRef.current = true;
+      setProfile(profile);
+      setIsCreatingProfile(false);
+
+      // Use window.location immediately for reliable redirect
+      if (typeof window !== "undefined") {
+        window.location.href = "/home?newUser=true";
+      } else {
+        router.push("/home?newUser=true");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create profile");
+      setIsCreatingProfile(false);
     }
   };
 
-  // Check for existing wallet on details page
-  useEffect(() => {
-    const checkExistingWallet = async () => {
-      if (step === "details" && privyWallets.length > 0) {
-        const primaryWallet = privyWallets[0];
-        if (primaryWallet?.address) {
-          try {
-            const existingProfile = await getProfileByAnyWallet(
-              primaryWallet.address
-            );
-            setExistingWallet(!!existingProfile);
-          } catch (err) {
-            console.error("Error checking wallet:", err);
-          }
-        }
-      } else if (step === "details") {
-        setExistingWallet(false);
-      }
-    };
-
-    checkExistingWallet();
-  }, [step, privyWallets]);
-
-  // Create profile ONLY when explicitly requested
-  useEffect(() => {
-    const createProfileWithWallet = async () => {
-      // Only run if we explicitly set shouldCreateProfile flag
-      if (!shouldCreateProfile || isCreatingProfile) {
-        return;
-      }
-
-      if (step !== "wallet" || !privyWallets.length || !formData.name.trim()) {
-        return;
-      }
-
-      // Use the active wallet from wagmi (the one user logged in with)
-      if (!address) {
-        return;
-      }
-
-      setIsCheckingWallet(true);
-      setIsCreatingProfile(true);
-
-      try {
-        // Check if wallet already has a profile
-        const existingProfile = await getProfileByAnyWallet(address);
-
-        if (existingProfile) {
-          setExistingWallet(true);
-          setIsCreatingProfile(false);
-          setIsCheckingWallet(false);
-          setShouldCreateProfile(false);
-          return;
-        }
-
-        // Create new profile
-        const profile = await createProfile({
-          name: formData.name,
-          wallet_address: address,
-        });
-
-        // Create initial spending account
-        await createAccount({
-          profile_id: profile.id,
-          name: "Spending Account 1",
-          type: "spending",
-          address: address,
-          network: "base",
-          is_primary: true,
-        });
-
-        setProfile(profile);
-        // Mark as new user to trigger onboarding tour
-        router.push("/home?newUser=true");
-      } catch (err) {
-        console.error("Failed to create profile:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to create profile"
-        );
-        setIsCreatingProfile(false);
-        setIsCheckingWallet(false);
-        setShouldCreateProfile(false);
-      }
-    };
-
-    createProfileWithWallet();
-  }, [
-    shouldCreateProfile,
-    step,
-    address,
-    privyWallets.length,
-    formData.name,
-    isCreatingProfile,
-    router,
-    setProfile,
-  ]);
-
-  return (
-    <div className="h-dvh bg-black text-white flex flex-col relative overflow-hidden touch-none">
-      {step === "wallet" && (
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-6 z-10">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setStep("details");
-              setShouldCreateProfile(false);
-              setIsCreatingProfile(false);
-              setIsCheckingWallet(false);
-              setExistingWallet(false);
-              setError(null);
-            }}
-            className="text-white hover:bg-white/10"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-            <span className="font-bold">B</span>
+  // Show loading screen while creating profile
+  if (isCreatingProfile) {
+    return (
+      <div className="h-dvh bg-black text-white flex flex-col items-center justify-center relative overflow-hidden touch-none">
+        <div className="text-center space-y-6">
+          <Loader2 className="h-16 w-16 animate-spin mx-auto text-white" />
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">Creating your profile</h2>
+            <p className="text-white/60 text-sm">
+              Please wait while we set everything up...
+            </p>
           </div>
         </div>
-      )}
-
-      {/* Content */}
-      <div className="flex-1 flex items-center justify-center px-6 overflow-y-auto">
-        {step === "details" ? (
-          // Step 1: Name input
-          <div className="mx-auto max-w-md space-y-6 w-full">
-            <div className="flex items-center justify-center">
-              <div className="h-12 w-12 bg-white/10 rounded-full flex items-center justify-center p-2">
-                <Image
-                  src="/banb-white-icon.png"
-                  alt="BANB"
-                  className="h-full w-full object-contain"
-                  width={32}
-                  height={32}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold font-sans text-center">
-                Create your account
-              </h1>
-              <p className="text-white/60 text-center text-xs sm:text-sm font-sans px-4">
-                to enter the future of money with{" "}
-                <span className="font-bold text-white">BANB</span>
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className={`h-14 rounded-xl bg-white/15 text-white placeholder:text-white/40 transition-colors font-sans font-medium ${
-                  error
-                    ? "border-red-500/50 focus-visible:ring-red-500/50"
-                    : "border-white/10"
-                }`}
-                required
-              />
-
-              <Button
-                type="submit"
-                size="lg"
-                disabled={!formData.name.trim() || existingWallet}
-                className="w-full rounded-full h-14 text-base font-semibold mt-6 transition-all duration-200 disabled:bg-white/20 disabled:text-white/40 disabled:cursor-not-allowed bg-white text-black hover:bg-gray-100 hover:scale-[1.02]"
-              >
-                Continue
-              </Button>
-            </form>
-          </div>
-        ) : (
-          // Step 2: Wallet step (checking or creating)
-          <div className="mx-auto max-w-md space-y-6 w-full">
-            <div className="flex items-center justify-center">
-              <div className="h-16 w-16 bg-white/10 rounded-full flex items-center justify-center p-2">
-                <Wallet className="h-8 w-8" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-bold font-sans text-center">
-                Get Started
-              </h1>
-              <p className="text-white/60 text-center text-xs sm:text-sm font-sans px-4">
-                Connect your wallet, or create one instantly.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {isCheckingWallet || isCreatingProfile ? (
-                <div className="p-6 rounded-xl bg-white/5 border border-white/10">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="h-10 w-10 animate-spin text-white" />
-                    <div>
-                      <p className="text-semibold text-white font-sans text-lg">
-                        {formData.name}
-                      </p>
-                      <p className="text-xs text-white/60 font-sans">
-                        {"Creating your profile..."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : existingWallet ? (
-                <div className="text-center space-y-4">
-                  <p className="text-sm text-white/60 font-sans">
-                    We found an error.{" "}
-                    <Link
-                      href="/"
-                      className="text-white underline underline-offset-4"
-                    >
-                      Try again
-                    </Link>
-                  </p>
-                </div>
-              ) : error ? (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
-                  <p className="text-sm text-white/80 font-sans">{error}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
       </div>
+    );
+  }
 
-      <div className="w-full py-6 px-6">
-        <div className="w-full h-px bg-white/20 mb-4"></div>
-        <div className="mx-auto max-w-md">
-          <div className="flex flex-col items-center gap-1">
-            <p className="text-xs text-white/50 text-center font-sans">
-              Project built during
-            </p>
-
-            <div className="h-6 w-auto flex items-center justify-center">
-              <Link
-                href="https://devfolio.co/projects/babblockchain-agent-bank-17b9"
-                target="_blank"
-              >
-                <Image
-                  src="/base-batches.svg"
-                  alt="base"
-                  width={100}
-                  height={100}
-                />
-              </Link>
-            </div>
+  // Show error screen if profile creation failed
+  if (error) {
+    return (
+      <div className="h-dvh bg-black text-white flex flex-col items-center justify-center relative overflow-hidden touch-none">
+        <div className="text-center space-y-6 px-6 max-w-md">
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">Something went wrong</h2>
+            <p className="text-white/60 text-sm">{error}</p>
           </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl text-white font-semibold"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show initial loading while waiting for Privy/user/wallet
+  return (
+    <div className="h-dvh bg-black text-white flex flex-col items-center justify-center relative overflow-hidden touch-none">
+      <div className="text-center space-y-6">
+        <Loader2 className="h-16 w-16 animate-spin mx-auto text-white" />
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold">Setting up your account</h2>
+          <p className="text-white/60 text-sm">
+            Please wait while we prepare everything...
+          </p>
         </div>
       </div>
     </div>

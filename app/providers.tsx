@@ -9,6 +9,7 @@
 import { ReactNode } from "react";
 import { WagmiProvider } from "@privy-io/wagmi";
 import { PrivyProvider } from "@privy-io/react-auth";
+import { SmartWalletsProvider } from "@privy-io/react-auth/smart-wallets";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { config } from "./wagmiConfig";
 import { privyConfig } from "./privyConfig";
@@ -57,33 +58,15 @@ const queryClient = new QueryClient();
  */
 export function Providers({ children }: { children: ReactNode }) {
   const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-
-  // Development mode: Skip Privy if no valid app ID is configured
-  const isDevelopmentMode =
-    !privyAppId ||
-    privyAppId === "your_privy_app_id" ||
-    privyAppId.startsWith("#");
-
-  // Development mode without Privy
-  if (isDevelopmentMode) {
-    console.log("🚧 Running in development mode without Privy authentication");
-    return (
-      <QueryClientProvider client={queryClient}>
-        <UserProvider>{children}</UserProvider>
-      </QueryClientProvider>
-    );
-  }
-
-  // Production mode with Privy (always include WagmiProvider for consistency)
-  const appId = privyAppId;
-
   return (
-    <PrivyProvider appId={appId} config={privyConfig}>
-      <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={config}>
-          <UserProvider>{children}</UserProvider>
-        </WagmiProvider>
-      </QueryClientProvider>
+    <PrivyProvider appId={privyAppId || ""} config={privyConfig}>
+      <SmartWalletsProvider>
+        <QueryClientProvider client={queryClient}>
+          <WagmiProvider config={config}>
+            <UserProvider>{children}</UserProvider>
+          </WagmiProvider>
+        </QueryClientProvider>
+      </SmartWalletsProvider>
     </PrivyProvider>
   );
 }
