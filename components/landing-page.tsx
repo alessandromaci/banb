@@ -16,6 +16,8 @@ import {
   usePrivy,
   useWallets,
   type ConnectedWallet,
+  useLoginWithOAuth,
+  useCreateWallet,
 } from "@privy-io/react-auth";
 import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
 import {
@@ -26,112 +28,328 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Check, Wallet } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useUser } from "@/lib/user-context";
+import { getProfileByAnyWallet } from "@/lib/profile";
+import { createProfile } from "@/lib/profile";
+import { createAccount } from "@/lib/accounts";
 
-const slides = [
-  {
-    title: "ENTER THE FUTURE OF MONEY",
-    background: "lightspeed",
-  },
-  {
-    title: "BUILT ON-CHAIN WITH STABLECOINS",
-    background: "particles",
-  },
-  {
-    title: "EXPERIENCE YOUR FINANCES WITH AI",
-    background: "waves",
-  },
-  {
-    title: "SIMPLICITY AND SECURITY FIRST",
-    background: "grid",
-  },
+const taglines = [
+  "The future of money is stablecoins",
+  "The future of money is powered by AI",
+  "The future of money is decentralized",
+  "The future of money is non-custodial",
+  "The future of money is instant",
+  "The future of money is borderless",
+  "The future of money is secure",
+  "The future of money is transparent",
+  "The future of money is sustainable",
+  "The future of money is inclusive",
 ];
 
 export function LandingPage() {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentTagline, setCurrentTagline] = useState(0);
+  const [showLogo, setShowLogo] = useState(false);
+  const [revealPercentage, setRevealPercentage] = useState(0);
+  const [displayedText, setDisplayedText] = useState("");
+  const [phase, setPhase] = useState("pixelReveal"); // pixelReveal -> logoPause -> textReveal -> textPause -> loop
   const [isInsideFarcaster, setIsInsideFarcaster] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const [userInteractionCount, setUserInteractionCount] = useState(0);
   const [showWalletSelector, setShowWalletSelector] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<
+    "google" | "twitter" | null
+  >(null);
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const [isFarcasterLoggingIn, setIsFarcasterLoggingIn] = useState(false);
+  const [isFarcasterCheckingProfile, setIsFarcasterCheckingProfile] =
+    useState(false);
   const {
-    login: privyLogin,
     ready: privyReady,
     authenticated,
-    logout,
     connectWallet: privyConnectWallet,
+    user,
   } = usePrivy();
+  const { setProfile } = useUser();
+  const { wallets: privyWallets } = useWallets();
+  const { createWallet } = useCreateWallet();
+
+  const { initOAuth, loading: oauthLoading } = useLoginWithOAuth({
+    onComplete: async ({ user, isNewUser }) => {
+      // Check if user has an embedded wallet (smart wallet)
+      const hasSmartWallet = user?.linkedAccounts?.some(
+        (account) =>
+          account.type === "smart_wallet" || account.type === "wallet"
+      );
+      const hasEmbeddedWallet = privyWallets.some(
+        (wallet) => wallet.walletClientType === "privy"
+      );
+
+      // If user doesn't have a wallet, create one
+      if (!hasSmartWallet && !hasEmbeddedWallet) {
+        setIsCreatingWallet(true);
+        try {
+          await createWallet();
+          setIsCreatingWallet(false);
+        } catch (error) {
+          setIsCreatingWallet(false);
+        }
+      }
+
+      setIsRedirecting(true);
+      // Redirect based on whether user is new or existing
+      if (isNewUser) {
+        router.push("/signup");
+        setTimeout(() => {
+          if (
+            typeof window !== "undefined" &&
+            window.location.pathname === "/"
+          ) {
+            window.location.href = "/signup";
+          }
+        }, 100);
+      } else {
+        router.push("/check-profile");
+      }
+    },
+    onError: () => {
+      setIsRedirecting(false);
+      setLoadingProvider(null);
+    },
+  });
+
+  // Detect OAuth callback and restore loadingProvider from URL params
+  useEffect(() => {
+    if (typeof window !== "undefined" && privyReady) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const provider = urlParams.get("privy_oauth_provider");
+      if (provider === "google" || provider === "twitter") {
+        // Restore the loading provider when coming back from OAuth
+        if (!loadingProvider) {
+          setLoadingProvider(provider as "google" | "twitter");
+        }
+      }
+    }
+  }, [privyReady, loadingProvider]);
   const { wallets } = useWallets();
   const { address } = useAccount(); // Safe wrapper handles WagmiProvider not ready
   const { setActiveWallet } = useSetActiveWallet();
   const { initLoginToMiniApp, loginToMiniApp } = useLoginToMiniApp();
   const router = useRouter();
 
-  // Simple redirect: Trust Privy to handle wallet activation
+  // Fast Farcaster detection - check immediately
   useEffect(() => {
-    if (
-      userInteractionCount === 1 &&
-      authenticated &&
-      privyReady &&
-      address // Active wallet from wagmi (Privy's choice)
-    ) {
-      setIsRedirecting(true);
+    const checkFarcaster = async () => {
+      try {
+        await sdk.actions.ready();
+        const context = await Promise.resolve(sdk.context);
 
-      // Show loading animation for 1s before redirect
-      const timer = setTimeout(() => {
-        router.push("/check-profile");
-      }, 1000);
+        const hasUserFid =
+          context?.user?.fid != null &&
+          typeof context.user.fid === "number" &&
+          context.user.fid > 0;
+        const hasFarcasterClient =
+          context?.client?.clientFid != null &&
+          typeof context.client.clientFid === "number" &&
+          context.client.clientFid > 0;
 
-      return () => clearTimeout(timer);
-    }
-  }, [userInteractionCount, authenticated, privyReady, address, router]);
-
-  // Initialize Farcaster SDK and detect environment (deferred to not block rendering)
-  useEffect(() => {
-    // Defer Farcaster SDK initialization to not block initial render
-    const timer = setTimeout(() => {
-      const initializeSDK = async () => {
-        try {
-          await sdk.actions.ready();
-
-          // Check if we're inside Farcaster
-          const context = await Promise.resolve(sdk.context);
-
-          // More robust check: verify we're actually in a Farcaster environment
-          // Check for user.fid AND client.clientFid to confirm it's a real Farcaster client
-          const hasUserFid =
-            context?.user?.fid != null &&
-            typeof context.user.fid === "number" &&
-            context.user.fid > 0;
-          const hasFarcasterClient =
-            context?.client?.clientFid != null &&
-            typeof context.client.clientFid === "number" &&
-            context.client.clientFid > 0;
-
-          if (hasUserFid && hasFarcasterClient) {
-            setIsInsideFarcaster(true);
-          } else {
-            setIsInsideFarcaster(false);
-          }
-        } catch (error) {
-          console.error("Failed to initialize Farcaster SDK:", error);
+        if (hasUserFid && hasFarcasterClient) {
+          setIsInsideFarcaster(true);
+        } else {
           setIsInsideFarcaster(false);
         }
-      };
+      } catch {
+        setIsInsideFarcaster(false);
+      }
+    };
 
-      initializeSDK();
-    }, 100); // Defer by 100ms to allow UI to render first
-
-    return () => clearTimeout(timer);
+    checkFarcaster();
   }, []);
 
-  // Note: We detect Farcaster environment but don't auto-login
-  // This keeps the flow simple and user-driven
-
+  // Auto-login for Farcaster Mini App users
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
+    if (
+      !isInsideFarcaster ||
+      !privyReady ||
+      authenticated ||
+      isFarcasterLoggingIn ||
+      isFarcasterCheckingProfile
+    ) {
+      return;
+    }
+
+    const performFarcasterLogin = async () => {
+      setIsFarcasterLoggingIn(true);
+      try {
+        const { nonce } = await initLoginToMiniApp();
+        const result = await sdk.actions.signIn({ nonce });
+        await loginToMiniApp({
+          message: result.message,
+          signature: result.signature,
+        });
+        // After login, user state will update, triggering the profile check effect
+      } catch (error) {
+        setIsFarcasterLoggingIn(false);
+        // Silently fail - user can still use other login methods if needed
+      }
+    };
+
+    performFarcasterLogin();
+  }, [
+    isInsideFarcaster,
+    privyReady,
+    authenticated,
+    isFarcasterLoggingIn,
+    isFarcasterCheckingProfile,
+    initLoginToMiniApp,
+    loginToMiniApp,
+  ]);
+
+  // Handle profile check/creation after Farcaster login
+  useEffect(() => {
+    if (
+      !isInsideFarcaster ||
+      !privyReady ||
+      !authenticated ||
+      !user ||
+      !address ||
+      isFarcasterCheckingProfile ||
+      isRedirecting
+    ) {
+      return;
+    }
+
+    const handleFarcasterProfile = async () => {
+      setIsFarcasterCheckingProfile(true);
+
+      try {
+        // Check if profile exists
+        const existingProfile = await getProfileByAnyWallet(address);
+        if (existingProfile) {
+          // Profile exists - redirect to home with "retrieving profile" state
+          setProfile(existingProfile);
+          setIsFarcasterCheckingProfile(false);
+          router.push("/home");
+          return;
+        }
+
+        // Profile doesn't exist - create it
+        // Get Farcaster account info for username
+        const farcasterAccount = user.linkedAccounts?.find(
+          (account) => account.type === "farcaster"
+        ) as { username?: string; fid?: number | string } | undefined;
+
+        let profileName = "user";
+        if (farcasterAccount) {
+          if (farcasterAccount.username) {
+            profileName = farcasterAccount.username;
+          } else if (farcasterAccount.fid) {
+            profileName = `user${farcasterAccount.fid}`;
+          }
+        }
+
+        // Create profile
+        const newProfile = await createProfile({
+          name: profileName,
+          wallet_address: address,
+        });
+
+        // Create initial spending account
+        await createAccount({
+          profile_id: newProfile.id,
+          name: "Spending Account 1",
+          type: "spending",
+          address: address,
+          network: "base",
+          is_primary: true,
+        });
+
+        setProfile(newProfile);
+        setIsFarcasterCheckingProfile(false);
+        router.push("/home?newUser=true");
+      } catch (error) {
+        setIsFarcasterCheckingProfile(false);
+        // Error will be handled by showing the landing page with buttons
+      }
+    };
+
+    handleFarcasterProfile();
+  }, [
+    isInsideFarcaster,
+    privyReady,
+    authenticated,
+    user,
+    address,
+    isFarcasterCheckingProfile,
+    isRedirecting,
+    setProfile,
+    router,
+  ]);
+
+  // Pixel reveal animation
+  useEffect(() => {
+    if (phase === "pixelReveal") {
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 0.08 + 0.02;
+        if (progress >= 1) {
+          progress = 1;
+          setRevealPercentage(100);
+          setShowLogo(true);
+          clearInterval(interval);
+          setPhase("logoPause");
+        } else {
+          setRevealPercentage(Math.min(progress * 100, 100));
+        }
+      }, 80);
+      return () => clearInterval(interval);
+    }
+  }, [phase]);
+
+  // Logo pause before text reveal
+  useEffect(() => {
+    if (phase === "logoPause") {
+      const timer = setTimeout(() => {
+        setPhase("textReveal");
+      }, 1800);
+      return () => clearTimeout(timer);
+    }
+  }, [phase]);
+
+  // Text typing animation
+  useEffect(() => {
+    if (phase === "textReveal") {
+      let charIndex = 0;
+      const text = taglines[currentTagline];
+      const typingInterval = setInterval(() => {
+        if (charIndex <= text.length) {
+          setDisplayedText(text.substring(0, charIndex));
+          charIndex++;
+        } else {
+          clearInterval(typingInterval);
+          setPhase("textPause");
+        }
+      }, 40);
+      return () => clearInterval(typingInterval);
+    }
+  }, [phase, currentTagline]);
+
+  // Text pause before next cycle
+  useEffect(() => {
+    if (phase === "textPause") {
+      const timer = setTimeout(() => {
+        setDisplayedText("");
+        const nextTagline = (currentTagline + 1) % taglines.length;
+        setCurrentTagline(nextTagline);
+        if (nextTagline === 0) {
+          setShowLogo(false);
+          setRevealPercentage(0);
+          setPhase("pixelReveal");
+        } else {
+          setPhase("textReveal");
+        }
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, currentTagline]);
 
   // Handle wallet switching
   const handleSwitchWallet = async (wallet: ConnectedWallet) => {
@@ -145,8 +363,7 @@ export function LandingPage() {
           6
         )}...${wallet.address.slice(-4)}`,
       });
-    } catch (error) {
-      console.error("❌ Failed to switch wallet:", error);
+    } catch {
       toast({
         title: "Failed to switch wallet",
         description: "Please try again",
@@ -169,192 +386,273 @@ export function LandingPage() {
     return walletClientType.charAt(0).toUpperCase() + walletClientType.slice(1);
   };
 
-  const handleLogin = async () => {
-    // Increment counter to indicate user clicked
-    setUserInteractionCount(1);
-
-    // If already authenticated with wallet, redirect will happen via useEffect
-    if (authenticated && address) {
+  // Handle email-first login with specific providers
+  const handleLoginWithProvider = async (provider: "google" | "twitter") => {
+    if (!privyReady || oauthLoading || isRedirecting || isInsideFarcaster)
       return;
-    }
 
-    // If authenticated but no address, set counter and wait for address to load
-    // (The useEffect with timeout will handle if it doesn't load)
-    if (authenticated && !address) {
-      return;
-    }
-
-    // Check if Privy is ready
-    if (!privyReady) {
-      return;
-    }
+    setLoadingProvider(provider);
 
     try {
-      // SCENARIO 1: Inside Farcaster - use proper Mini App authentication
-      if (isInsideFarcaster) {
-        try {
-          const { nonce } = await initLoginToMiniApp();
-          const result = await sdk.actions.signIn({ nonce });
-          await loginToMiniApp({
-            message: result.message,
-            signature: result.signature,
-          });
-        } catch (loginError) {
-          console.error("Farcaster login failed:", loginError);
-        }
-        return;
-      }
-
-      // SCENARIO 2: Outside Farcaster - open standard Privy modal
-      try {
-        await privyLogin();
-      } catch (loginError: unknown) {
-        const error = loginError as Error;
-
-        // SPECIAL CASE: User is already logged in (session persisted)
-        if (error?.message?.includes("already logged in")) {
-          router.push("/check-profile");
-          return;
-        }
-
-        // Check if it's just a cancellation (not an actual error)
-        const isCancellation =
-          error?.message?.includes("abort") ||
-          error?.message?.includes("cancel") ||
-          error?.name === "AbortError";
-
-        if (!isCancellation) {
-          console.error("Authentication failed:", error);
-        }
-      }
-    } catch (error) {
-      console.error("Unexpected login error:", error);
+      // Simple OAuth login - exactly like the Privy example
+      // The user will be redirected to OAuth provider's login page
+      // onComplete callback handles redirect
+      await initOAuth({ provider });
+    } catch {
+      setLoadingProvider(null);
     }
   };
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-black touch-none flex flex-col text-white">
-      {/* Animated Backgrounds */}
-      <div className="absolute inset-0">
-        {slides.map((slide, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              currentSlide === index ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            <div className={`animated-bg ${slide.background}`} />
-          </div>
-        ))}
+    <div className="relative min-h-screen w-full bg-black overflow-hidden flex flex-col touch-none text-white">
+      {/* Pixel Noise Background */}
+      <div className="absolute inset-0 pointer-events-none opacity-20">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <filter id="pixelNoise">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.7"
+              numOctaves="3"
+              result="noise"
+              seed="2"
+            />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.5" />
+          </filter>
+          <rect
+            width="100%"
+            height="100%"
+            fill="#ffffff"
+            opacity="0.01"
+            filter="url(#pixelNoise)"
+            style={{
+              animation: "pixelDrift 8s ease-in-out infinite",
+            }}
+          />
+        </svg>
       </div>
 
-      {/* Dark Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
+      {/* Pixel Noise Overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-30">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <filter id="pixelNoiseOverlay">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.9"
+              numOctaves="4"
+              result="noise"
+              seed="2"
+            />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1" />
+          </filter>
+          <rect
+            width="100%"
+            height="100%"
+            fill="#ffffff"
+            opacity="0.02"
+            filter="url(#pixelNoiseOverlay)"
+          />
+        </svg>
+      </div>
+
+      {/* Scan-lines Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/[0.03] to-transparent animate-pulse" />
+        <div
+          className={`absolute inset-0 transition-all duration-1000 ${
+            showLogo ? "opacity-0" : "opacity-100"
+          }`}
+          style={{
+            background:
+              "repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.05) 2px, rgba(255,255,255,0.05) 4px)",
+            animation: showLogo ? "none" : "scanSweep 1.5s ease-out forwards",
+          }}
+        />
+      </div>
 
       {/* Content */}
-      <div className="relative z-10 flex h-full flex-col justify-between p-6">
-        {/* Header */}
-        <div className="flex items-center gap-2 pt-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
-            {/* <span className="font-bold text-white">BANB</span> */}
-            <Image
-              src="/banb-white-icon.png"
-              alt="BANB"
-              className="h-4 w-4"
-              width={16}
-              height={16}
-            />
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6">
+        {/* Logo with pixel reveal */}
+        <div className="mb-8 h-24 w-24 flex items-center justify-center relative">
+          <div
+            className="text-center transition-all duration-300"
+            style={{
+              opacity: showLogo ? 1 : 0.3,
+              transform: showLogo ? "scale(1)" : "scale(0.8)",
+            }}
+          >
+            <div
+              className="text-5xl font-bold text-white tracking-tighter relative"
+              style={{
+                fontFamily: "Lexend, monospace",
+                textShadow:
+                  showLogo && revealPercentage > 80
+                    ? "0 0 20px rgba(147, 112, 219, 0.4), 0 0 40px rgba(100, 150, 255, 0.2)"
+                    : "none",
+                transition: "text-shadow 0.5s ease-out",
+              }}
+            >
+              BANB
+              {!showLogo && (
+                <div
+                  className="absolute inset-0 bg-black"
+                  style={{
+                    clipPath: `polygon(${revealPercentage}% 0, 100% 0, 100% 100%, ${revealPercentage}% 100%)`,
+                    transition: "clip-path 0.1s linear",
+                  }}
+                />
+              )}
+            </div>
+            <div className="mt-2 text-xs text-white/40 tracking-widest">
+              FUTURE OF MONEY
+            </div>
           </div>
-          <span className="text-sm text-white/80 font-bold font-sans text-2xl">
-            BANB
-          </span>
+
+          {showLogo && revealPercentage > 90 && (
+            <div
+              className="absolute inset-0 blur-3xl pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(147, 112, 219, 0.15) 0%, rgba(100, 150, 255, 0.08) 50%, transparent 70%)",
+                animation: "glowPulse 2s ease-in-out infinite",
+              }}
+            />
+          )}
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="max-w-md space-y-8">
-            {/* Carousel Indicators */}
-            <div className="flex justify-center gap-2">
-              {slides.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    currentSlide === index
-                      ? "w-8 bg-white"
-                      : "w-1.5 bg-white/30"
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
-              ))}
-            </div>
-
-            <h1 className="text-4xl font-bold leading-tight text-white text-balance text-center">
-              {slides[currentSlide].title}
+        {/* Tagline with typing effect */}
+        <div className="h-20 flex items-center justify-center mb-12">
+          <div className="text-center transition-all duration-300">
+            <h1
+              className="text-3xl md:text-4xl font-bold text-white leading-tight text-balance tracking-tight"
+              style={{
+                fontFamily: "Space Grotesk, monospace",
+                minHeight: "1.5em",
+                opacity: displayedText ? 1 : 0,
+                transition: "opacity 0.2s ease-out",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {displayedText}
+              {displayedText.length < taglines[currentTagline].length && (
+                <span className="inline-block w-0.5 h-8 bg-white/50 ml-1 animate-pulse" />
+              )}
             </h1>
           </div>
         </div>
 
-        {/* Bottom Buttons */}
-        <div className="space-y-3 pb-2">
-          <div className="flex justify-center w-full gap-4">
-            <div className="w-full">
-              <Button
-                size="lg"
-                variant="ghost"
-                onClick={handleLogin}
-                disabled={isRedirecting || (authenticated && !address)}
-                className="w-full rounded-full bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 h-12 sm:h-14 text-sm sm:text-base font-semibold relative flex items-center justify-center gap-2"
-              >
-                {isRedirecting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : authenticated && !address ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="text-sm">Loading...</span>
-                  </>
-                ) : authenticated && address ? (
-                  <>
-                    <div className="font-sans font-bold text-base flex items-center gap-2">
-                      <div>Log In</div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-500/20 border border-green-500/30">
-                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                        <span className="text-xs text-green-300 font-mono">
-                          {address.slice(0, 6)}...
-                          {address.slice(-3)}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {!privyReady ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <span>Connect Wallet</span>
-                    )}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Show wallet selector option when wallet is connected */}
-          {authenticated && address && !isRedirecting && (
-            <div className="flex justify-center">
-              <button
-                onClick={() => setShowWalletSelector(true)}
-                className="text-xs font-sans text-white/60 hover:text-white/80 underline"
-              >
-                Use a different wallet
-              </button>
-            </div>
-          )}
+        {/* Decorative Lines */}
+        <div className="w-full max-w-xs space-y-2 mb-12">
+          <div className="h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </div>
       </div>
 
+      {/* Bottom Buttons */}
+      <div className="relative z-10 space-y-3 pb-12 px-6 max-w-sm mx-auto w-full">
+        {/* Show loading state for Farcaster auto-login */}
+        {(isFarcasterLoggingIn || isFarcasterCheckingProfile) && (
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-white" />
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-white">
+                {isFarcasterLoggingIn
+                  ? "Connecting with Farcaster..."
+                  : "Retrieving your profile..."}
+              </p>
+              <p className="text-sm text-white/60">
+                {isFarcasterLoggingIn
+                  ? "Please wait while we authenticate"
+                  : "Setting up your account"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Hide Google/Twitter buttons when in Farcaster Mini App */}
+        {!isInsideFarcaster &&
+          !isFarcasterLoggingIn &&
+          !isFarcasterCheckingProfile && (
+            <>
+              {/* Sign in with Twitter */}
+              <Button
+                size="lg"
+                onClick={() => handleLoginWithProvider("twitter")}
+                disabled={!privyReady || oauthLoading || isRedirecting}
+                className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
+              >
+                {loadingProvider !== null && loadingProvider === "twitter" ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>
+                      {isCreatingWallet
+                        ? "Creating wallet..."
+                        : "Connecting..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-8 h-8"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    <span>Continue with X</span>
+                  </>
+                )}
+              </Button>
+
+              {/* Sign in with Google */}
+              <Button
+                size="lg"
+                onClick={() => handleLoginWithProvider("google")}
+                disabled={!privyReady || oauthLoading || isRedirecting}
+                className="w-full rounded-full bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 border border-white/10 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
+              >
+                {loadingProvider !== null && loadingProvider === "google" ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>
+                      {isCreatingWallet
+                        ? "Creating wallet..."
+                        : "Connecting..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-8 h-8"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      />
+                    </svg>
+                    <span>Continue with Google</span>
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+      </div>
+
       {/* Footer */}
-      <div className="w-full py-6 px-6 z-10">
+      <div className="relative z-10 w-full py-6 px-6">
         <div className="w-full h-px bg-white/20 mb-2"></div>
         <div className="mx-auto max-w-md">
           <div className="flex flex-col items-center gap-1">
@@ -372,6 +670,7 @@ export function LandingPage() {
                   alt="base"
                   width={100}
                   height={100}
+                  priority
                 />
               </Link>
             </div>
@@ -380,173 +679,44 @@ export function LandingPage() {
       </div>
 
       <style jsx>{`
-        .animated-bg {
-          width: 100%;
-          height: 100%;
-          position: absolute;
-          top: 0;
-          left: 0;
-        }
+        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
-        .lightspeed {
-          background: radial-gradient(
-            ellipse at center,
-            #1a1a2e 0%,
-            #000000 100%
-          );
-          animation: lightspeed 20s linear infinite;
-        }
-
-        .lightspeed::before {
-          content: "";
-          position: absolute;
-          top: 30%;
-          left: 50%;
-          width: 200%;
-          height: 200%;
-          background: repeating-linear-gradient(
-              0deg,
-              transparent,
-              transparent 2px,
-              rgba(59, 130, 246, 0.1) 2px,
-              rgba(59, 130, 246, 0.1) 4px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 2px,
-              rgba(34, 197, 94, 0.1) 2px,
-              rgba(34, 197, 94, 0.1) 4px
-            );
-          transform: translate(-50%, -50%) perspective(500px) rotateX(60deg);
-          animation: zoom 3s ease-in-out infinite;
-        }
-
-        .particles {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          animation: particles 15s ease-in-out infinite;
-        }
-
-        .particles::before {
-          content: "";
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          background-image: radial-gradient(
-              circle at 20% 50%,
-              rgba(255, 255, 255, 0.1) 0%,
-              transparent 50%
-            ),
-            radial-gradient(
-              circle at 80% 80%,
-              rgba(255, 255, 255, 0.1) 0%,
-              transparent 50%
-            ),
-            radial-gradient(
-              circle at 40% 20%,
-              rgba(255, 255, 255, 0.1) 0%,
-              transparent 50%
-            );
-          animation: float 8s ease-in-out infinite;
-        }
-
-        .waves {
-          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .waves::before {
-          content: "";
-          position: absolute;
-          width: 200%;
-          height: 200%;
-          background: repeating-linear-gradient(
-            60deg,
-            transparent,
-            transparent 50px,
-            rgba(255, 255, 255, 0.05) 50px,
-            rgba(255, 255, 255, 0.05) 100px
-          );
-          animation: wave 10s linear infinite;
-        }
-
-        .grid {
-          background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-
-        .grid::before {
-          content: "";
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          background-image: linear-gradient(
-              rgba(255, 255, 255, 0.05) 1px,
-              transparent 1px
-            ),
-            linear-gradient(
-              90deg,
-              rgba(255, 255, 255, 0.05) 1px,
-              transparent 1px
-            );
-          background-size: 50px 50px;
-          animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes zoom {
+        @keyframes glowPulse {
           0%,
           100% {
-            transform: translate(-50%, -50%) perspective(500px) rotateX(60deg)
-              scale(1);
+            opacity: 0.1;
           }
           50% {
-            transform: translate(-50%, -50%) perspective(500px) rotateX(60deg)
-              scale(1.5);
+            opacity: 0.25;
           }
         }
 
-        @keyframes lightspeed {
-          0% {
-            filter: hue-rotate(0deg);
-          }
-          100% {
-            filter: hue-rotate(360deg);
-          }
-        }
-
-        @keyframes float {
+        @keyframes pixelDrift {
           0%,
           100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-20px);
-          }
-        }
-
-        @keyframes particles {
-          0%,
-          100% {
-            filter: hue-rotate(0deg) brightness(1);
-          }
-          50% {
-            filter: hue-rotate(30deg) brightness(1.2);
-          }
-        }
-
-        @keyframes wave {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-
-        @keyframes gridMove {
-          0% {
             transform: translate(0, 0);
           }
+          50% {
+            transform: translate(2px, -2px);
+          }
+        }
+
+        @keyframes scanSweep {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(100%);
+          }
+        }
+
+        @keyframes pixelPulse {
+          0%,
           100% {
-            transform: translate(50px, 50px);
+            opacity: 0.02;
+          }
+          50% {
+            opacity: 0.05;
           }
         }
       `}</style>

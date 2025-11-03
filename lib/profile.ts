@@ -293,12 +293,10 @@ export async function getProfileByAnyWallet(
   // 1. First, check if it's a primary wallet
   const primaryProfile = await getProfileByWallet(normalizedAddress);
   if (primaryProfile) {
-    console.log("🔑 Found profile via primary wallet");
     return primaryProfile;
   }
 
   // 2. If not found, check if it's a linked account wallet
-  console.log("🔍 Not primary wallet, checking linked accounts...");
   const { data: account, error } = await supabase
     .from("accounts")
     .select("profile_id")
@@ -308,7 +306,6 @@ export async function getProfileByAnyWallet(
 
   if (error) {
     if (error.code === "PGRST116") {
-      console.log("❌ No account found for this wallet");
       return null; // Not found
     }
     throw new Error(`Failed to check accounts: ${error.message}`);
@@ -316,7 +313,6 @@ export async function getProfileByAnyWallet(
 
   // 3. If account found, get the profile
   if (account?.profile_id) {
-    console.log("🔗 Found account, fetching profile...");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
@@ -328,7 +324,6 @@ export async function getProfileByAnyWallet(
       throw new Error(`Failed to get profile: ${profileError.message}`);
     }
 
-    console.log("✅ Found profile via linked account");
     return profile;
   }
 
