@@ -229,8 +229,13 @@ export function BankingHome() {
         linkingProfileIdRef.current = null;
       }
     },
-    onError: (error) => {
-      const errorMessage = typeof error === "string" ? error : error instanceof Error ? error.message : "Unknown error";
+    onError: (error: unknown) => {
+      let errorMessage = "Unknown error";
+      if (typeof error === "string") {
+        errorMessage = error;
+      } else if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+        errorMessage = error.message;
+      }
       
       if (!errorMessage.includes("abort") && !errorMessage.includes("cancel") && !errorMessage.includes("reject")) {
         toast.error("Failed to link wallet. Please try again.");
