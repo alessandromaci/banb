@@ -43,11 +43,42 @@ export function SignUpForm() {
   // Use smart wallet address if available, otherwise fall back to wagmi address
   const address = smartWalletAddress || wagmiAddress;
 
-  // Extract username from Google/Apple/Email
+  // Extract username from Google/Twitter/Email
   const extractUsernameFromUser = (userToExtract: typeof user) => {
     if (!userToExtract || !privyReady) return null;
 
-    // Check for Google OAuth account first
+    // Check for Twitter OAuth account (only for Twitter login)
+    const twitterAccount = userToExtract.linkedAccounts?.find(
+      (account) => account.type === "twitter_oauth"
+    );
+    if (twitterAccount) {
+      const twitterData = twitterAccount as Record<string, unknown>;
+      
+      // Check for username (could be username, screen_name, or handle)
+      const username =
+        (twitterData.username as string) ||
+        (twitterData.screen_name as string) ||
+        (twitterData.handle as string) ||
+        (twitterData.name as string);
+      
+      if (username) {
+        // Remove @ if present, keep alphanumeric and underscores, limit to 20 chars
+        const cleanUsername = username.replace(/^@/, "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20);
+        if (cleanUsername) {
+          return cleanUsername;
+        }
+      }
+      
+      // Fallback to name if username not available
+      if (twitterData.name) {
+        const nameFallback = (twitterData.name as string).replace(/[^a-zA-Z0-9]/g, "").slice(0, 20);
+        if (nameFallback) {
+          return nameFallback;
+        }
+      }
+    }
+
+    // Check for Google OAuth account
     const googleAccount = userToExtract.linkedAccounts?.find(
       (account) => account.type === "google_oauth"
     );
@@ -61,17 +92,6 @@ export function SignUpForm() {
       const googleSubject = googleAccount.subject as string | undefined;
       if (googleSubject) {
         return `user${googleSubject.slice(-8)}`;
-      }
-    }
-
-    // Check for Apple OAuth account
-    const appleAccount = userToExtract.linkedAccounts?.find(
-      (account) => account.type === "apple_oauth"
-    );
-    if (appleAccount && "email" in appleAccount) {
-      const appleEmail = appleAccount.email as string | undefined;
-      if (appleEmail) {
-        return deriveUsernameFromEmail(appleEmail);
       }
     }
 

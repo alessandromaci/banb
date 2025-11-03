@@ -56,7 +56,7 @@ export function LandingPage() {
   const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState<
-    "google" | "apple" | null
+    "google" | "twitter" | null
   >(null);
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const [isFarcasterLoggingIn, setIsFarcasterLoggingIn] = useState(false);
@@ -121,10 +121,10 @@ export function LandingPage() {
     if (typeof window !== "undefined" && privyReady) {
       const urlParams = new URLSearchParams(window.location.search);
       const provider = urlParams.get("privy_oauth_provider");
-      if (provider === "google" || provider === "apple") {
+      if (provider === "google" || provider === "twitter") {
         // Restore the loading provider when coming back from OAuth
         if (!loadingProvider) {
-          setLoadingProvider(provider as "google" | "apple");
+          setLoadingProvider(provider as "google" | "twitter");
         }
       }
     }
@@ -387,7 +387,7 @@ export function LandingPage() {
   };
 
   // Handle email-first login with specific providers
-  const handleLoginWithProvider = async (provider: "google" | "apple") => {
+  const handleLoginWithProvider = async (provider: "google" | "twitter") => {
     if (!privyReady || oauthLoading || isRedirecting || isInsideFarcaster)
       return;
 
@@ -568,19 +568,19 @@ export function LandingPage() {
           </div>
         )}
 
-        {/* Hide Google/Apple buttons when in Farcaster Mini App */}
+        {/* Hide Google/Twitter buttons when in Farcaster Mini App */}
         {!isInsideFarcaster &&
           !isFarcasterLoggingIn &&
           !isFarcasterCheckingProfile && (
             <>
-              {/* Sign in with Apple */}
+              {/* Sign in with Twitter */}
               <Button
                 size="lg"
-                onClick={() => handleLoginWithProvider("apple")}
+                onClick={() => handleLoginWithProvider("twitter")}
                 disabled={!privyReady || oauthLoading || isRedirecting}
                 className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
               >
-                {loadingProvider !== null && loadingProvider === "apple" ? (
+                {loadingProvider !== null && loadingProvider === "twitter" ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>
@@ -596,9 +596,9 @@ export function LandingPage() {
                       viewBox="0 0 24 24"
                       fill="currentColor"
                     >
-                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.08-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                     </svg>
-                    <span>Continue with Apple</span>
+                    <span>Continue with X</span>
                   </>
                 )}
               </Button>

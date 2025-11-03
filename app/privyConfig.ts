@@ -10,7 +10,7 @@ export const privyConfig: PrivyClientConfig = {
   },
   defaultChain: base, // Required for SIWE authentication
   supportedChains: [base], // Explicitly support Base chain
-  loginMethods: ["google", "apple", "email", "farcaster", "wallet"],
+  loginMethods: ["google", "twitter", "email", "farcaster", "wallet"],
   appearance: {
     walletList: ["metamask", "rainbow", "wallet_connect", "phantom"],
     showWalletLoginFirst: false,
