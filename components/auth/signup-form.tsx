@@ -52,7 +52,8 @@ export function SignUpForm() {
       (account) => account.type === "twitter_oauth"
     );
     if (twitterAccount) {
-      const twitterData = twitterAccount as Record<string, unknown>;
+      // Type assertion: first to unknown, then to Record for safe property access
+      const twitterData = twitterAccount as unknown as Record<string, unknown>;
       
       // Check for username (could be username, screen_name, or handle)
       const username =
