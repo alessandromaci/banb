@@ -20,7 +20,7 @@ import {
   MessageCircle,
   ArrowDownFromLine,
 } from "lucide-react";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { sdk } from "@farcaster/miniapp-sdk";
@@ -68,8 +68,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useSetActiveWalletSafe } from "@/lib/use-account-safe";
+import { useLinkAccount } from "@privy-io/react-auth";
 import { createAccount, getAccountsByProfile } from "@/lib/accounts";
 import { type Account } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -153,9 +152,93 @@ export function BankingHome() {
   const router = useRouter();
   const { address } = useAccount();
   const { profile, isLoading: profileLoading } = useUser();
-  const { connectWallet: privyConnectWallet } = usePrivy();
-  const { wallets: privyWallets } = useWallets();
-  const { setActiveWallet } = useSetActiveWalletSafe();
+  const linkingProfileIdRef = useRef<string | null>(null);
+
+  const { linkWallet } = useLinkAccount({
+    onSuccess: async ({ user: updatedUser, linkedAccount }) => {
+      let linkedAddress: string | null = null;
+      
+      if (linkedAccount && "address" in linkedAccount) {
+        linkedAddress = linkedAccount.address as string;
+      } else {
+        const walletAccounts = updatedUser?.linkedAccounts?.filter(
+          (acc) => "address" in acc && (acc.type === "wallet" || acc.type === "eoas")
+        );
+        if (walletAccounts && walletAccounts.length > 0) {
+          const lastWallet = walletAccounts[walletAccounts.length - 1];
+          linkedAddress = "address" in lastWallet ? (lastWallet.address as string) : null;
+        }
+      }
+      
+      if (!linkedAddress) {
+        toast.error("Wallet linked but could not determine address. Please refresh the page.");
+        setIsAddingAccount(false);
+        return;
+      }
+      
+      if (!linkingProfileIdRef.current) {
+        setIsAddingAccount(false);
+        return;
+      }
+      
+      const existingAccounts = await getAccountsByProfile(linkingProfileIdRef.current);
+      const isDuplicate = existingAccounts.some(
+        (acc) => acc.address.toLowerCase() === linkedAddress!.toLowerCase()
+      );
+
+      if (isDuplicate) {
+        toast.info("This wallet is already linked to your account");
+        setIsAddingAccount(false);
+        return;
+      }
+
+      const currentSpendingAccounts = existingAccounts.filter((acc) => acc.type === "spending");
+      const accountNumber = currentSpendingAccounts.length + 2;
+      
+      try {
+        const newAccount = await createAccount({
+          profile_id: linkingProfileIdRef.current,
+          name: `Spending Account ${accountNumber}`,
+          type: "spending",
+          address: linkedAddress,
+          network: "base",
+          is_primary: false,
+        });
+
+        setSpendingAccounts((prev) => [...prev, newAccount]);
+
+        toast.success(`Spending Account ${accountNumber} added!`);
+
+        const refreshedAccounts = await getAccountsByProfile(linkingProfileIdRef.current);
+        const refreshedSpending = refreshedAccounts.filter((acc) => acc.type === "spending");
+        setSpendingAccounts(refreshedSpending);
+
+        setTimeout(() => {
+          setCurrentCardIndex((prev) => {
+            const newIndex = refreshedSpending.findIndex(
+              (acc) => acc.address.toLowerCase() === linkedAddress!.toLowerCase()
+            );
+            return newIndex >= 0 ? newIndex : prev + 1;
+          });
+        }, 200);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast.error(`Wallet linked but failed to create account: ${errorMessage}`);
+      } finally {
+        setIsAddingAccount(false);
+        linkingProfileIdRef.current = null;
+      }
+    },
+    onError: (error) => {
+      const errorMessage = typeof error === "string" ? error : error instanceof Error ? error.message : "Unknown error";
+      
+      if (!errorMessage.includes("abort") && !errorMessage.includes("cancel") && !errorMessage.includes("reject")) {
+        toast.error("Failed to link wallet. Please try again.");
+      }
+      
+      setIsAddingAccount(false);
+    },
+  });
 
   // Spending Accounts State
   const [spendingAccounts, setSpendingAccounts] = useState<Account[]>([]);
@@ -190,7 +273,7 @@ export function BankingHome() {
       try {
         await sdk.actions.ready();
       } catch (error) {
-        console.error("Failed to initialize Farcaster SDK:", error);
+        // Silently fail - SDK initialization error
       }
     };
 
@@ -204,6 +287,7 @@ export function BankingHome() {
     }
   }, [profile, profileLoading, router]);
 
+
   // Load all spending accounts from database
   useEffect(() => {
     const loadSpendingAccounts = async () => {
@@ -215,7 +299,6 @@ export function BankingHome() {
         const spending = accounts.filter((acc) => acc.type === "spending");
         setSpendingAccounts(spending);
       } catch (error) {
-        console.error("Failed to load spending accounts:", error);
         toast.error("Failed to load accounts");
       } finally {
         setIsLoadingAccounts(false);
@@ -239,7 +322,7 @@ export function BankingHome() {
         );
         setTransactions(successfulTransactions);
       } catch (error) {
-        console.error("Failed to fetch transactions:", error);
+        // Silently fail - transactions will show empty
       } finally {
         setLoadingTransactions(false);
       }
@@ -260,7 +343,6 @@ export function BankingHome() {
         const accounts = await getInvestmentSummaryByVault(profile.id);
         setInvestmentAccounts(accounts);
       } catch (error) {
-        console.error("Error fetching investment data:", error);
         // Set empty arrays to prevent app crash
         setInvestmentAccounts([]);
         setInvestmentSummary({
@@ -307,7 +389,6 @@ export function BankingHome() {
         setMonthlyRewards(0);
       }
     } catch (error) {
-      console.error("Error in fetchMovements:", error);
       setInvestmentMovements([]);
       setMonthlyRewards(0);
     } finally {
@@ -353,72 +434,13 @@ export function BankingHome() {
     setShowAddAccountModal(false);
 
     try {
-      // Store current wallets count
-      const previousWalletCount = privyWallets.length;
-
-      // Open Privy wallet connection modal
-      await privyConnectWallet();
-
-      // Wait for new wallet to appear in privyWallets
-      let attempts = 0;
-      while (privyWallets.length === previousWalletCount && attempts < 20) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        attempts++;
-      }
-
-      // Find the newly added wallet (last one in the array)
-      const newWallet = privyWallets[privyWallets.length - 1];
-
-      if (!newWallet?.address) {
-        throw new Error("No new wallet connected");
-      }
-
-      const newAddress = newWallet.address;
-
-      // Check if this wallet is already linked
-      const existingAccounts = await getAccountsByProfile(profile.id);
-      const isDuplicate = existingAccounts.some(
-        (acc) => acc.address.toLowerCase() === newAddress.toLowerCase()
-      );
-
-      if (isDuplicate) {
-        toast.error("This wallet is already linked to your account");
-        return;
-      }
-
-      // Create account in database
-      const accountNumber = spendingAccounts.length + 2; // +2 because primary is #1
-      const newAccount = await createAccount({
-        profile_id: profile.id,
-        name: `Spending Account ${accountNumber}`,
-        type: "spending",
-        address: newAddress,
-        network: "base",
-        is_primary: false,
-      });
-
-      // Add to local state
-      setSpendingAccounts((prev) => [...prev, newAccount]);
-
-      // Set as active wallet in wagmi
-      await setActiveWallet(
-        newWallet as unknown as Parameters<typeof setActiveWallet>[0]
-      );
-
-      toast.success(`Spending Account ${accountNumber} added!`);
-
-      // Navigate to the new account (main + all spending accounts index)
-      setCurrentCardIndex(1 + spendingAccounts.length);
+      linkingProfileIdRef.current = profile.id;
+      await linkWallet();
     } catch (error) {
-      console.error("❌ Failed to add spending account:", error);
-
-      // Check if user cancelled
       const errorMessage = error instanceof Error ? error.message : "";
-      if (errorMessage.includes("abort") || errorMessage.includes("cancel")) {
-        return;
+      if (!errorMessage.includes("abort") && !errorMessage.includes("cancel")) {
+        toast.error(errorMessage || "Failed to add spending account");
       }
-
-      toast.error(errorMessage || "Failed to add spending account");
     } finally {
       setIsAddingAccount(false);
     }
