@@ -11,14 +11,20 @@ interface InsightCard {
   imageUrl: string;
 }
 
-function InsightCard({ card }: { card: InsightCard }) {
+function InsightCard({ card, isFirst }: { card: InsightCard; isFirst?: boolean }) {
   return (
     <Card
       onClick={card.action}
       className="flex-shrink-0 w-[calc(100vw-3rem)] bg-[#2A1F4D]/80 backdrop-blur-sm border-0 rounded-xl shadow-xl cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl snap-center overflow-hidden p-0 leading-none"
     >
       <div className="h-20 w-full flex items-center justify-center relative block">
-        <Image src={card.imageUrl} alt="Carousel" width={400} height={150} />
+        <Image 
+          src={card.imageUrl} 
+          alt="Carousel" 
+          width={400} 
+          height={150}
+          priority={isFirst}
+        />
       </div>
     </Card>
   );
@@ -54,8 +60,8 @@ export function InsightsCarousel() {
         className="flex gap-2 overflow-x-auto px-6 pb-2 snap-x snap-mandatory"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {cards.map((card) => (
-          <InsightCard key={card.id} card={card} />
+        {cards.map((card, index) => (
+          <InsightCard key={card.id} card={card} isFirst={index === 0} />
         ))}
       </div>
       <style jsx>{`

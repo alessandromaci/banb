@@ -1112,6 +1112,7 @@ Thanks!`;
                     alt="BANB AI"
                     width={18}
                     height={18}
+                    style={{ width: "auto", height: "auto" }}
                   />
                 </div>
                 <span className="text-xs">Ask BANB</span>

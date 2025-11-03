@@ -312,6 +312,7 @@ export function LoginForm() {
                   alt="base"
                   width={100}
                   height={100}
+                  priority
                 />
               </Link>
             </div>

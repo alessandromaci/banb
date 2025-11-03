@@ -388,7 +388,7 @@ export function LandingPage() {
             <div
               className="text-5xl font-bold text-white tracking-tighter relative"
               style={{
-                fontFamily: "Space Grotesk, monospace",
+                fontFamily: "Lexend, monospace",
                 textShadow:
                   showLogo && revealPercentage > 80
                     ? "0 0 20px rgba(147, 112, 219, 0.4), 0 0 40px rgba(100, 150, 255, 0.2)"
@@ -537,6 +537,7 @@ export function LandingPage() {
                   alt="base"
                   width={100}
                   height={100}
+                  priority
                 />
               </Link>
             </div>
