@@ -28,6 +28,10 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Check, Wallet } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useUser } from "@/lib/user-context";
+import { getProfileByAnyWallet } from "@/lib/profile";
+import { createProfile } from "@/lib/profile";
+import { createAccount } from "@/lib/accounts";
 
 const taglines = [
   "The future of money is stablecoins",
@@ -55,12 +59,16 @@ export function LandingPage() {
     "google" | "apple" | null
   >(null);
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const [isFarcasterLoggingIn, setIsFarcasterLoggingIn] = useState(false);
+  const [isFarcasterCheckingProfile, setIsFarcasterCheckingProfile] =
+    useState(false);
   const {
     ready: privyReady,
     authenticated,
-    logout,
     connectWallet: privyConnectWallet,
+    user,
   } = usePrivy();
+  const { setProfile } = useUser();
   const { wallets: privyWallets } = useWallets();
   const { createWallet } = useCreateWallet();
 
@@ -127,48 +135,154 @@ export function LandingPage() {
   const { initLoginToMiniApp, loginToMiniApp } = useLoginToMiniApp();
   const router = useRouter();
 
-  // Removed auto-redirect - users should always click sign-in button
-
-  // Initialize Farcaster SDK and detect environment (deferred to not block rendering)
+  // Fast Farcaster detection - check immediately
   useEffect(() => {
-    // Defer Farcaster SDK initialization to not block initial render
-    const timer = setTimeout(() => {
-      const initializeSDK = async () => {
-        try {
-          await sdk.actions.ready();
+    const checkFarcaster = async () => {
+      try {
+        await sdk.actions.ready();
+        const context = await Promise.resolve(sdk.context);
 
-          // Check if we're inside Farcaster
-          const context = await Promise.resolve(sdk.context);
+        const hasUserFid =
+          context?.user?.fid != null &&
+          typeof context.user.fid === "number" &&
+          context.user.fid > 0;
+        const hasFarcasterClient =
+          context?.client?.clientFid != null &&
+          typeof context.client.clientFid === "number" &&
+          context.client.clientFid > 0;
 
-          // More robust check: verify we're actually in a Farcaster environment
-          // Check for user.fid AND client.clientFid to confirm it's a real Farcaster client
-          const hasUserFid =
-            context?.user?.fid != null &&
-            typeof context.user.fid === "number" &&
-            context.user.fid > 0;
-          const hasFarcasterClient =
-            context?.client?.clientFid != null &&
-            typeof context.client.clientFid === "number" &&
-            context.client.clientFid > 0;
-
-          if (hasUserFid && hasFarcasterClient) {
-            setIsInsideFarcaster(true);
-          } else {
-            setIsInsideFarcaster(false);
-          }
-        } catch {
+        if (hasUserFid && hasFarcasterClient) {
+          setIsInsideFarcaster(true);
+        } else {
           setIsInsideFarcaster(false);
         }
-      };
+      } catch {
+        setIsInsideFarcaster(false);
+      }
+    };
 
-      initializeSDK();
-    }, 100); // Defer by 100ms to allow UI to render first
-
-    return () => clearTimeout(timer);
+    checkFarcaster();
   }, []);
 
-  // Note: We detect Farcaster environment but don't auto-login
-  // This keeps the flow simple and user-driven
+  // Auto-login for Farcaster Mini App users
+  useEffect(() => {
+    if (
+      !isInsideFarcaster ||
+      !privyReady ||
+      authenticated ||
+      isFarcasterLoggingIn ||
+      isFarcasterCheckingProfile
+    ) {
+      return;
+    }
+
+    const performFarcasterLogin = async () => {
+      setIsFarcasterLoggingIn(true);
+      try {
+        const { nonce } = await initLoginToMiniApp();
+        const result = await sdk.actions.signIn({ nonce });
+        await loginToMiniApp({
+          message: result.message,
+          signature: result.signature,
+        });
+        // After login, user state will update, triggering the profile check effect
+      } catch (error) {
+        setIsFarcasterLoggingIn(false);
+        // Silently fail - user can still use other login methods if needed
+      }
+    };
+
+    performFarcasterLogin();
+  }, [
+    isInsideFarcaster,
+    privyReady,
+    authenticated,
+    isFarcasterLoggingIn,
+    isFarcasterCheckingProfile,
+    initLoginToMiniApp,
+    loginToMiniApp,
+  ]);
+
+  // Handle profile check/creation after Farcaster login
+  useEffect(() => {
+    if (
+      !isInsideFarcaster ||
+      !privyReady ||
+      !authenticated ||
+      !user ||
+      !address ||
+      isFarcasterCheckingProfile ||
+      isRedirecting
+    ) {
+      return;
+    }
+
+    const handleFarcasterProfile = async () => {
+      setIsFarcasterCheckingProfile(true);
+
+      try {
+        // Check if profile exists
+        const existingProfile = await getProfileByAnyWallet(address);
+        if (existingProfile) {
+          // Profile exists - redirect to home with "retrieving profile" state
+          setProfile(existingProfile);
+          setIsFarcasterCheckingProfile(false);
+          router.push("/home");
+          return;
+        }
+
+        // Profile doesn't exist - create it
+        // Get Farcaster account info for username
+        const farcasterAccount = user.linkedAccounts?.find(
+          (account) => account.type === "farcaster"
+        ) as { username?: string; fid?: number | string } | undefined;
+
+        let profileName = "user";
+        if (farcasterAccount) {
+          if (farcasterAccount.username) {
+            profileName = farcasterAccount.username;
+          } else if (farcasterAccount.fid) {
+            profileName = `user${farcasterAccount.fid}`;
+          }
+        }
+
+        // Create profile
+        const newProfile = await createProfile({
+          name: profileName,
+          wallet_address: address,
+        });
+
+        // Create initial spending account
+        await createAccount({
+          profile_id: newProfile.id,
+          name: "Spending Account 1",
+          type: "spending",
+          address: address,
+          network: "base",
+          is_primary: true,
+        });
+
+        setProfile(newProfile);
+        setIsFarcasterCheckingProfile(false);
+        router.push("/home?newUser=true");
+      } catch (error) {
+        setIsFarcasterCheckingProfile(false);
+        // Error will be handled by showing the landing page with buttons
+      }
+    };
+
+    handleFarcasterProfile();
+  }, [
+    isInsideFarcaster,
+    privyReady,
+    authenticated,
+    user,
+    address,
+    isFarcasterCheckingProfile,
+    isRedirecting,
+    setProfile,
+    router,
+  ]);
 
   // Pixel reveal animation
   useEffect(() => {
@@ -272,28 +386,14 @@ export function LandingPage() {
     return walletClientType.charAt(0).toUpperCase() + walletClientType.slice(1);
   };
 
-  // Handle email-first login with specific providers - exactly like the example
+  // Handle email-first login with specific providers
   const handleLoginWithProvider = async (provider: "google" | "apple") => {
-    if (!privyReady || oauthLoading || isRedirecting) return;
+    if (!privyReady || oauthLoading || isRedirecting || isInsideFarcaster)
+      return;
 
     setLoadingProvider(provider);
 
     try {
-      // Inside Farcaster - use proper Mini App authentication
-      if (isInsideFarcaster) {
-        try {
-          const { nonce } = await initLoginToMiniApp();
-          const result = await sdk.actions.signIn({ nonce });
-          await loginToMiniApp({
-            message: result.message,
-            signature: result.signature,
-          });
-        } catch {
-          setLoadingProvider(null);
-        }
-        return;
-      }
-
       // Simple OAuth login - exactly like the Privy example
       // The user will be redirected to OAuth provider's login page
       // onComplete callback handles redirect
@@ -301,11 +401,6 @@ export function LandingPage() {
     } catch {
       setLoadingProvider(null);
     }
-  };
-
-  // Legacy handler for wallet login (kept for compatibility)
-  const handleLogin = async () => {
-    await handleLoginWithProvider("google");
   };
 
   return (
@@ -454,68 +549,106 @@ export function LandingPage() {
 
       {/* Bottom Buttons */}
       <div className="relative z-10 space-y-3 pb-12 px-6 max-w-sm mx-auto w-full">
-        {/* Sign in with Apple */}
-        <Button
-          size="lg"
-          onClick={() => handleLoginWithProvider("apple")}
-          disabled={!privyReady || oauthLoading || isRedirecting}
-          className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
-        >
-          {loadingProvider !== null && loadingProvider === "apple" ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>
-                {isCreatingWallet ? "Creating wallet..." : "Connecting..."}
-              </span>
-            </>
-          ) : (
-            <>
-              <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.08-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              <span>Continue with Apple</span>
-            </>
-          )}
-        </Button>
+        {/* Show loading state for Farcaster auto-login */}
+        {(isFarcasterLoggingIn || isFarcasterCheckingProfile) && (
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-white" />
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-white">
+                {isFarcasterLoggingIn
+                  ? "Connecting with Farcaster..."
+                  : "Retrieving your profile..."}
+              </p>
+              <p className="text-sm text-white/60">
+                {isFarcasterLoggingIn
+                  ? "Please wait while we authenticate"
+                  : "Setting up your account"}
+              </p>
+            </div>
+          </div>
+        )}
 
-        {/* Sign in with Google */}
-        <Button
-          size="lg"
-          onClick={() => handleLoginWithProvider("google")}
-          disabled={!privyReady || oauthLoading || isRedirecting}
-          className="w-full rounded-full bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 border border-white/10 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
-        >
-          {loadingProvider !== null && loadingProvider === "google" ? (
+        {/* Hide Google/Apple buttons when in Farcaster Mini App */}
+        {!isInsideFarcaster &&
+          !isFarcasterLoggingIn &&
+          !isFarcasterCheckingProfile && (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>
-                {isCreatingWallet ? "Creating wallet..." : "Connecting..."}
-              </span>
-            </>
-          ) : (
-            <>
-              <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              <span>Continue with Google</span>
+              {/* Sign in with Apple */}
+              <Button
+                size="lg"
+                onClick={() => handleLoginWithProvider("apple")}
+                disabled={!privyReady || oauthLoading || isRedirecting}
+                className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
+              >
+                {loadingProvider !== null && loadingProvider === "apple" ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>
+                      {isCreatingWallet
+                        ? "Creating wallet..."
+                        : "Connecting..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-8 h-8"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.08-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                    </svg>
+                    <span>Continue with Apple</span>
+                  </>
+                )}
+              </Button>
+
+              {/* Sign in with Google */}
+              <Button
+                size="lg"
+                onClick={() => handleLoginWithProvider("google")}
+                disabled={!privyReady || oauthLoading || isRedirecting}
+                className="w-full rounded-full bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 border border-white/10 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
+              >
+                {loadingProvider !== null && loadingProvider === "google" ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>
+                      {isCreatingWallet
+                        ? "Creating wallet..."
+                        : "Connecting..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-8 h-8"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      />
+                    </svg>
+                    <span>Continue with Google</span>
+                  </>
+                )}
+              </Button>
             </>
           )}
-        </Button>
       </div>
 
       {/* Footer */}
