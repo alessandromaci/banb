@@ -29,7 +29,9 @@ export default function CheckProfilePage() {
     (account) => account.type === "smart_wallet" || account.type === "wallet"
   );
   const smartWalletAddress =
-    smartWallet && "address" in smartWallet ? (smartWallet.address as string) : null;
+    smartWallet && "address" in smartWallet
+      ? (smartWallet.address as string)
+      : null;
 
   // Use smart wallet address if available, otherwise fall back to wagmi address
   const address = smartWalletAddress || wagmiAddress;
@@ -76,25 +78,11 @@ export default function CheckProfilePage() {
       return;
     }
 
-    // Wait for wallet address
+    // Wait for wallet address - don't create wallet here, let landing page handle it
     if (!address) {
-      // Check if user has a wallet, create one if not
-      const hasSmartWallet = user?.linkedAccounts?.some(
-        (account) => account.type === "smart_wallet" || account.type === "wallet"
-      );
-      const hasEmbeddedWallet = privyWallets.some(
-        (wallet) => wallet.walletClientType === "privy"
-      );
-
-      if (!hasSmartWallet && !hasEmbeddedWallet) {
-        createWallet().catch(() => {
-          // Silent fail - will retry
-        });
-      }
-
       setStatus("waiting");
 
-      // Safety timeout
+      // Safety timeout - wait for wallet from landing page
       const timeoutTimer = setTimeout(() => {
         setStatus("error");
         setError(

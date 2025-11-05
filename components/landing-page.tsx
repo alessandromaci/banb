@@ -1,33 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { sdk } from "@farcaster/miniapp-sdk";
 import {
   usePrivy,
   useWallets,
-  type ConnectedWallet,
-  useLoginWithOAuth,
   useCreateWallet,
+  useLogin,
 } from "@privy-io/react-auth";
 import { useLoginToMiniApp } from "@privy-io/react-auth/farcaster";
-import {
-  useAccountSafe as useAccount,
-  useSetActiveWalletSafe as useSetActiveWallet,
-} from "@/lib/use-account-safe";
+import { useAccountSafe as useAccount } from "@/lib/use-account-safe";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Loader2, Check, Wallet } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Loader2, Mail } from "lucide-react";
 import { useUser } from "@/lib/user-context";
 import { getProfileByAnyWallet } from "@/lib/profile";
 import { createProfile } from "@/lib/profile";
@@ -53,28 +40,28 @@ export function LandingPage() {
   const [displayedText, setDisplayedText] = useState("");
   const [phase, setPhase] = useState("pixelReveal"); // pixelReveal -> logoPause -> textReveal -> textPause -> loop
   const [isInsideFarcaster, setIsInsideFarcaster] = useState(false);
-  const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [loadingProvider, setLoadingProvider] = useState<
-    "google" | "twitter" | null
-  >(null);
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const [isPrivyLoginLoading, setIsPrivyLoginLoading] = useState(false);
   const [isFarcasterLoggingIn, setIsFarcasterLoggingIn] = useState(false);
   const [isFarcasterCheckingProfile, setIsFarcasterCheckingProfile] =
     useState(false);
-  const {
-    ready: privyReady,
-    authenticated,
-    connectWallet: privyConnectWallet,
-    user,
-  } = usePrivy();
+  const { ready: privyReady, authenticated, user } = usePrivy();
   const { setProfile } = useUser();
   const { wallets: privyWallets } = useWallets();
   const { createWallet } = useCreateWallet();
+  const hasHandledAuthRef = useRef(false);
 
-  const { initOAuth, loading: oauthLoading } = useLoginWithOAuth({
+  const { login } = useLogin({
     onComplete: async ({ user, isNewUser }) => {
-      // Check if user has an embedded wallet (smart wallet)
+      // Prevent duplicate calls - onComplete can fire multiple times
+      if (hasHandledAuthRef.current || isRedirecting) return;
+
+      hasHandledAuthRef.current = true;
+      setIsPrivyLoginLoading(false);
+      setIsRedirecting(true);
+
+      // Check if user has an embedded wallet (smart wallet) - reuse existing logic
       const hasSmartWallet = user?.linkedAccounts?.some(
         (account) =>
           account.type === "smart_wallet" || account.type === "wallet"
@@ -83,7 +70,7 @@ export function LandingPage() {
         (wallet) => wallet.walletClientType === "privy"
       );
 
-      // If user doesn't have a wallet, create one
+      // If user doesn't have a wallet, create one (only once)
       if (!hasSmartWallet && !hasEmbeddedWallet) {
         setIsCreatingWallet(true);
         try {
@@ -91,10 +78,10 @@ export function LandingPage() {
           setIsCreatingWallet(false);
         } catch (error) {
           setIsCreatingWallet(false);
+          console.error("Failed to create wallet:", error);
         }
       }
 
-      setIsRedirecting(true);
       // Redirect based on whether user is new or existing
       if (isNewUser) {
         router.push("/signup");
@@ -110,28 +97,14 @@ export function LandingPage() {
         router.push("/check-profile");
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Login failed", error);
+      setIsPrivyLoginLoading(false);
       setIsRedirecting(false);
-      setLoadingProvider(null);
     },
   });
 
-  // Detect OAuth callback and restore loadingProvider from URL params
-  useEffect(() => {
-    if (typeof window !== "undefined" && privyReady) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const provider = urlParams.get("privy_oauth_provider");
-      if (provider === "google" || provider === "twitter") {
-        // Restore the loading provider when coming back from OAuth
-        if (!loadingProvider) {
-          setLoadingProvider(provider as "google" | "twitter");
-        }
-      }
-    }
-  }, [privyReady, loadingProvider]);
-  const { wallets } = useWallets();
   const { address } = useAccount(); // Safe wrapper handles WagmiProvider not ready
-  const { setActiveWallet } = useSetActiveWallet();
   const { initLoginToMiniApp, loginToMiniApp } = useLoginToMiniApp();
   const router = useRouter();
 
@@ -351,58 +324,6 @@ export function LandingPage() {
     }
   }, [phase, currentTagline]);
 
-  // Handle wallet switching
-  const handleSwitchWallet = async (wallet: ConnectedWallet) => {
-    try {
-      await setActiveWallet(wallet);
-      setShowWalletSelector(false);
-      toast({
-        title: "Wallet switched",
-        description: `Now using ${wallet.address.slice(
-          0,
-          6
-        )}...${wallet.address.slice(-4)}`,
-      });
-    } catch {
-      toast({
-        title: "Failed to switch wallet",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle connecting new wallet
-  const handleConnectNewWallet = () => {
-    setShowWalletSelector(false);
-    privyConnectWallet?.();
-  };
-
-  // Helper to format wallet name
-  const getWalletDisplayName = (walletClientType: string | undefined) => {
-    if (!walletClientType) return "Other Wallet";
-    if (walletClientType === "privy") return "Embedded Wallet";
-    // Capitalize first letter
-    return walletClientType.charAt(0).toUpperCase() + walletClientType.slice(1);
-  };
-
-  // Handle email-first login with specific providers
-  const handleLoginWithProvider = async (provider: "google" | "twitter") => {
-    if (!privyReady || oauthLoading || isRedirecting || isInsideFarcaster)
-      return;
-
-    setLoadingProvider(provider);
-
-    try {
-      // Simple OAuth login - exactly like the Privy example
-      // The user will be redirected to OAuth provider's login page
-      // onComplete callback handles redirect
-      await initOAuth({ provider });
-    } catch {
-      setLoadingProvider(null);
-    }
-  };
-
   return (
     <div className="relative min-h-screen w-full bg-black overflow-hidden flex flex-col touch-none text-white">
       {/* Pixel Noise Background */}
@@ -568,19 +489,27 @@ export function LandingPage() {
           </div>
         )}
 
-        {/* Hide Google/Twitter buttons when in Farcaster Mini App */}
+        {/* Hide login button when in Farcaster Mini App */}
         {!isInsideFarcaster &&
           !isFarcasterLoggingIn &&
           !isFarcasterCheckingProfile && (
             <>
-              {/* Sign in with Twitter */}
+              {/* Continue with Privy Login Modal */}
               <Button
                 size="lg"
-                onClick={() => handleLoginWithProvider("twitter")}
-                disabled={!privyReady || oauthLoading || isRedirecting}
+                onClick={() => {
+                  setIsPrivyLoginLoading(true);
+                  login();
+                }}
+                disabled={
+                  !privyReady ||
+                  isPrivyLoginLoading ||
+                  isCreatingWallet ||
+                  isRedirecting
+                }
                 className="w-full rounded-full bg-white text-black hover:bg-white/90 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
               >
-                {loadingProvider !== null && loadingProvider === "twitter" ? (
+                {isPrivyLoginLoading || isCreatingWallet ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>
@@ -591,59 +520,22 @@ export function LandingPage() {
                   </>
                 ) : (
                   <>
-                    <svg
-                      className="w-8 h-8"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                    <span>Continue with X</span>
-                  </>
-                )}
-              </Button>
-
-              {/* Sign in with Google */}
-              <Button
-                size="lg"
-                onClick={() => handleLoginWithProvider("google")}
-                disabled={!privyReady || oauthLoading || isRedirecting}
-                className="w-full rounded-full bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 border border-white/10 h-12 text-base font-semibold transition-all duration-300 relative flex items-center justify-center gap-2"
-              >
-                {loadingProvider !== null && loadingProvider === "google" ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>
-                      {isCreatingWallet
-                        ? "Creating wallet..."
-                        : "Connecting..."}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <svg
-                      className="w-8 h-8"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    <span>Continue with</span>
+                    <div className="flex items-center gap-1.5">
+                      <Image
+                        src="/gmail.svg"
+                        alt="Gmail"
+                        width={15}
+                        height={15}
                       />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      <Image
+                        src="/apple.svg"
+                        alt="Apple"
+                        width={15}
+                        height={15}
                       />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                    <span>Continue with Google</span>
+                      <Mail className="w-4 h-4" />
+                    </div>
                   </>
                 )}
               </Button>
@@ -720,85 +612,6 @@ export function LandingPage() {
           }
         }
       `}</style>
-
-      {/* Wallet Selector Dialog */}
-      <Dialog open={showWalletSelector} onOpenChange={setShowWalletSelector}>
-        <DialogContent className="bg-black/95 border border-white/10 text-white backdrop-blur-xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
-              Choose Wallet
-            </DialogTitle>
-            <DialogDescription className="text-white/60">
-              Select a wallet to continue or connect a new one
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 mt-4">
-            {/* Existing Wallets */}
-            {wallets.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-white/80">
-                  Your Wallets
-                </h3>
-                <div
-                  className={`space-y-2 ${
-                    wallets.length > 2
-                      ? "max-h-[200px] overflow-y-auto pr-2"
-                      : ""
-                  }`}
-                >
-                  {wallets.map((wallet) => (
-                    <Card
-                      key={wallet.address}
-                      onClick={() => handleSwitchWallet(wallet)}
-                      className={`p-4 cursor-pointer transition-all hover:bg-white/10 ${
-                        wallet.address === address
-                          ? "bg-white/10 border-white/30"
-                          : "bg-white/5 border-white/10"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                            <Wallet className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-white">
-                              {getWalletDisplayName(wallet.walletClientType)}
-                            </p>
-                            <p className="text-xs text-white/60 font-mono">
-                              {wallet.address.slice(0, 6)}...
-                              {wallet.address.slice(-4)}
-                            </p>
-                          </div>
-                        </div>
-                        {wallet.address === address && (
-                          <Check className="w-5 h-5 text-green-400" />
-                        )}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Connect New Wallet */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-white/80">
-                Or Connect New
-              </h3>
-              <Button
-                onClick={handleConnectNewWallet}
-                className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20"
-                variant="outline"
-              >
-                <Wallet className="w-4 h-4 mr-2" />
-                Connect External Wallet
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

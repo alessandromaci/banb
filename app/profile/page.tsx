@@ -34,7 +34,7 @@ import { updateProfileName, deleteProfile } from "@/lib/profile";
 import { getAccountsByProfile, updateAccount } from "@/lib/accounts";
 import { type Account } from "@/lib/supabase";
 import { useSetActiveWalletSafe } from "@/lib/use-account-safe";
-import { useWallets, usePrivy } from "@privy-io/react-auth";
+import { useWallets, usePrivy, useLogout } from "@privy-io/react-auth";
 import { toast } from "sonner";
 
 export default function ProfilePage() {
@@ -113,11 +113,13 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    setProfile(null);
-    localStorage.removeItem("user_profile");
-    router.push("/");
-  };
+  const { logout: handleLogout } = useLogout({
+    onSuccess: () => {
+      setProfile(null);
+      localStorage.removeItem("user_profile");
+      router.push("/");
+    },
+  });
 
   const handleExploreBaseScan = () => {
     if (profile?.wallet_address) {
