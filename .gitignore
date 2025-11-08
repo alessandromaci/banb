@@ -31,7 +31,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
 
 # vercel
 .vercel
@@ -50,3 +50,6 @@ scripts
 .idea/codeStyles/codeStyleConfig.xml
 .idea/codeStyles/Project.xml
 .idea/inspectionProfiles/Project_Default.xml
+
+.claude
+CLAUDE.md
